@@ -83,12 +83,16 @@ export type FindAccountInput = LedgerScope & {
 };
 
 export type AccountRepository = {
-  readonly createAccount: (input: CreateAccountInput) => Promise<CreateAccountResult>;
-  readonly archiveAccount: (input: ArchiveAccountInput) => Promise<AccountRecord | null>;
-  readonly findAccount: (input: FindAccountInput) => Promise<AccountRecord | null>;
-  readonly listAccounts: (scope: LedgerScope) => Promise<readonly AccountRecord[]>;
-  readonly getAccountBalance: (input: FindAccountInput) => Promise<AccountBalanceRecord | null>;
+  readonly createAccount: (input: CreateAccountInput) => MaybePromise<CreateAccountResult>;
+  readonly archiveAccount: (input: ArchiveAccountInput) => MaybePromise<AccountRecord | null>;
+  readonly findAccount: (input: FindAccountInput) => MaybePromise<AccountRecord | null>;
+  readonly listAccounts: (scope: LedgerScope) => MaybePromise<readonly AccountRecord[]>;
+  readonly getAccountBalance: (
+    input: FindAccountInput,
+  ) => MaybePromise<AccountBalanceRecord | null>;
 };
+
+type MaybePromise<T> = T | Promise<T>;
 
 type ResolvedOptions = {
   readonly clock: RepositoryClock;
@@ -140,7 +144,7 @@ export function createSqliteAccountRepository(
   const resolved = resolveOptions(options);
 
   return {
-    async createAccount(input) {
+    createAccount(input) {
       const scope = assertLedgerScope(input);
       const normalized = normalizeCreateAccountInput(input);
       const now = makeTimestamp(resolved.clock);
@@ -175,7 +179,7 @@ export function createSqliteAccountRepository(
         .immediate();
     },
 
-    async archiveAccount(input) {
+    archiveAccount(input) {
       const scope = assertLedgerScope(input);
       const archivedAt = makeTimestamp(resolved.clock);
       const row = client
@@ -195,7 +199,7 @@ export function createSqliteAccountRepository(
       return row ? toSqliteAccountRecord(row) : null;
     },
 
-    async findAccount(input) {
+    findAccount(input) {
       const scope = assertLedgerScope(input);
       const row = prepareSqliteMoneyStatement<SqliteAccountRow>(
         client,
@@ -212,7 +216,7 @@ export function createSqliteAccountRepository(
       return row ? toSqliteAccountRecord(row) : null;
     },
 
-    async listAccounts(scopeInput) {
+    listAccounts(scopeInput) {
       const scope = assertLedgerScope(scopeInput);
       const rows = prepareSqliteMoneyStatement<SqliteAccountRow>(
         client,
@@ -228,7 +232,7 @@ export function createSqliteAccountRepository(
       return rows.map(toSqliteAccountRecord);
     },
 
-    async getAccountBalance(input) {
+    getAccountBalance(input) {
       const scope = assertLedgerScope(input);
       const row = prepareSqliteMoneyStatement<SqliteBalanceRow>(
         client,
@@ -274,7 +278,7 @@ export function createSqliteAccountRepository(
 }
 
 export function createPostgresAccountRepository(
-  db: PostgresDatabase,
+  db: PostgresExecutor,
   options?: AccountRepositoryOptions,
 ): AccountRepository {
   const resolved = resolveOptions(options);
@@ -284,7 +288,7 @@ export function createPostgresAccountRepository(
       const scope = assertLedgerScope(input);
       const normalized = normalizeCreateAccountInput(input);
 
-      return db.transaction(async (tx) => {
+      return runPostgresWrite(db, async (tx) => {
         const now = resolved.clock.now();
         await assertPostgresLedgerScope(tx, scope);
         const accountRow = assertCreated(
@@ -952,6 +956,13 @@ function toNullableIsoString(value: Date | string | null): string | null {
 
 function toRequiredIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function runPostgresWrite<TResult>(
+  db: PostgresExecutor,
+  callback: (tx: PostgresExecutor) => Promise<TResult>,
+): Promise<TResult> {
+  return "transaction" in db ? db.transaction(callback) : callback(db);
 }
 
 function extractRows(result: unknown): readonly unknown[] {

@@ -82,8 +82,12 @@ export type TransactionGroupRecord = {
 };
 
 export type TransactionWriteRepository = {
-  readonly createTransaction: (input: CreateTransactionInput) => Promise<TransactionGroupRecord>;
+  readonly createTransaction: (
+    input: CreateTransactionInput,
+  ) => MaybePromise<TransactionGroupRecord>;
 };
+
+type MaybePromise<T> = T | Promise<T>;
 
 export type TransactionQueryTypeFilter = Extract<
   UserFacingTransactionType,
@@ -210,7 +214,7 @@ export function createSqliteTransactionWriteRepository(
   const resolved = resolveOptions(options);
 
   return {
-    async createTransaction(input) {
+    createTransaction(input) {
       const scope = assertLedgerScope(input);
       const normalized = normalizeCreateTransactionInput(input);
       const now = makeTimestamp(resolved.clock);
@@ -263,7 +267,7 @@ export function createSqliteTransactionWriteRepository(
 }
 
 export function createPostgresTransactionWriteRepository(
-  db: PostgresDatabase,
+  db: PostgresExecutor,
   options?: TransactionWriteRepositoryOptions,
 ): TransactionWriteRepository {
   const resolved = resolveOptions(options);
@@ -273,7 +277,7 @@ export function createPostgresTransactionWriteRepository(
       const scope = assertLedgerScope(input);
       const normalized = normalizeCreateTransactionInput(input);
 
-      return db.transaction(async (tx) => {
+      return runPostgresWrite(db, async (tx) => {
         const now = resolved.clock.now();
         await assertPostgresLedgerScope(tx, scope);
         const sourceAccount = await readPostgresAccountForTransaction(
@@ -1194,6 +1198,13 @@ function readPostgresMoneyMinor(value: unknown): bigint {
 
 function toRequiredIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function runPostgresWrite<TResult>(
+  db: PostgresExecutor,
+  callback: (tx: PostgresExecutor) => Promise<TResult>,
+): Promise<TResult> {
+  return "transaction" in db ? db.transaction(callback) : callback(db);
 }
 
 function extractRows(result: unknown): readonly unknown[] {

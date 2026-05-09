@@ -143,21 +143,21 @@ describe("account repository", () => {
         expect(result.openingBalanceGroupId).not.toBeNull();
         expect(result.openingBalanceJournalId).not.toBeNull();
 
-        await expect(
-          accountRepository.findAccount({
+        expect(
+          await accountRepository.findAccount({
             accountId: result.account.id,
             ledgerId: workspaceState.ledger.id,
             workspaceId: workspaceState.workspace.id,
           }),
-        ).resolves.toMatchObject({ id: result.account.id, name: "Checking" });
+        ).toMatchObject({ id: result.account.id, name: "Checking" });
 
-        await expect(
-          accountRepository.getAccountBalance({
+        expect(
+          await accountRepository.getAccountBalance({
             accountId: result.account.id,
             ledgerId: workspaceState.ledger.id,
             workspaceId: workspaceState.workspace.id,
           }),
-        ).resolves.toMatchObject({
+        ).toMatchObject({
           accountId: result.account.id,
           balanceMinor: 250_000n,
           currencyCode: "INR",
@@ -198,13 +198,13 @@ describe("account repository", () => {
         });
 
         expect(result.openingBalanceGroupId).not.toBeNull();
-        await expect(
-          accountRepository.getAccountBalance({
+        expect(
+          await accountRepository.getAccountBalance({
             accountId: result.account.id,
             ledgerId: workspaceState.ledger.id,
             workspaceId: workspaceState.workspace.id,
           }),
-        ).resolves.toMatchObject({ balanceMinor: 0n, reportingBalanceMinor: 0n });
+        ).toMatchObject({ balanceMinor: 0n, reportingBalanceMinor: 0n });
       });
     });
 
@@ -225,13 +225,13 @@ describe("account repository", () => {
           workspaceId: workspaceState.workspace.id,
         };
 
-        await expect(accountRepository.archiveAccount(scope)).resolves.toMatchObject({
+        expect(await accountRepository.archiveAccount(scope)).toMatchObject({
           archivedAt: "2026-05-09T10:11:12.000Z",
           id: result.account.id,
           isActive: false,
         });
-        await expect(accountRepository.archiveAccount(scope)).resolves.toBeNull();
-        await expect(accountRepository.findAccount(scope)).resolves.toMatchObject({
+        expect(await accountRepository.archiveAccount(scope)).toBeNull();
+        expect(await accountRepository.findAccount(scope)).toMatchObject({
           id: result.account.id,
           isActive: false,
         });

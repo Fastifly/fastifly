@@ -12,4 +12,6 @@ export type AuditAction =
   | "workspace_member.role_changed"
   | "workspace_member.removed"
   | "ledger.created"
+  | "account.created"
+  | "transaction.created"
   | "job.enqueued";

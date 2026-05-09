@@ -139,6 +139,15 @@ export {
 } from "./repositories/transactions.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
 export type {
+  CreateAccountMutationInput,
+  CreateAccountMutationPayload,
+  CreateTransactionMutationInput,
+  CreateTransactionMutationPayload,
+  LedgerFinanceMutationService,
+  LedgerFinanceMutationServiceOptions,
+} from "./services/finance-mutations.js";
+export { createLedgerFinanceMutationService } from "./services/finance-mutations.js";
+export type {
   SqliteClient,
   SqliteClientConfig,
   SqliteDatabase,

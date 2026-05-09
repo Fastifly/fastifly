@@ -172,20 +172,20 @@ describe("transaction write repository", () => {
             12_000n,
           ]);
 
-          await expect(
-            accountRepository.getAccountBalance({
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.bank.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: -12_000n });
-          await expect(
-            accountRepository.getAccountBalance({
+          ).toMatchObject({ balanceMinor: -12_000n });
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.groceries.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: 12_000n });
+          ).toMatchObject({ balanceMinor: 12_000n });
           await expect(readBalanceDirtyCount(rawDb)).resolves.toBe(2);
         },
       );
@@ -227,13 +227,13 @@ describe("transaction write repository", () => {
             "Food",
             "Household",
           ]);
-          await expect(
-            accountRepository.getAccountBalance({
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.bank.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: -12_000n });
+          ).toMatchObject({ balanceMinor: -12_000n });
           await expect(readBalanceDirtyCount(rawDb)).resolves.toBe(3);
         },
       );
@@ -275,27 +275,27 @@ describe("transaction write repository", () => {
             workspaceId: workspaceState.workspace.id,
           });
 
-          await expect(
-            accountRepository.getAccountBalance({
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.bank.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: 90_000n });
-          await expect(
-            accountRepository.getAccountBalance({
+          ).toMatchObject({ balanceMinor: 90_000n });
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.salary.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: -100_000n });
-          await expect(
-            accountRepository.getAccountBalance({
+          ).toMatchObject({ balanceMinor: -100_000n });
+          expect(
+            await accountRepository.getAccountBalance({
               accountId: accounts.wallet.id,
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
             }),
-          ).resolves.toMatchObject({ balanceMinor: 10_000n });
+          ).toMatchObject({ balanceMinor: 10_000n });
         },
       );
     });
@@ -309,16 +309,18 @@ describe("transaction write repository", () => {
           );
 
           await expect(
-            transactionRepository.createTransaction({
-              currencyCode: "INR",
-              description: "Invalid direction",
-              ledgerId: workspaceState.ledger.id,
-              lines: [{ amountMinor: 1_000n, destinationAccountId: accounts.bank.id }],
-              occurredAt: "2026-05-09T12:00:00.000Z",
-              sourceAccountId: accounts.groceries.id,
-              type: "expense",
-              workspaceId: workspaceState.workspace.id,
-            }),
+            Promise.resolve().then(() =>
+              transactionRepository.createTransaction({
+                currencyCode: "INR",
+                description: "Invalid direction",
+                ledgerId: workspaceState.ledger.id,
+                lines: [{ amountMinor: 1_000n, destinationAccountId: accounts.bank.id }],
+                occurredAt: "2026-05-09T12:00:00.000Z",
+                sourceAccountId: accounts.groceries.id,
+                type: "expense",
+                workspaceId: workspaceState.workspace.id,
+              }),
+            ),
           ).rejects.toThrow("Transaction accounts do not match");
           await expect(readTransactionGroupCount(rawDb)).resolves.toBe(0);
         },
@@ -334,23 +336,25 @@ describe("transaction write repository", () => {
           );
 
           await expect(
-            transactionRepository.createTransaction({
-              currencyCode: "INR",
-              description: "Converted reporting",
-              ledgerId: workspaceState.ledger.id,
-              lines: [
-                {
-                  amountMinor: 1_000n,
-                  destinationAccountId: accounts.groceries.id,
-                  reportingAmountMinor: 12n,
-                  reportingCurrencyCode: "USD",
-                },
-              ],
-              occurredAt: "2026-05-09T12:00:00.000Z",
-              sourceAccountId: accounts.bank.id,
-              type: "expense",
-              workspaceId: workspaceState.workspace.id,
-            }),
+            Promise.resolve().then(() =>
+              transactionRepository.createTransaction({
+                currencyCode: "INR",
+                description: "Converted reporting",
+                ledgerId: workspaceState.ledger.id,
+                lines: [
+                  {
+                    amountMinor: 1_000n,
+                    destinationAccountId: accounts.groceries.id,
+                    reportingAmountMinor: 12n,
+                    reportingCurrencyCode: "USD",
+                  },
+                ],
+                occurredAt: "2026-05-09T12:00:00.000Z",
+                sourceAccountId: accounts.bank.id,
+                type: "expense",
+                workspaceId: workspaceState.workspace.id,
+              }),
+            ),
           ).rejects.toThrow("Converted reporting amounts require cross-currency");
         },
       );
