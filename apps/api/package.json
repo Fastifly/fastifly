@@ -3,22 +3,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('api scaffold: dev server not implemented yet')\"",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "node -e \"console.log('api scaffold: no tests yet')\"",
-    "test:sqlite": "node -e \"console.log('api scaffold: sqlite tests not implemented yet')\"",
-    "test:postgres": "node -e \"console.log('api scaffold: postgres tests not implemented yet')\""
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:sqlite": "vitest run",
+    "test:postgres": "vitest run"
   },
   "dependencies": {
     "@fastifly/authz": "workspace:*",
     "@fastifly/common": "workspace:*",
     "@fastifly/config": "workspace:*",
-    "@fastifly/db": "workspace:*"
+    "@fastifly/db": "workspace:*",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/csrf-protection": "^7.1.0",
+    "@fastify/swagger": "^9.7.0",
+    "@scalar/fastify-api-reference": "^1.55.3",
+    "fastify": "^5.8.5",
+    "fastify-type-provider-zod": "^6.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^24.12.3",
+    "tsx": "^4.21.0",
     "typescript": "latest"
   }
 }

@@ -1,0 +1,106 @@
+import { ApiErrorSchema, isSyncedId, ValidationErrorSchema } from "@fastifly/common";
+import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod/v4";
+
+import { buildApiApp } from "../app.js";
+
+const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
+
+async function makeApp() {
+  const app = await buildApiApp({
+    config: { logLevel: "silent", nodeEnv: "test" },
+    readiness: { migrations: "ok" },
+  });
+  apps.push(app);
+  return app;
+}
+
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => app.close()));
+});
+
+describe("Fastifly API app", () => {
+  it("serves health and readiness with stable request identifiers", async () => {
+    const app = await makeApp();
+
+    const health = await app.inject({ method: "GET", url: "/health" });
+    expect(health.statusCode).toBe(200);
+    expect(health.json()).toMatchObject({
+      status: "ok",
+      service: "fastifly-api",
+    });
+    expect(isSyncedId(health.json<{ requestId: string }>().requestId)).toBe(true);
+
+    const ready = await app.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json()).toMatchObject({
+      status: "ready",
+      checks: {
+        config: "ok",
+        migrations: "ok",
+      },
+    });
+  });
+
+  it("exposes an OpenAPI document generated from registered routes", async () => {
+    const app = await makeApp();
+    await app.ready();
+
+    const response = await app.inject({ method: "GET", url: "/api/openapi.json" });
+    expect(response.statusCode).toBe(200);
+
+    const document = response.json<{
+      openapi: string;
+      paths: Record<string, unknown>;
+    }>();
+    expect(document.openapi).toMatch(/^3\./);
+    expect(document.paths).toHaveProperty("/health");
+    expect(document.paths).toHaveProperty("/ready");
+  });
+
+  it("returns standard not-found errors", async () => {
+    const app = await makeApp();
+
+    const response = await app.inject({ method: "GET", url: "/missing" });
+    expect(response.statusCode).toBe(404);
+    expect(() => ApiErrorSchema.parse(response.json())).not.toThrow();
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "NOT_FOUND",
+        details: {
+          path: "/missing",
+        },
+      },
+    });
+  });
+
+  it("maps Zod validation errors to standard field errors", async () => {
+    const app = await makeApp();
+    app.route({
+      method: "POST",
+      url: "/test/validation",
+      schema: {
+        body: z
+          .object({
+            name: z.string().min(2),
+          })
+          .strict(),
+      },
+      handler: () => ({ ok: true }),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/test/validation",
+      payload: { name: "" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(() => ValidationErrorSchema.parse(response.json())).not.toThrow();
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+      },
+    });
+  });
+});
