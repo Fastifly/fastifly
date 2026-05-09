@@ -117,6 +117,19 @@ export {
   createSqliteIdentityRepository,
   normalizeUsername,
 } from "./repositories/identity.js";
+export type {
+  CreateTransactionInput,
+  CreateTransactionLineInput,
+  TransactionGroupRecord,
+  TransactionJournalRecord,
+  TransactionPostingRecord,
+  TransactionWriteRepository,
+  TransactionWriteRepositoryOptions,
+} from "./repositories/transactions.js";
+export {
+  createPostgresTransactionWriteRepository,
+  createSqliteTransactionWriteRepository,
+} from "./repositories/transactions.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
 export type {
   SqliteClient,
