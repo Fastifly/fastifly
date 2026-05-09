@@ -1,7 +1,12 @@
 import { defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7 } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
-import type { IdentityRepository, LedgerFinanceMutationService } from "@fastifly/db";
+import type {
+  AccountRepository,
+  IdentityRepository,
+  LedgerFinanceMutationService,
+  TransactionQueryService,
+} from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
 import fastifySwagger from "@fastify/swagger";
@@ -21,10 +26,12 @@ import { registerFinanceRoutes } from "./routes/finance.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 
 export type BuildApiAppOptions = {
+  readonly accountRepository?: AccountRepository;
   readonly config?: Partial<ApiConfig>;
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
+  readonly transactionQueryService?: TransactionQueryService;
   readonly webAuthnAdapter?: WebAuthnAdapter;
 };
 
@@ -115,9 +122,15 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     });
   }
 
-  if (options.financeMutationService) {
+  if (
+    options.accountRepository ||
+    options.financeMutationService ||
+    options.transactionQueryService
+  ) {
     await registerFinanceRoutes(app, {
+      accountRepository: options.accountRepository,
       financeMutationService: options.financeMutationService,
+      transactionQueryService: options.transactionQueryService,
     });
   }
 

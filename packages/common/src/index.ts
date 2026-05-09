@@ -10,11 +10,17 @@ export {
 export type { CreateAccountRequest, CreateTransactionRequest } from "./api/finance.js";
 export {
   AccountResponseSchema,
+  AccountWithBalanceResponseSchema,
   ArchiveAccountResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
   CreateTransactionRequestSchema,
   CreateTransactionResponseSchema,
+  GetAccountResponseSchema,
+  GetTransactionResponseSchema,
+  ListAccountsResponseSchema,
+  ListTransactionsQuerySchema,
+  ListTransactionsResponseSchema,
   TransactionGroupResponseSchema,
   TransactionJournalResponseSchema,
   TransactionLineRequestSchema,

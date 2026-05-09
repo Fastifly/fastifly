@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import { SyncedIdSchema } from "../ids.js";
-import { AmountMinorStringSchema, CurrencyCodeSchema } from "../money.js";
+import { AmountMinorStringSchema, CurrencyCodeSchema, MoneyAmountSchema } from "../money.js";
 import { AccountKindSchema, AccountSubtypeSchema } from "../product-rules/accounts.js";
+import { paginatedResponseSchema } from "./pagination.js";
 
 export const AccountResponseSchema = z.strictObject({
   archivedAt: z.string().nullable(),
@@ -18,6 +19,11 @@ export const AccountResponseSchema = z.strictObject({
   subtype: AccountSubtypeSchema,
   updatedAt: z.string(),
   workspaceId: SyncedIdSchema,
+});
+
+export const AccountWithBalanceResponseSchema = AccountResponseSchema.extend({
+  balance: MoneyAmountSchema,
+  reportingBalance: MoneyAmountSchema,
 });
 
 export const CreateAccountRequestSchema = z.strictObject({
@@ -40,6 +46,14 @@ export const CreateAccountResponseSchema = z.strictObject({
 export const ArchiveAccountResponseSchema = z.strictObject({
   data: z.strictObject({
     account: AccountResponseSchema,
+  }),
+});
+
+export const ListAccountsResponseSchema = paginatedResponseSchema(AccountWithBalanceResponseSchema);
+
+export const GetAccountResponseSchema = z.strictObject({
+  data: z.strictObject({
+    account: AccountWithBalanceResponseSchema,
   }),
 });
 
@@ -101,6 +115,25 @@ export const TransactionGroupResponseSchema = z.strictObject({
 });
 
 export const CreateTransactionResponseSchema = z.strictObject({
+  data: z.strictObject({
+    transactionGroup: TransactionGroupResponseSchema,
+  }),
+});
+
+export const ListTransactionsQuerySchema = z.strictObject({
+  accountId: SyncedIdSchema.optional(),
+  fromOccurredAt: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.enum(["pending", "cleared", "reconciled", "void"]).optional(),
+  toOccurredAt: z.string().min(1).optional(),
+  type: z.enum(["expense", "income", "transfer"]).optional(),
+});
+
+export const ListTransactionsResponseSchema = paginatedResponseSchema(
+  TransactionGroupResponseSchema,
+);
+
+export const GetTransactionResponseSchema = z.strictObject({
   data: z.strictObject({
     transactionGroup: TransactionGroupResponseSchema,
   }),

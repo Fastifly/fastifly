@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { makeValidationError } from "../api/errors.js";
-import { CreateTransactionRequestSchema } from "../api/finance.js";
+import {
+  CreateTransactionRequestSchema,
+  ListAccountsResponseSchema,
+  ListTransactionsResponseSchema,
+} from "../api/finance.js";
 import {
   IDEMPOTENCY_KEY_HEADER,
   IDEMPOTENCY_REPLAYED_HEADER,
@@ -92,9 +96,87 @@ describe("API contract schemas", () => {
     ).toBe(false);
   });
 
+  it("keeps finance read contracts strict about derived balances", () => {
+    expect(
+      ListAccountsResponseSchema.parse({
+        data: [
+          {
+            archivedAt: null,
+            balance: { amountMinor: "25000", currencyCode: "INR" },
+            createdAt: "2026-05-09T00:00:00.000Z",
+            currencyCode: "INR",
+            id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+            isActive: true,
+            kind: "asset",
+            ledgerId: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+            name: "Bank",
+            openingBalanceDate: null,
+            openingBalanceMinor: null,
+            reportingBalance: { amountMinor: "25000", currencyCode: "INR" },
+            subtype: "bank",
+            updatedAt: "2026-05-09T00:00:00.000Z",
+            workspaceId: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
+          },
+        ],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          nextCursor: null,
+          previousCursor: null,
+        },
+      }).data[0]?.balance,
+    ).toEqual({ amountMinor: "25000", currencyCode: "INR" });
+
+    expect(
+      ListTransactionsResponseSchema.safeParse({
+        data: [
+          {
+            id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+            journals: [
+              {
+                description: "Groceries",
+                id: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+                occurredAt: "2026-05-09T08:00:00.000Z",
+                postings: [
+                  {
+                    accountId: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
+                    amountMinor: "-12000",
+                    currencyCode: "INR",
+                    id: "019dfbac-3319-7773-9a7d-52fb8d9b73e9",
+                    reportingAmountMinor: "-12000",
+                    reportingCurrencyCode: "INR",
+                  },
+                  {
+                    accountId: "019dfbac-3319-7773-9a7d-52fb8d9b73ea",
+                    amountMinor: 12_000,
+                    currencyCode: "INR",
+                    id: "019dfbac-3319-7773-9a7d-52fb8d9b73eb",
+                    reportingAmountMinor: "12000",
+                    reportingCurrencyCode: "INR",
+                  },
+                ],
+                type: "expense",
+              },
+            ],
+            ledgerId: "019dfbac-3319-7773-9a7d-52fb8d9b73ec",
+            title: "Groceries",
+            type: "expense",
+            workspaceId: "019dfbac-3319-7773-9a7d-52fb8d9b73ed",
+          },
+        ],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          nextCursor: null,
+          previousCursor: null,
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it("creates strict paginated response schemas", () => {
     const AccountListSchema = paginatedResponseSchema(
-      z.object({ id: z.string(), name: z.string() }).strict(),
+      z.strictObject({ id: z.string(), name: z.string() }),
     );
 
     expect(

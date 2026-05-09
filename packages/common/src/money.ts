@@ -40,12 +40,10 @@ export const AmountMinorStringSchema = z.string().superRefine((value, ctx) => {
 
 export type AmountMinorString = z.infer<typeof AmountMinorStringSchema>;
 
-export const MoneyAmountSchema = z
-  .object({
-    amountMinor: AmountMinorStringSchema,
-    currencyCode: CurrencyCodeSchema,
-  })
-  .strict();
+export const MoneyAmountSchema = z.strictObject({
+  amountMinor: AmountMinorStringSchema,
+  currencyCode: CurrencyCodeSchema,
+});
 
 export type MoneyAmount = z.infer<typeof MoneyAmountSchema>;
 

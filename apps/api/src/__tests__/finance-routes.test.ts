@@ -1,9 +1,11 @@
 import { createUuidV7, IDEMPOTENCY_REPLAYED_HEADER, type SyncedId } from "@fastifly/common";
 import type {
+  AccountRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
   LedgerMutationRunResult,
   SessionRecord,
+  TransactionQueryService,
   UserRecord,
   UserWorkspaceContextRecord,
 } from "@fastifly/db";
@@ -206,18 +208,38 @@ async function makeTransactionResult(): Promise<LedgerMutationRunResult> {
   };
 }
 
-async function makeApp(role: UserWorkspaceContextRecord["activeWorkspace"]["role"] = "editor") {
+type MakeAppServices = {
+  readonly accountRepository?: AccountRepository;
+  readonly financeMutationService?: LedgerFinanceMutationService;
+  readonly transactionQueryService?: TransactionQueryService;
+};
+
+async function makeApp(
+  role: UserWorkspaceContextRecord["activeWorkspace"]["role"] = "editor",
+  createServices?: (state: ReturnType<typeof createUserWorkspaceContext>) => MakeAppServices,
+) {
   const state = createUserWorkspaceContext(role);
-  const financeMutationService = makeFinanceMutationService();
+  const services = createServices?.(state);
+  const financeMutationService = services?.financeMutationService ?? makeFinanceMutationService();
   const app = await buildApiApp({
+    ...(services?.accountRepository ? { accountRepository: services.accountRepository } : {}),
     config: { logLevel: "silent", nodeEnv: "test" },
     financeMutationService,
     identityRepository: makeIdentityRepository(state),
     readiness: { migrations: "ok" },
+    ...(services?.transactionQueryService
+      ? { transactionQueryService: services.transactionQueryService }
+      : {}),
   });
   apps.push(app);
 
-  return { app, financeMutationService, state };
+  return {
+    accountRepository: services?.accountRepository,
+    app,
+    financeMutationService,
+    state,
+    transactionQueryService: services?.transactionQueryService,
+  };
 }
 
 function sessionCookie(): string {
@@ -230,6 +252,123 @@ afterEach(async () => {
 });
 
 describe("finance routes", () => {
+  it("lists accounts with derived balances for viewers", async () => {
+    const accountId = createId();
+    const { accountRepository, app, state } = await makeApp("viewer", ({ context }) => {
+      const account = {
+        archivedAt: null,
+        createdAt: "2026-05-09T00:00:00.000Z",
+        currencyCode: "INR",
+        id: accountId,
+        isActive: true,
+        kind: "asset" as const,
+        ledgerId: context.activeLedger.id,
+        name: "Bank",
+        openingBalanceDate: null,
+        openingBalanceMinor: null,
+        subtype: "bank" as const,
+        updatedAt: "2026-05-09T00:00:00.000Z",
+        workspaceId: context.activeWorkspace.id,
+      };
+
+      return {
+        accountRepository: {
+          archiveAccount: vi.fn(),
+          createAccount: vi.fn(),
+          findAccount: vi.fn(async () => account),
+          getAccountBalance: vi.fn(async () => ({
+            accountId,
+            balanceMinor: 25_000n,
+            currencyCode: "INR",
+            reportingBalanceMinor: 25_000n,
+            reportingCurrencyCode: "INR",
+          })),
+          listAccounts: vi.fn(async () => [account]),
+        } as AccountRepository,
+      };
+    });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/accounts`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: [
+        {
+          balance: { amountMinor: "25000", currencyCode: "INR" },
+          id: accountId,
+          reportingBalance: { amountMinor: "25000", currencyCode: "INR" },
+        },
+      ],
+      pageInfo: {
+        hasNextPage: false,
+        hasPreviousPage: false,
+        nextCursor: null,
+        previousCursor: null,
+      },
+    });
+    expect(accountRepository?.listAccounts).toHaveBeenCalledWith({
+      ledgerId: state.context.activeLedger.id,
+      workspaceId: state.context.activeWorkspace.id,
+    });
+  });
+
+  it("returns account detail with a derived balance", async () => {
+    const accountId = createId();
+    const { app, state } = await makeApp("viewer", ({ context }) => {
+      const account = {
+        archivedAt: null,
+        createdAt: "2026-05-09T00:00:00.000Z",
+        currencyCode: "INR",
+        id: accountId,
+        isActive: true,
+        kind: "asset" as const,
+        ledgerId: context.activeLedger.id,
+        name: "Bank",
+        openingBalanceDate: null,
+        openingBalanceMinor: null,
+        subtype: "bank" as const,
+        updatedAt: "2026-05-09T00:00:00.000Z",
+        workspaceId: context.activeWorkspace.id,
+      };
+
+      return {
+        accountRepository: {
+          archiveAccount: vi.fn(),
+          createAccount: vi.fn(),
+          findAccount: vi.fn(async () => account),
+          getAccountBalance: vi.fn(async () => ({
+            accountId,
+            balanceMinor: 99_000n,
+            currencyCode: "INR",
+            reportingBalanceMinor: 99_000n,
+            reportingCurrencyCode: "INR",
+          })),
+          listAccounts: vi.fn(),
+        } as AccountRepository,
+      };
+    });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/accounts/${accountId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: {
+        account: {
+          balance: { amountMinor: "99000", currencyCode: "INR" },
+          id: accountId,
+        },
+      },
+    });
+  });
+
   it("creates accounts through the finance mutation service with idempotency", async () => {
     const { app, financeMutationService, state } = await makeApp("editor");
 
@@ -354,6 +493,146 @@ describe("finance routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(financeMutationService.createExpense).not.toHaveBeenCalled();
+  });
+
+  it("lists transactions through the transaction query service", async () => {
+    const accountId = createId();
+    const transactionGroupId = createId();
+    const { app, state, transactionQueryService } = await makeApp("viewer", ({ context }) => ({
+      transactionQueryService: {
+        getTransactionGroup: vi.fn(),
+        listTransactionGroups: vi.fn(async () => [
+          {
+            id: transactionGroupId,
+            journals: [
+              {
+                description: "Groceries",
+                id: createId(),
+                occurredAt: "2026-05-09T08:00:00.000Z",
+                postings: [
+                  {
+                    accountId,
+                    amountMinor: -12_000n,
+                    currencyCode: "INR",
+                    id: createId(),
+                    reportingAmountMinor: -12_000n,
+                    reportingCurrencyCode: "INR",
+                  },
+                  {
+                    accountId: createId(),
+                    amountMinor: 12_000n,
+                    currencyCode: "INR",
+                    id: createId(),
+                    reportingAmountMinor: 12_000n,
+                    reportingCurrencyCode: "INR",
+                  },
+                ],
+                type: "expense",
+              },
+            ],
+            ledgerId: context.activeLedger.id,
+            title: "Groceries",
+            type: "expense",
+            workspaceId: context.activeWorkspace.id,
+          },
+        ]),
+      } as TransactionQueryService,
+    }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?accountId=${accountId}&type=expense&limit=25`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: [
+        {
+          id: transactionGroupId,
+          journals: [
+            {
+              postings: [
+                { amountMinor: "-12000", currencyCode: "INR" },
+                { amountMinor: "12000", currencyCode: "INR" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(transactionQueryService?.listTransactionGroups).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId,
+        ledgerId: state.context.activeLedger.id,
+        limit: 25,
+        type: "expense",
+        workspaceId: state.context.activeWorkspace.id,
+      }),
+    );
+  });
+
+  it("returns transaction group detail through the transaction query service", async () => {
+    const transactionGroupId = createId();
+    const { app, state, transactionQueryService } = await makeApp("viewer", ({ context }) => ({
+      transactionQueryService: {
+        getTransactionGroup: vi.fn(async () => ({
+          id: transactionGroupId,
+          journals: [
+            {
+              description: "Salary",
+              id: createId(),
+              occurredAt: "2026-05-09T08:00:00.000Z",
+              postings: [
+                {
+                  accountId: createId(),
+                  amountMinor: -100_000n,
+                  currencyCode: "INR",
+                  id: createId(),
+                  reportingAmountMinor: -100_000n,
+                  reportingCurrencyCode: "INR",
+                },
+                {
+                  accountId: createId(),
+                  amountMinor: 100_000n,
+                  currencyCode: "INR",
+                  id: createId(),
+                  reportingAmountMinor: 100_000n,
+                  reportingCurrencyCode: "INR",
+                },
+              ],
+              type: "income",
+            },
+          ],
+          ledgerId: context.activeLedger.id,
+          title: "Salary",
+          type: "income",
+          workspaceId: context.activeWorkspace.id,
+        })),
+        listTransactionGroups: vi.fn(),
+      } as TransactionQueryService,
+    }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions/${transactionGroupId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: {
+        transactionGroup: {
+          id: transactionGroupId,
+          journals: [{ postings: [{ amountMinor: "-100000" }, { amountMinor: "100000" }] }],
+        },
+      },
+    });
+    expect(transactionQueryService?.getTransactionGroup).toHaveBeenCalledWith({
+      ledgerId: state.context.activeLedger.id,
+      transactionGroupId,
+      workspaceId: state.context.activeWorkspace.id,
+    });
   });
 
   it("rejects finance writes for viewers before calling the service", async () => {
