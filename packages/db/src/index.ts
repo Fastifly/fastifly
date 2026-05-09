@@ -120,14 +120,21 @@ export {
 export type {
   CreateTransactionInput,
   CreateTransactionLineInput,
+  GetTransactionGroupInput,
+  ListTransactionsInput,
   TransactionGroupRecord,
   TransactionJournalRecord,
   TransactionPostingRecord,
+  TransactionQueryService,
+  TransactionQueryStatusFilter,
+  TransactionQueryTypeFilter,
   TransactionWriteRepository,
   TransactionWriteRepositoryOptions,
 } from "./repositories/transactions.js";
 export {
+  createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
+  createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
 } from "./repositories/transactions.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";

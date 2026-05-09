@@ -10,13 +10,16 @@ import {
   createPglitePostgresDatabaseFromClient,
   createPostgresAccountRepository,
   createPostgresIdentityRepository,
+  createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
   createSqliteAccountRepository,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
+  createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
   type IdentityRepository,
   type SqliteClient,
+  type TransactionQueryService,
   type TransactionWriteRepository,
 } from "../index.js";
 import {
@@ -36,6 +39,7 @@ type RepositoryContext = {
   readonly accountRepository: AccountRepository;
   readonly identityRepository: IdentityRepository;
   readonly rawDb: SqliteClient | QueryablePostgres;
+  readonly transactionQueryService: TransactionQueryService;
   readonly transactionRepository: TransactionWriteRepository;
 };
 
@@ -85,6 +89,7 @@ const factories: readonly TransactionsRepositoryFactory[] = [
             createId,
           }),
           rawDb: client,
+          transactionQueryService: createSqliteTransactionQueryService(client),
           transactionRepository: createSqliteTransactionWriteRepository(client, {
             clock: repositoryClock,
             createId,
@@ -116,6 +121,7 @@ const factories: readonly TransactionsRepositoryFactory[] = [
             createId,
           }),
           rawDb: client,
+          transactionQueryService: createPostgresTransactionQueryService(db),
           transactionRepository: createPostgresTransactionWriteRepository(db, {
             clock: repositoryClock,
             createId,
@@ -346,6 +352,155 @@ describe("transaction write repository", () => {
               workspaceId: workspaceState.workspace.id,
             }),
           ).rejects.toThrow("Converted reporting amounts require cross-currency");
+        },
+      );
+    });
+
+    it(`lists transaction groups with stable ordering and nested postings on ${factory.name}`, async () => {
+      await factory.run(
+        async ({
+          accountRepository,
+          identityRepository,
+          transactionQueryService,
+          transactionRepository,
+        }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Early groceries",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 5_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-08T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          const latest = await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Latest split",
+            ledgerId: workspaceState.ledger.id,
+            lines: [
+              { amountMinor: 8_000n, destinationAccountId: accounts.groceries.id },
+              { amountMinor: 4_000n, destinationAccountId: accounts.household.id },
+            ],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const groups = await transactionQueryService.listTransactionGroups({
+            ledgerId: workspaceState.ledger.id,
+            limit: 10,
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          expect(groups.map((group) => group.title)).toEqual(["Latest split", "Early groceries"]);
+          expect(groups[0]).toMatchObject({
+            id: latest.id,
+            type: "split",
+            journals: [
+              { postings: [{ amountMinor: -8_000n }, { amountMinor: 8_000n }] },
+              { postings: [{ amountMinor: -4_000n }, { amountMinor: 4_000n }] },
+            ],
+          });
+        },
+      );
+    });
+
+    it(`filters transactions by account, type, status, and occurred date on ${factory.name}`, async () => {
+      await factory.run(
+        async ({
+          accountRepository,
+          identityRepository,
+          transactionQueryService,
+          transactionRepository,
+        }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Groceries",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 5_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-07T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            status: "pending",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Household",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 4_000n, destinationAccountId: accounts.household.id }],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const filtered = await transactionQueryService.listTransactionGroups({
+            accountId: accounts.groceries.id,
+            fromOccurredAt: "2026-05-07T00:00:00.000Z",
+            ledgerId: workspaceState.ledger.id,
+            status: "pending",
+            toOccurredAt: "2026-05-08T00:00:00.000Z",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          expect(filtered.map((group) => group.title)).toEqual(["Groceries"]);
+          expect(filtered[0]?.journals[0]?.postings).toHaveLength(2);
+        },
+      );
+    });
+
+    it(`returns transaction detail scoped by workspace and ledger on ${factory.name}`, async () => {
+      await factory.run(
+        async ({
+          accountRepository,
+          identityRepository,
+          transactionQueryService,
+          transactionRepository,
+        }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          const group = await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Detail transaction",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 6_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          await expect(
+            transactionQueryService.getTransactionGroup({
+              ledgerId: workspaceState.ledger.id,
+              transactionGroupId: group.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+          ).resolves.toMatchObject({
+            id: group.id,
+            journals: [{ description: "Detail transaction" }],
+          });
+          await expect(
+            transactionQueryService.getTransactionGroup({
+              ledgerId: workspaceState.ledger.id,
+              transactionGroupId: group.id,
+              workspaceId: "01jv0wrongworkspace000000000" as SyncedId,
+            }),
+          ).resolves.toBeNull();
         },
       );
     });

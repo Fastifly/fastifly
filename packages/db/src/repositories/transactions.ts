@@ -6,7 +6,7 @@ import {
   type SyncedId,
   type UserFacingTransactionType,
 } from "@fastifly/common";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -17,7 +17,11 @@ import {
   pgTransactionPostings,
 } from "../postgres/schema.js";
 import type { SqliteClient } from "../sqlite/client.js";
-import { bindSqliteMoneyMinor, prepareSqliteMoneyStatement } from "../sqlite/money.js";
+import {
+  bindSqliteMoneyMinor,
+  prepareSqliteMoneyStatement,
+  readRequiredSqliteMoneyMinor,
+} from "../sqlite/money.js";
 import type { RepositoryClock } from "./base.js";
 import { assertLedgerScope, makeTimestamp, systemClock } from "./base.js";
 
@@ -81,6 +85,35 @@ export type TransactionWriteRepository = {
   readonly createTransaction: (input: CreateTransactionInput) => Promise<TransactionGroupRecord>;
 };
 
+export type TransactionQueryTypeFilter = Extract<
+  UserFacingTransactionType,
+  "expense" | "income" | "transfer"
+>;
+
+export type TransactionQueryStatusFilter = "pending" | "cleared" | "reconciled" | "void";
+
+export type ListTransactionsInput = LedgerScope & {
+  readonly accountId?: SyncedId | null;
+  readonly fromOccurredAt?: string | null;
+  readonly toOccurredAt?: string | null;
+  readonly type?: TransactionQueryTypeFilter | null;
+  readonly status?: TransactionQueryStatusFilter | null;
+  readonly limit?: number | null;
+};
+
+export type GetTransactionGroupInput = LedgerScope & {
+  readonly transactionGroupId: SyncedId;
+};
+
+export type TransactionQueryService = {
+  readonly listTransactionGroups: (
+    input: ListTransactionsInput,
+  ) => Promise<readonly TransactionGroupRecord[]>;
+  readonly getTransactionGroup: (
+    input: GetTransactionGroupInput,
+  ) => Promise<TransactionGroupRecord | null>;
+};
+
 type NormalizedCreateTransactionInput = {
   readonly type: CreateTransactionInput["type"];
   readonly sourceAccountId: SyncedId;
@@ -127,6 +160,28 @@ type SqliteAccountLookupRow = {
   readonly kind: AccountLookupRecord["kind"];
   readonly subtype: AccountLookupRecord["subtype"];
   readonly currency_code: string;
+};
+
+type SqliteTransactionGroupIdRow = {
+  readonly id: string;
+};
+
+type SqliteTransactionFlatRow = {
+  readonly group_id: string;
+  readonly group_workspace_id: string;
+  readonly group_ledger_id: string;
+  readonly group_type: TransactionGroupRecord["type"];
+  readonly group_title: string;
+  readonly journal_id: string;
+  readonly journal_type: TransactionJournalRecord["type"];
+  readonly journal_occurred_at: string;
+  readonly journal_description: string;
+  readonly posting_id: string;
+  readonly posting_account_id: string;
+  readonly posting_amount_minor: bigint | number | string;
+  readonly posting_currency_code: string;
+  readonly posting_reporting_amount_minor: bigint | number | string;
+  readonly posting_reporting_currency_code: string;
 };
 
 type ResolvedOptions = {
@@ -285,6 +340,42 @@ export function createPostgresTransactionWriteRepository(
   };
 }
 
+export function createSqliteTransactionQueryService(client: SqliteClient): TransactionQueryService {
+  return {
+    async listTransactionGroups(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = listSqliteTransactionGroupIds(client, input, scope);
+      return readSqliteTransactionGroupsByIds(client, scope, groupIds);
+    },
+
+    async getTransactionGroup(input) {
+      const scope = assertLedgerScope(input);
+      const groups = readSqliteTransactionGroupsByIds(client, scope, [input.transactionGroupId]);
+      return groups[0] ?? null;
+    },
+  };
+}
+
+export function createPostgresTransactionQueryService(
+  db: PostgresDatabase,
+): TransactionQueryService {
+  return {
+    async listTransactionGroups(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = await listPostgresTransactionGroupIds(db, input, scope);
+      return readPostgresTransactionGroupsByIds(db, scope, groupIds);
+    },
+
+    async getTransactionGroup(input) {
+      const scope = assertLedgerScope(input);
+      const groups = await readPostgresTransactionGroupsByIds(db, scope, [
+        input.transactionGroupId,
+      ]);
+      return groups[0] ?? null;
+    },
+  };
+}
+
 function normalizeCreateTransactionInput(
   input: CreateTransactionInput,
 ): NormalizedCreateTransactionInput {
@@ -307,6 +398,17 @@ function normalizeCreateTransactionInput(
     title: normalizeOptionalText(input.title) ?? description,
     type: input.type,
   };
+}
+
+function normalizeTransactionQueryLimit(limit: number | null | undefined): number {
+  if (limit === null || limit === undefined) {
+    return 50;
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    throw new Error("Transaction query limit must be an integer from 1 to 200.");
+  }
+
+  return limit;
 }
 
 function normalizeTransactionLine(
@@ -371,6 +473,13 @@ function normalizeTimestamp(value: string, fieldName: string): string {
   return timestamp.toISOString();
 }
 
+function normalizeOptionalTimestamp(
+  value: string | null | undefined,
+  fieldName: string,
+): string | null {
+  return value ? normalizeTimestamp(value, fieldName) : null;
+}
+
 function createTransactionGroupRecord(
   scope: LedgerScope,
   normalized: NormalizedCreateTransactionInput,
@@ -403,6 +512,146 @@ function validateTransactionAccounts(
       throw new Error("Transaction accounts do not match the requested transaction type.");
     }
   }
+}
+
+function listSqliteTransactionGroupIds(
+  client: SqliteClient,
+  input: ListTransactionsInput,
+  scope: LedgerScope,
+): readonly SyncedId[] {
+  const params: unknown[] = [scope.workspaceId, scope.ledgerId];
+  const conditions = [
+    "transaction_groups.workspace_id = ?",
+    "transaction_groups.ledger_id = ?",
+    "transaction_groups.deleted_at IS NULL",
+    "transaction_journals.deleted_at IS NULL",
+  ];
+
+  appendSqliteQueryFilters(conditions, params, input);
+  params.push(normalizeTransactionQueryLimit(input.limit));
+
+  const rows = client
+    .prepare<unknown[], SqliteTransactionGroupIdRow>(
+      `
+        SELECT transaction_groups.id
+        FROM transaction_groups
+        JOIN transaction_journals
+          ON transaction_journals.group_id = transaction_groups.id
+        JOIN transaction_postings
+          ON transaction_postings.journal_id = transaction_journals.id
+        WHERE ${conditions.join(" AND ")}
+        GROUP BY transaction_groups.id
+        ORDER BY MAX(transaction_journals.occurred_at) DESC, transaction_groups.id DESC
+        LIMIT ?
+      `,
+    )
+    .all(...params);
+
+  return rows.map((row) => parseSyncedId(row.id));
+}
+
+function appendSqliteQueryFilters(
+  conditions: string[],
+  params: unknown[],
+  input: ListTransactionsInput,
+): void {
+  if (input.accountId) {
+    conditions.push("transaction_postings.account_id = ?");
+    params.push(input.accountId);
+  }
+  const fromOccurredAt = normalizeOptionalTimestamp(
+    input.fromOccurredAt,
+    "Transaction query fromOccurredAt",
+  );
+  if (fromOccurredAt) {
+    conditions.push("transaction_journals.occurred_at >= ?");
+    params.push(fromOccurredAt);
+  }
+  const toOccurredAt = normalizeOptionalTimestamp(
+    input.toOccurredAt,
+    "Transaction query toOccurredAt",
+  );
+  if (toOccurredAt) {
+    conditions.push("transaction_journals.occurred_at <= ?");
+    params.push(toOccurredAt);
+  }
+  if (input.type) {
+    conditions.push("transaction_journals.type = ?");
+    params.push(input.type);
+  }
+  if (input.status) {
+    conditions.push("transaction_journals.status = ?");
+    params.push(input.status);
+  } else {
+    conditions.push("transaction_journals.status <> 'void'");
+  }
+}
+
+function readSqliteTransactionGroupsByIds(
+  client: SqliteClient,
+  scope: LedgerScope,
+  groupIds: readonly SyncedId[],
+): readonly TransactionGroupRecord[] {
+  if (groupIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = groupIds.map(() => "?").join(", ");
+  const rows = prepareSqliteMoneyStatement<SqliteTransactionFlatRow>(
+    client,
+    `
+      SELECT
+        transaction_groups.id AS group_id,
+        transaction_groups.workspace_id AS group_workspace_id,
+        transaction_groups.ledger_id AS group_ledger_id,
+        transaction_groups.type AS group_type,
+        transaction_groups.title AS group_title,
+        transaction_journals.id AS journal_id,
+        transaction_journals.type AS journal_type,
+        transaction_journals.occurred_at AS journal_occurred_at,
+        transaction_journals.description AS journal_description,
+        transaction_postings.id AS posting_id,
+        transaction_postings.account_id AS posting_account_id,
+        transaction_postings.amount_minor AS posting_amount_minor,
+        transaction_postings.currency_code AS posting_currency_code,
+        transaction_postings.reporting_amount_minor AS posting_reporting_amount_minor,
+        transaction_postings.reporting_currency_code AS posting_reporting_currency_code
+      FROM transaction_groups
+      JOIN transaction_journals
+        ON transaction_journals.group_id = transaction_groups.id
+      JOIN transaction_postings
+        ON transaction_postings.journal_id = transaction_journals.id
+      WHERE transaction_groups.workspace_id = ?
+        AND transaction_groups.ledger_id = ?
+        AND transaction_groups.deleted_at IS NULL
+        AND transaction_journals.deleted_at IS NULL
+        AND transaction_groups.id IN (${placeholders})
+      ORDER BY transaction_journals.occurred_at DESC, transaction_groups.id DESC, transaction_journals.id ASC, transaction_postings.id ASC
+    `,
+  ).all(scope.workspaceId, scope.ledgerId, ...groupIds);
+
+  return buildTransactionGroupsFromFlatRows(
+    rows.map((row) => ({
+      groupId: parseSyncedId(row.group_id),
+      groupLedgerId: parseSyncedId(row.group_ledger_id),
+      groupTitle: row.group_title,
+      groupType: row.group_type,
+      groupWorkspaceId: parseSyncedId(row.group_workspace_id),
+      journalDescription: row.journal_description,
+      journalId: parseSyncedId(row.journal_id),
+      journalOccurredAt: row.journal_occurred_at,
+      journalType: row.journal_type,
+      postingAccountId: parseSyncedId(row.posting_account_id),
+      postingAmountMinor: readRequiredSqliteMoneyMinor(row.posting_amount_minor, "amount_minor"),
+      postingCurrencyCode: row.posting_currency_code,
+      postingId: parseSyncedId(row.posting_id),
+      postingReportingAmountMinor: readRequiredSqliteMoneyMinor(
+        row.posting_reporting_amount_minor,
+        "reporting_amount_minor",
+      ),
+      postingReportingCurrencyCode: row.posting_reporting_currency_code,
+    })),
+  );
 }
 
 function assertSqliteLedgerScope(client: SqliteClient, scope: LedgerScope): void {
@@ -637,6 +886,124 @@ async function readPostgresAccountForTransaction(
   };
 }
 
+async function listPostgresTransactionGroupIds(
+  db: PostgresDatabase,
+  input: ListTransactionsInput,
+  scope: LedgerScope,
+): Promise<readonly SyncedId[]> {
+  const conditions = [
+    eq(pgTransactionGroups.workspaceId, scope.workspaceId),
+    eq(pgTransactionGroups.ledgerId, scope.ledgerId),
+    isNull(pgTransactionGroups.deletedAt),
+    isNull(pgTransactionJournals.deletedAt),
+  ];
+  if (input.accountId) {
+    conditions.push(eq(pgTransactionPostings.accountId, input.accountId));
+  }
+  const fromOccurredAt = normalizeOptionalTimestamp(
+    input.fromOccurredAt,
+    "Transaction query fromOccurredAt",
+  );
+  if (fromOccurredAt) {
+    conditions.push(gte(pgTransactionJournals.occurredAt, new Date(fromOccurredAt)));
+  }
+  const toOccurredAt = normalizeOptionalTimestamp(
+    input.toOccurredAt,
+    "Transaction query toOccurredAt",
+  );
+  if (toOccurredAt) {
+    conditions.push(lte(pgTransactionJournals.occurredAt, new Date(toOccurredAt)));
+  }
+  if (input.type) {
+    conditions.push(eq(pgTransactionJournals.type, input.type));
+  }
+  if (input.status) {
+    conditions.push(eq(pgTransactionJournals.status, input.status));
+  } else {
+    conditions.push(ne(pgTransactionJournals.status, "void"));
+  }
+
+  const maxOccurredAt = sql<Date>`MAX(${pgTransactionJournals.occurredAt})`;
+  const rows = await db
+    .select({ id: pgTransactionGroups.id, lastOccurredAt: maxOccurredAt })
+    .from(pgTransactionGroups)
+    .innerJoin(pgTransactionJournals, eq(pgTransactionJournals.groupId, pgTransactionGroups.id))
+    .innerJoin(pgTransactionPostings, eq(pgTransactionPostings.journalId, pgTransactionJournals.id))
+    .where(and(...conditions))
+    .groupBy(pgTransactionGroups.id)
+    .orderBy(desc(maxOccurredAt), desc(pgTransactionGroups.id))
+    .limit(normalizeTransactionQueryLimit(input.limit));
+
+  return rows.map((row) => parseSyncedId(row.id));
+}
+
+async function readPostgresTransactionGroupsByIds(
+  db: PostgresDatabase,
+  scope: LedgerScope,
+  groupIds: readonly SyncedId[],
+): Promise<readonly TransactionGroupRecord[]> {
+  if (groupIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      groupId: pgTransactionGroups.id,
+      groupWorkspaceId: pgTransactionGroups.workspaceId,
+      groupLedgerId: pgTransactionGroups.ledgerId,
+      groupType: pgTransactionGroups.type,
+      groupTitle: pgTransactionGroups.title,
+      journalId: pgTransactionJournals.id,
+      journalType: pgTransactionJournals.type,
+      journalOccurredAt: pgTransactionJournals.occurredAt,
+      journalDescription: pgTransactionJournals.description,
+      postingId: pgTransactionPostings.id,
+      postingAccountId: pgTransactionPostings.accountId,
+      postingAmountMinor: pgTransactionPostings.amountMinor,
+      postingCurrencyCode: pgTransactionPostings.currencyCode,
+      postingReportingAmountMinor: pgTransactionPostings.reportingAmountMinor,
+      postingReportingCurrencyCode: pgTransactionPostings.reportingCurrencyCode,
+    })
+    .from(pgTransactionGroups)
+    .innerJoin(pgTransactionJournals, eq(pgTransactionJournals.groupId, pgTransactionGroups.id))
+    .innerJoin(pgTransactionPostings, eq(pgTransactionPostings.journalId, pgTransactionJournals.id))
+    .where(
+      and(
+        eq(pgTransactionGroups.workspaceId, scope.workspaceId),
+        eq(pgTransactionGroups.ledgerId, scope.ledgerId),
+        isNull(pgTransactionGroups.deletedAt),
+        isNull(pgTransactionJournals.deletedAt),
+        inArray(pgTransactionGroups.id, groupIds),
+      ),
+    )
+    .orderBy(
+      desc(pgTransactionJournals.occurredAt),
+      desc(pgTransactionGroups.id),
+      asc(pgTransactionJournals.id),
+      asc(pgTransactionPostings.id),
+    );
+
+  return buildTransactionGroupsFromFlatRows(
+    rows.map((row) => ({
+      groupId: parseSyncedId(row.groupId),
+      groupLedgerId: parseSyncedId(row.groupLedgerId),
+      groupTitle: row.groupTitle,
+      groupType: row.groupType as TransactionGroupRecord["type"],
+      groupWorkspaceId: parseSyncedId(row.groupWorkspaceId),
+      journalDescription: row.journalDescription,
+      journalId: parseSyncedId(row.journalId),
+      journalOccurredAt: toRequiredIsoString(row.journalOccurredAt),
+      journalType: row.journalType as TransactionJournalRecord["type"],
+      postingAccountId: parseSyncedId(row.postingAccountId),
+      postingAmountMinor: readPostgresMoneyMinor(row.postingAmountMinor),
+      postingCurrencyCode: row.postingCurrencyCode,
+      postingId: parseSyncedId(row.postingId),
+      postingReportingAmountMinor: readPostgresMoneyMinor(row.postingReportingAmountMinor),
+      postingReportingCurrencyCode: row.postingReportingCurrencyCode,
+    })),
+  );
+}
+
 type InsertTransactionJournalInput<TNow> = {
   readonly destinationAccount: AccountLookupRecord;
   readonly destinationPostingId: SyncedId;
@@ -719,6 +1086,89 @@ function buildPostings(
   ];
 }
 
+type TransactionFlatRecord = {
+  readonly groupId: SyncedId;
+  readonly groupWorkspaceId: SyncedId;
+  readonly groupLedgerId: SyncedId;
+  readonly groupType: TransactionGroupRecord["type"];
+  readonly groupTitle: string;
+  readonly journalId: SyncedId;
+  readonly journalType: TransactionJournalRecord["type"];
+  readonly journalOccurredAt: string;
+  readonly journalDescription: string;
+  readonly postingId: SyncedId;
+  readonly postingAccountId: SyncedId;
+  readonly postingAmountMinor: bigint;
+  readonly postingCurrencyCode: string;
+  readonly postingReportingAmountMinor: bigint;
+  readonly postingReportingCurrencyCode: string;
+};
+
+function buildTransactionGroupsFromFlatRows(
+  rows: readonly TransactionFlatRecord[],
+): readonly TransactionGroupRecord[] {
+  const groups = new Map<
+    SyncedId,
+    Omit<TransactionGroupRecord, "journals"> & {
+      readonly journals: Map<
+        SyncedId,
+        TransactionJournalRecord & { postings: TransactionPostingRecord[] }
+      >;
+    }
+  >();
+
+  for (const row of rows) {
+    let group = groups.get(row.groupId);
+    if (!group) {
+      group = {
+        id: row.groupId,
+        workspaceId: row.groupWorkspaceId,
+        ledgerId: row.groupLedgerId,
+        title: row.groupTitle,
+        type: row.groupType,
+        journals: new Map(),
+      };
+      groups.set(row.groupId, group);
+    }
+
+    let journal = group.journals.get(row.journalId);
+    if (!journal) {
+      journal = {
+        description: row.journalDescription,
+        id: row.journalId,
+        occurredAt: row.journalOccurredAt,
+        postings: [],
+        type: row.journalType,
+      };
+      group.journals.set(row.journalId, journal);
+    }
+
+    journal.postings.push({
+      accountId: row.postingAccountId,
+      amountMinor: row.postingAmountMinor,
+      currencyCode: row.postingCurrencyCode,
+      id: row.postingId,
+      reportingAmountMinor: row.postingReportingAmountMinor,
+      reportingCurrencyCode: row.postingReportingCurrencyCode,
+    });
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    id: group.id,
+    workspaceId: group.workspaceId,
+    ledgerId: group.ledgerId,
+    title: group.title,
+    type: group.type,
+    journals: Array.from(group.journals.values()).map((journal) => ({
+      description: journal.description,
+      id: journal.id,
+      occurredAt: journal.occurredAt,
+      postings: journal.postings,
+      type: journal.type,
+    })),
+  }));
+}
+
 function uniqueAccountIds(
   sourceAccount: AccountLookupRecord,
   destinationAccounts: readonly AccountLookupRecord[],
@@ -726,6 +1176,24 @@ function uniqueAccountIds(
   return Array.from(
     new Set([sourceAccount.id, ...destinationAccounts.map((account) => account.id)]),
   );
+}
+
+function readPostgresMoneyMinor(value: unknown): bigint {
+  if (typeof value === "bigint") {
+    return value;
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value)) {
+    return BigInt(value);
+  }
+  if (typeof value === "string" && /^-?(0|[1-9][0-9]*)$/.test(value)) {
+    return BigInt(value);
+  }
+
+  throw new TypeError("PostgreSQL money value must be an integer.");
+}
+
+function toRequiredIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 function extractRows(result: unknown): readonly unknown[] {
