@@ -29,9 +29,18 @@ export type CreateTransactionMutationPayload = Omit<
   "createdBy" | "ledgerId" | "workspaceId"
 >;
 
+export type ArchiveAccountMutationPayload = {
+  readonly accountId: AccountRecord["id"];
+};
+
 export type CreateAccountMutationInput = {
   readonly envelope: LedgerMutationEnvelope;
   readonly account: CreateAccountMutationPayload;
+};
+
+export type ArchiveAccountMutationInput = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly account: ArchiveAccountMutationPayload;
 };
 
 export type CreateTransactionMutationInput = {
@@ -41,6 +50,7 @@ export type CreateTransactionMutationInput = {
 
 export type LedgerFinanceMutationService = {
   readonly createAccount: (input: CreateAccountMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly archiveAccount: (input: ArchiveAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly createTransaction: (
     input: CreateTransactionMutationInput,
   ) => Promise<LedgerMutationRunResult>;
@@ -110,6 +120,72 @@ export function createLedgerFinanceMutationService(
             return {
               body: serializeCreateAccountResult(created),
               status: 201,
+            };
+          });
+        },
+      });
+    },
+
+    archiveAccount(input) {
+      const requestPayload = serializeArchiveAccountPayload(input.account);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ emitEvent, envelope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                account: requestPayload,
+                dryRun: true,
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createAccountRepositoryForTransaction?.(transaction) ??
+            options.accountRepository;
+          const result = repository.archiveAccount({
+            accountId: input.account.accountId,
+            ledgerId: envelope.ledgerId,
+            workspaceId: envelope.workspaceId,
+          });
+
+          return mapMaybePromise(result, (account) => {
+            if (!account) {
+              return {
+                body: {
+                  account: null,
+                  code: "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+                  message: "Account was not found or is already archived.",
+                },
+                status: 404,
+              };
+            }
+
+            emitEvent({
+              payload: {
+                accountId: account.id,
+                ledgerId: envelope.ledgerId,
+                workspaceId: envelope.workspaceId,
+              },
+              type: "account.updated",
+            });
+            recordAudit({
+              action: "account.updated",
+              entityId: account.id,
+              entityType: "account",
+              metadataJson: {
+                archivedAt: account.archivedAt,
+              },
+            });
+
+            return {
+              body: {
+                account: serializeAccount(account),
+              },
+              status: 200,
             };
           });
         },
@@ -216,6 +292,12 @@ function serializeCreateTransactionPayload(input: CreateTransactionMutationPaylo
     status: input.status ?? null,
     title: input.title ?? null,
     type: input.type,
+  };
+}
+
+function serializeArchiveAccountPayload(input: ArchiveAccountMutationPayload): JsonObject {
+  return {
+    accountId: input.accountId,
   };
 }
 

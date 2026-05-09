@@ -278,6 +278,60 @@ describe("finance mutation service", () => {
       );
     });
 
+    it(`archives accounts through the ledger mutation runner on ${factory.name}`, async () => {
+      await factory.run(
+        async ({ accountRepository, dialect, events, identityRepository, rawDb, service }) => {
+          const { accounts, user, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          const envelope = createEnvelope({
+            actorUserId: user.id,
+            idempotencyKey: "idem_archive_account",
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const first = await service.archiveAccount({
+            account: { accountId: accounts.groceries.id },
+            envelope,
+          });
+          const replay = await service.archiveAccount({
+            account: { accountId: accounts.groceries.id },
+            envelope,
+          });
+
+          expect(first).toMatchObject({
+            body: {
+              account: {
+                archivedAt: "2026-05-09T10:11:12.000Z",
+                id: accounts.groceries.id,
+                isActive: false,
+              },
+            },
+            idempotencyReplayed: false,
+            status: 200,
+          });
+          expect(replay).toMatchObject({
+            body: first.body,
+            idempotencyReplayed: true,
+            status: 200,
+          });
+          expect(events).toEqual(["account.updated"]);
+          await expect(countRows(dialect, rawDb, "accounts")).resolves.toBe(2);
+          await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(1);
+          await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
+          expect(
+            await accountRepository.findAccount({
+              accountId: accounts.groceries.id,
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+          ).toMatchObject({ archivedAt: "2026-05-09T10:11:12.000Z" });
+        },
+      );
+    });
+
     it(`blocks finance writes before handlers run when a ledger is read-only on ${factory.name}`, async () => {
       await factory.run(
         async ({ accountRepository, dialect, identityRepository, rawDb, service }) => {
