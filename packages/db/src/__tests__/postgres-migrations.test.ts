@@ -8,7 +8,10 @@ describe("PostgreSQL migrations", () => {
     const db = await createInMemoryPostgresDatabase();
 
     try {
-      await runPostgresMigrations(db, [readMigration("postgres", "0001_foundation")]);
+      await runPostgresMigrations(db, [
+        readMigration("postgres", "0001_foundation"),
+        readMigration("postgres", "0002_passkey_challenges"),
+      ]);
 
       const result = await db.query<{ table_name: string }>(`
         SELECT table_name
@@ -23,6 +26,7 @@ describe("PostgreSQL migrations", () => {
         "idempotency_receipts",
         "job_queue",
         "ledgers",
+        "passkey_challenges",
         "passkeys",
         "recovery_codes",
         "sessions",
@@ -39,6 +43,14 @@ describe("PostgreSQL migrations", () => {
         ORDER BY ordinal_position
       `);
       expect(userColumns.rows.map((row) => row.column_name)).toContain("password_hash");
+
+      const passkeyColumns = await db.query<{ column_name: string }>(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'passkeys'
+        ORDER BY ordinal_position
+      `);
+      expect(passkeyColumns.rows.map((row) => row.column_name)).toContain("name");
 
       await expect(
         db.query(`

@@ -27,6 +27,7 @@ describe("workspace abilities", () => {
     const ability = defineWorkspaceAbility({ role: "admin" });
 
     expect(ability.can("invite", "WorkspaceInvitation")).toBe(true);
+    expect(ability.can("delete", "WorkspaceMember")).toBe(true);
     expect(ability.can("export", "TransactionGroup")).toBe(true);
     expect(ability.can("restore", "Backup")).toBe(false);
     expect(ability.can("manage", "all")).toBe(false);

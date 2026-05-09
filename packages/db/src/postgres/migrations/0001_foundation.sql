@@ -49,9 +49,11 @@ CREATE TABLE workspaces (
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
   owner_user_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  archived_at TIMESTAMPTZ
+  archived_at TIMESTAMPTZ,
+  CONSTRAINT workspaces_status_check CHECK (status IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken'))
 );
 
 CREATE TABLE workspace_members (
@@ -90,9 +92,11 @@ CREATE TABLE ledgers (
   name TEXT NOT NULL,
   base_currency_code TEXT NOT NULL CHECK (char_length(base_currency_code) = 3),
   first_day_of_week INTEGER NOT NULL CHECK (first_day_of_week BETWEEN 0 AND 6),
+  status TEXT NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  archived_at TIMESTAMPTZ
+  archived_at TIMESTAMPTZ,
+  CONSTRAINT ledgers_status_check CHECK (status IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken'))
 );
 CREATE INDEX ledgers_workspace_id_idx ON ledgers (workspace_id);
 
@@ -114,6 +118,7 @@ CREATE TABLE idempotency_receipts (
   workspace_id TEXT NOT NULL REFERENCES workspaces(id),
   ledger_id TEXT REFERENCES ledgers(id),
   actor_user_id TEXT NOT NULL REFERENCES users(id),
+  device_id TEXT REFERENCES devices(id),
   idempotency_key TEXT NOT NULL,
   request_hash TEXT NOT NULL,
   response_status INTEGER NOT NULL,

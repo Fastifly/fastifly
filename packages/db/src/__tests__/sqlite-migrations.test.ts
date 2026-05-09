@@ -8,7 +8,10 @@ describe("SQLite migrations", () => {
     const db = await createInMemorySqliteDatabase();
 
     try {
-      await runSqliteMigrations(db, [readMigration("sqlite", "0001_foundation")]);
+      await runSqliteMigrations(db, [
+        readMigration("sqlite", "0001_foundation"),
+        readMigration("sqlite", "0002_passkey_challenges"),
+      ]);
 
       const tables = await db.execute(`
         SELECT name
@@ -24,6 +27,7 @@ describe("SQLite migrations", () => {
         "idempotency_receipts",
         "job_queue",
         "ledgers",
+        "passkey_challenges",
         "passkeys",
         "recovery_codes",
         "sessions",
@@ -39,6 +43,13 @@ describe("SQLite migrations", () => {
         ORDER BY cid
       `);
       expect(userColumns.rows.map((row) => String(row.name))).toContain("password_hash");
+
+      const passkeyColumns = await db.execute(`
+        SELECT name
+        FROM pragma_table_info('passkeys')
+        ORDER BY cid
+      `);
+      expect(passkeyColumns.rows.map((row) => String(row.name))).toContain("name");
 
       await db.execute(`
         INSERT INTO users (

@@ -1,5 +1,6 @@
 import { createFastiflyAbility, type FastiflyAbility } from "@fastifly/authz";
 import type { SyncedId } from "@fastifly/common";
+import type { UserWorkspaceContextRecord } from "@fastifly/db";
 
 export type AuthContext =
   | {
@@ -18,5 +19,6 @@ declare module "fastify" {
   interface FastifyRequest {
     authContext: AuthContext;
     authzAbility: FastiflyAbility;
+    workspaceContext: UserWorkspaceContextRecord | null;
   }
 }

@@ -30,6 +30,47 @@ export {
   makeTimestamp,
   systemClock,
 } from "./repositories/base.js";
+export type {
+  AcceptWorkspaceInvitationInput,
+  BootstrapDefaultWorkspaceInput,
+  BootstrapDefaultWorkspaceResult,
+  CreatePasskeyChallengeInput,
+  CreatePasskeyInput,
+  CreateSessionInput,
+  CreateUserInput,
+  CreateWorkspaceInvitationInput,
+  DeclineWorkspaceInvitationInput,
+  DeletePasskeyInput,
+  FindActivePasskeyChallengeInput,
+  FindActiveWorkspaceInvitationInput,
+  IdentityRepository,
+  IdentityRepositoryOptions,
+  LedgerRecord,
+  PasskeyChallengeKind,
+  PasskeyChallengeRecord,
+  PasskeyRecord,
+  RecoveryCodeRecord,
+  RemoveWorkspaceMemberInput,
+  RenamePasskeyInput,
+  ReplaceRecoveryCodesInput,
+  RepositoryIdGenerator,
+  RevokeWorkspaceInvitationInput,
+  SessionRecord,
+  UpdatePasskeyAfterLoginInput,
+  UpdateWorkspaceMemberRoleInput,
+  UserRecord,
+  UserWorkspaceContextRecord,
+  WorkspaceInvitationRecord,
+  WorkspaceInvitationRole,
+  WorkspaceMemberRecord,
+  WorkspaceMemberWithUserRecord,
+  WorkspaceRecord,
+} from "./repositories/identity.js";
+export {
+  createPostgresIdentityRepository,
+  createSqliteIdentityRepository,
+  normalizeUsername,
+} from "./repositories/identity.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
 export type { SqliteClient, SqliteClientConfig, SqliteDatabase } from "./sqlite/client.js";
 export {

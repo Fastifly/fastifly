@@ -59,12 +59,31 @@ export const pgPasskeys = pgTable(
     publicKey: text("public_key").notNull(),
     counter: integer("counter").notNull(),
     transportsJson: jsonb("transports_json").$type<string[] | null>(),
+    name: text("name").notNull(),
     createdAt: timestampTz("created_at"),
     lastUsedAt: optionalTimestampTz("last_used_at"),
   },
   (table) => [
     uniqueIndex("passkeys_credential_id_unique").on(table.credentialId),
     index("passkeys_user_id_idx").on(table.userId),
+  ],
+);
+
+export const pgPasskeyChallenges = pgTable(
+  "passkey_challenges",
+  {
+    id: idText(),
+    userId: text("user_id").references(() => pgUsers.id),
+    kind: text("kind").notNull(),
+    challenge: text("challenge").notNull(),
+    createdAt: timestampTz("created_at"),
+    expiresAt: timestampTz("expires_at"),
+    consumedAt: optionalTimestampTz("consumed_at"),
+  },
+  (table) => [
+    index("passkey_challenges_user_id_idx").on(table.userId),
+    index("passkey_challenges_kind_idx").on(table.kind),
+    check("passkey_challenges_kind_check", sql`${table.kind} IN ('registration', 'login')`),
   ],
 );
 
@@ -80,14 +99,24 @@ export const pgRecoveryCodes = pgTable(
   (table) => [index("recovery_codes_user_id_idx").on(table.userId)],
 );
 
-export const pgWorkspaces = pgTable("workspaces", {
-  id: idText(),
-  name: text("name").notNull(),
-  ownerUserId: requiredIdText("owner_user_id").references(() => pgUsers.id),
-  createdAt: timestampTz("created_at"),
-  updatedAt: timestampTz("updated_at"),
-  archivedAt: optionalTimestampTz("archived_at"),
-});
+export const pgWorkspaces = pgTable(
+  "workspaces",
+  {
+    id: idText(),
+    name: text("name").notNull(),
+    ownerUserId: requiredIdText("owner_user_id").references(() => pgUsers.id),
+    status: text("status").notNull().default("active"),
+    createdAt: timestampTz("created_at"),
+    updatedAt: timestampTz("updated_at"),
+    archivedAt: optionalTimestampTz("archived_at"),
+  },
+  (table) => [
+    check(
+      "workspaces_status_check",
+      sql`${table.status} IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken')`,
+    ),
+  ],
+);
 
 export const pgWorkspaceMembers = pgTable(
   "workspace_members",
@@ -140,11 +169,18 @@ export const pgLedgers = pgTable(
     name: text("name").notNull(),
     baseCurrencyCode: text("base_currency_code").notNull(),
     firstDayOfWeek: integer("first_day_of_week").notNull(),
+    status: text("status").notNull().default("active"),
     createdAt: timestampTz("created_at"),
     updatedAt: timestampTz("updated_at"),
     archivedAt: optionalTimestampTz("archived_at"),
   },
-  (table) => [index("ledgers_workspace_id_idx").on(table.workspaceId)],
+  (table) => [
+    index("ledgers_workspace_id_idx").on(table.workspaceId),
+    check(
+      "ledgers_status_check",
+      sql`${table.status} IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken')`,
+    ),
+  ],
 );
 
 export const pgDevices = pgTable(
@@ -172,6 +208,7 @@ export const pgIdempotencyReceipts = pgTable(
     workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
     ledgerId: text("ledger_id").references(() => pgLedgers.id),
     actorUserId: requiredIdText("actor_user_id").references(() => pgUsers.id),
+    deviceId: text("device_id").references(() => pgDevices.id),
     idempotencyKey: text("idempotency_key").notNull(),
     requestHash: text("request_hash").notNull(),
     responseStatus: integer("response_status").notNull(),
@@ -238,6 +275,7 @@ export const pgSchema = {
   idempotencyReceipts: pgIdempotencyReceipts,
   jobQueue: pgJobQueue,
   ledgers: pgLedgers,
+  passkeyChallenges: pgPasskeyChallenges,
   passkeys: pgPasskeys,
   recoveryCodes: pgRecoveryCodes,
   sessions: pgSessions,

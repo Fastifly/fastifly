@@ -1,4 +1,6 @@
+import { defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7 } from "@fastifly/common";
+import type { IdentityRepository } from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
 import fastifySwagger from "@fastify/swagger";
@@ -10,15 +12,18 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
-
+import { simpleWebAuthnAdapter, type WebAuthnAdapter } from "./auth/webauthn.js";
 import { type ApiConfig, makeTestApiConfig } from "./config.js";
 import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
+import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 
 export type BuildApiAppOptions = {
   readonly config?: Partial<ApiConfig>;
+  readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
+  readonly webAuthnAdapter?: WebAuthnAdapter;
 };
 
 export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<FastifyInstance> {
@@ -38,12 +43,32 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
 
   registerErrorHandlers(app);
 
+  await app.register(fastifyCookie, config.cookieSecret ? { secret: config.cookieSecret } : {});
+
   app.addHook("onRequest", async (request) => {
     request.authContext = anonymousAuthContext;
     request.authzAbility = denyAllAbility;
-  });
+    request.workspaceContext = null;
 
-  await app.register(fastifyCookie, config.cookieSecret ? { secret: config.cookieSecret } : {});
+    if (options.identityRepository) {
+      const user = await resolveSessionUser(
+        options.identityRepository,
+        request.cookies[config.sessionCookieName],
+      );
+
+      if (user) {
+        request.authContext = {
+          kind: "user",
+          userId: user.id,
+        };
+        request.workspaceContext =
+          await options.identityRepository.findDefaultWorkspaceContextForUser(user.id);
+        request.authzAbility = request.workspaceContext
+          ? defineWorkspaceAbility({ role: request.workspaceContext.activeWorkspace.role })
+          : denyAllAbility;
+      }
+    }
+  });
 
   await app.register(fastifyCsrfProtection, {
     cookieKey: config.csrfCookieName,
@@ -79,6 +104,14 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
   await registerSystemRoutes(app, {
     migrations: options.readiness?.migrations ?? "unknown",
   });
+
+  if (options.identityRepository) {
+    await registerAuthRoutes(app, {
+      config,
+      identityRepository: options.identityRepository,
+      webAuthnAdapter: options.webAuthnAdapter ?? simpleWebAuthnAdapter,
+    });
+  }
 
   return app;
 }

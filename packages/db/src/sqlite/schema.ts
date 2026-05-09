@@ -50,12 +50,31 @@ export const sqlitePasskeys = sqliteTable(
     publicKey: text("public_key").notNull(),
     counter: integer("counter").notNull(),
     transportsJson: text("transports_json", { mode: "json" }).$type<string[] | null>(),
+    name: text("name").notNull(),
     createdAt: timestampText("created_at"),
     lastUsedAt: optionalTimestampText("last_used_at"),
   },
   (table) => [
     uniqueIndex("passkeys_credential_id_unique").on(table.credentialId),
     index("passkeys_user_id_idx").on(table.userId),
+  ],
+);
+
+export const sqlitePasskeyChallenges = sqliteTable(
+  "passkey_challenges",
+  {
+    id: idText(),
+    userId: text("user_id").references(() => sqliteUsers.id),
+    kind: text("kind").notNull(),
+    challenge: text("challenge").notNull(),
+    createdAt: timestampText("created_at"),
+    expiresAt: timestampText("expires_at"),
+    consumedAt: optionalTimestampText("consumed_at"),
+  },
+  (table) => [
+    index("passkey_challenges_user_id_idx").on(table.userId),
+    index("passkey_challenges_kind_idx").on(table.kind),
+    check("passkey_challenges_kind_check", sql`${table.kind} IN ('registration', 'login')`),
   ],
 );
 
@@ -71,14 +90,24 @@ export const sqliteRecoveryCodes = sqliteTable(
   (table) => [index("recovery_codes_user_id_idx").on(table.userId)],
 );
 
-export const sqliteWorkspaces = sqliteTable("workspaces", {
-  id: idText(),
-  name: text("name").notNull(),
-  ownerUserId: requiredIdText("owner_user_id").references(() => sqliteUsers.id),
-  createdAt: timestampText("created_at"),
-  updatedAt: timestampText("updated_at"),
-  archivedAt: optionalTimestampText("archived_at"),
-});
+export const sqliteWorkspaces = sqliteTable(
+  "workspaces",
+  {
+    id: idText(),
+    name: text("name").notNull(),
+    ownerUserId: requiredIdText("owner_user_id").references(() => sqliteUsers.id),
+    status: text("status").notNull().default("active"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    archivedAt: optionalTimestampText("archived_at"),
+  },
+  (table) => [
+    check(
+      "workspaces_status_check",
+      sql`${table.status} IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken')`,
+    ),
+  ],
+);
 
 export const sqliteWorkspaceMembers = sqliteTable(
   "workspace_members",
@@ -131,11 +160,18 @@ export const sqliteLedgers = sqliteTable(
     name: text("name").notNull(),
     baseCurrencyCode: text("base_currency_code", { length: 3 }).notNull(),
     firstDayOfWeek: integer("first_day_of_week").notNull(),
+    status: text("status").notNull().default("active"),
     createdAt: timestampText("created_at"),
     updatedAt: timestampText("updated_at"),
     archivedAt: optionalTimestampText("archived_at"),
   },
-  (table) => [index("ledgers_workspace_id_idx").on(table.workspaceId)],
+  (table) => [
+    index("ledgers_workspace_id_idx").on(table.workspaceId),
+    check(
+      "ledgers_status_check",
+      sql`${table.status} IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken')`,
+    ),
+  ],
 );
 
 export const sqliteDevices = sqliteTable(
@@ -163,6 +199,7 @@ export const sqliteIdempotencyReceipts = sqliteTable(
     workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
     ledgerId: text("ledger_id").references(() => sqliteLedgers.id),
     actorUserId: requiredIdText("actor_user_id").references(() => sqliteUsers.id),
+    deviceId: text("device_id").references(() => sqliteDevices.id),
     idempotencyKey: text("idempotency_key").notNull(),
     requestHash: text("request_hash").notNull(),
     responseStatus: integer("response_status").notNull(),
@@ -229,6 +266,7 @@ export const sqliteSchema = {
   idempotencyReceipts: sqliteIdempotencyReceipts,
   jobQueue: sqliteJobQueue,
   ledgers: sqliteLedgers,
+  passkeyChallenges: sqlitePasskeyChallenges,
   passkeys: sqlitePasskeys,
   recoveryCodes: sqliteRecoveryCodes,
   sessions: sqliteSessions,
