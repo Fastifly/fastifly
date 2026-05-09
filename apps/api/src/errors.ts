@@ -4,7 +4,7 @@ import {
   makeApiError,
   makeValidationError,
 } from "@fastifly/common";
-import { LedgerMutationError } from "@fastifly/db";
+import { FinanceMutationError, LedgerMutationError } from "@fastifly/db";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 const DEFAULT_ERROR_MESSAGES = {
@@ -72,6 +72,21 @@ function toLedgerMutationHttpError(error: LedgerMutationError): {
         code: "INTERNAL_SERVER_ERROR",
         message: DEFAULT_ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
         statusCode: 500,
+      };
+  }
+}
+
+function toFinanceMutationHttpError(error: FinanceMutationError): {
+  readonly statusCode: number;
+  readonly code: ApiErrorCode;
+  readonly message: string;
+} {
+  switch (error.code) {
+    case "ACCOUNT_NOT_FOUND_OR_ARCHIVED":
+      return {
+        code: "NOT_FOUND",
+        message: "Account was not found or is already archived.",
+        statusCode: 404,
       };
   }
 }
@@ -145,6 +160,21 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof LedgerMutationError) {
       const mappedError = toLedgerMutationHttpError(error);
+      sendError(
+        reply,
+        mappedError.statusCode,
+        makeApiError({
+          code: mappedError.code,
+          message: mappedError.message,
+          details: {},
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof FinanceMutationError) {
+      const mappedError = toFinanceMutationHttpError(error);
       sendError(
         reply,
         mappedError.statusCode,

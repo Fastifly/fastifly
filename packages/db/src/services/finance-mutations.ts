@@ -82,6 +82,16 @@ export type LedgerFinanceMutationServiceOptions = {
   readonly runner: LedgerMutationRunner<unknown>;
 };
 
+export class FinanceMutationError extends Error {
+  constructor(
+    message: string,
+    readonly code: "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+  ) {
+    super(message);
+    this.name = "FinanceMutationError";
+  }
+}
+
 export function createLedgerFinanceMutationService(
   options: LedgerFinanceMutationServiceOptions,
 ): LedgerFinanceMutationService {
@@ -96,8 +106,10 @@ export function createLedgerFinanceMutationService(
           if (envelope.dryRun) {
             return {
               body: {
-                account: requestPayload,
-                dryRun: true,
+                data: {
+                  account: requestPayload,
+                  dryRun: true,
+                },
               },
               status: 200,
             };
@@ -134,7 +146,9 @@ export function createLedgerFinanceMutationService(
             });
 
             return {
-              body: serializeCreateAccountResult(created),
+              body: {
+                data: serializeCreateAccountResult(created),
+              },
               status: 201,
             };
           });
@@ -152,8 +166,10 @@ export function createLedgerFinanceMutationService(
           if (envelope.dryRun) {
             return {
               body: {
-                account: requestPayload,
-                dryRun: true,
+                data: {
+                  account: requestPayload,
+                  dryRun: true,
+                },
               },
               status: 200,
             };
@@ -170,14 +186,10 @@ export function createLedgerFinanceMutationService(
 
           return mapMaybePromise(result, (account) => {
             if (!account) {
-              return {
-                body: {
-                  account: null,
-                  code: "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
-                  message: "Account was not found or is already archived.",
-                },
-                status: 404,
-              };
+              throw new FinanceMutationError(
+                "Account was not found or is already archived.",
+                "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+              );
             }
 
             emitEvent({
@@ -199,7 +211,9 @@ export function createLedgerFinanceMutationService(
 
             return {
               body: {
-                account: serializeAccount(account),
+                data: {
+                  account: serializeAccount(account),
+                },
               },
               status: 200,
             };
@@ -253,8 +267,10 @@ function createTransactionMutation(
       if (envelope.dryRun) {
         return {
           body: {
-            dryRun: true,
-            transaction: requestPayload,
+            data: {
+              dryRun: true,
+              transaction: requestPayload,
+            },
           },
           status: 200,
         };
@@ -292,7 +308,9 @@ function createTransactionMutation(
 
         return {
           body: {
-            transactionGroup: serializeTransactionGroup(group),
+            data: {
+              transactionGroup: serializeTransactionGroup(group),
+            },
           },
           status: 201,
         };

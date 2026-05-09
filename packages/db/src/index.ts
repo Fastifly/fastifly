@@ -150,7 +150,10 @@ export type {
   LedgerFinanceMutationService,
   LedgerFinanceMutationServiceOptions,
 } from "./services/finance-mutations.js";
-export { createLedgerFinanceMutationService } from "./services/finance-mutations.js";
+export {
+  createLedgerFinanceMutationService,
+  FinanceMutationError,
+} from "./services/finance-mutations.js";
 export type {
   SqliteClient,
   SqliteClientConfig,

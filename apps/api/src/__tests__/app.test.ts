@@ -4,7 +4,7 @@ import {
   isSyncedId,
   ValidationErrorSchema,
 } from "@fastifly/common";
-import { LedgerMutationError } from "@fastifly/db";
+import { FinanceMutationError, LedgerMutationError } from "@fastifly/db";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 
@@ -187,6 +187,33 @@ describe("Fastifly API app", () => {
       error: {
         code: "CONFLICT",
         message: "This ledger cannot be changed right now.",
+      },
+    });
+  });
+
+  it("maps finance mutation errors to customer-safe API errors", async () => {
+    const app = await makeApp();
+    app.route({
+      method: "DELETE",
+      url: "/test/finance/archive-missing-account",
+      handler: () => {
+        throw new FinanceMutationError(
+          "Account was not found or is already archived.",
+          "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+        );
+      },
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/test/finance/archive-missing-account",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "NOT_FOUND",
+        message: "Account was not found or is already archived.",
       },
     });
   });

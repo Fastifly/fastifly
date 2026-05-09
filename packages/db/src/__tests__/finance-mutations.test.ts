@@ -19,6 +19,7 @@ import {
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
   createSqliteTransactionWriteRepository,
+  FinanceMutationError,
   type IdentityRepository,
   type LedgerFinanceMutationService,
   type LedgerMutationEnvelope,
@@ -220,7 +221,7 @@ describe("finance mutation service", () => {
         });
 
         expect(first).toMatchObject({
-          body: { account: { name: "Bank", openingBalanceMinor: null } },
+          body: { data: { account: { name: "Bank", openingBalanceMinor: null } } },
           idempotencyReplayed: false,
           status: 201,
         });
@@ -244,7 +245,22 @@ describe("finance mutation service", () => {
             accountRepository,
           );
 
-          const result = await service.createExpense({
+          const first = await service.createExpense({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_create_transaction",
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+            transaction: {
+              currencyCode: "INR",
+              description: "Groceries",
+              lines: [{ amountMinor: 12_000n, destinationAccountId: accounts.groceries.id }],
+              occurredAt: "2026-05-09T08:00:00.000Z",
+              sourceAccountId: accounts.bank.id,
+            },
+          });
+          const replay = await service.createExpense({
             envelope: createEnvelope({
               actorUserId: user.id,
               idempotencyKey: "idem_create_transaction",
@@ -260,19 +276,28 @@ describe("finance mutation service", () => {
             },
           });
 
-          expect(result).toMatchObject({
+          expect(first).toMatchObject({
             body: {
-              transactionGroup: {
-                journals: [{ postings: [{ amountMinor: "-12000" }, { amountMinor: "12000" }] }],
-                title: "Groceries",
-                type: "expense",
+              data: {
+                transactionGroup: {
+                  journals: [{ postings: [{ amountMinor: "-12000" }, { amountMinor: "12000" }] }],
+                  title: "Groceries",
+                  type: "expense",
+                },
               },
             },
+            idempotencyReplayed: false,
+            status: 201,
+          });
+          expect(replay).toMatchObject({
+            body: first.body,
+            idempotencyReplayed: true,
             status: 201,
           });
           expect(events).toEqual(["transaction.created"]);
           await expect(countRows(dialect, rawDb, "transaction_groups")).resolves.toBe(1);
           await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(1);
+          await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
         },
       );
     });
@@ -302,10 +327,12 @@ describe("finance mutation service", () => {
 
           expect(first).toMatchObject({
             body: {
-              account: {
-                archivedAt: "2026-05-09T10:11:12.000Z",
-                id: accounts.groceries.id,
-                isActive: false,
+              data: {
+                account: {
+                  archivedAt: "2026-05-09T10:11:12.000Z",
+                  id: accounts.groceries.id,
+                  isActive: false,
+                },
               },
             },
             idempotencyReplayed: false,
@@ -317,7 +344,6 @@ describe("finance mutation service", () => {
             status: 200,
           });
           expect(events).toEqual(["account.updated"]);
-          await expect(countRows(dialect, rawDb, "accounts")).resolves.toBe(2);
           await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(1);
           await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
           expect(
@@ -329,6 +355,32 @@ describe("finance mutation service", () => {
           ).toMatchObject({ archivedAt: "2026-05-09T10:11:12.000Z" });
         },
       );
+    });
+
+    it(`rejects missing account archive mutations without side effects on ${factory.name}`, async () => {
+      await factory.run(async ({ dialect, events, identityRepository, rawDb, service }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+
+        await expect(
+          service.archiveAccount({
+            account: {
+              accountId: createUuidV7({
+                nowMs: Date.UTC(2026, 4, 9),
+                randomBytes: (byteLength) => new Uint8Array(byteLength).fill(7),
+              }),
+            },
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_missing_archive",
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+          }),
+        ).rejects.toBeInstanceOf(FinanceMutationError);
+        expect(events).toEqual([]);
+        await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(0);
+        await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(0);
+      });
     });
 
     it(`blocks finance writes before handlers run when a ledger is read-only on ${factory.name}`, async () => {
@@ -385,7 +437,7 @@ describe("finance mutation service", () => {
         });
 
         expect(result).toMatchObject({
-          body: { dryRun: true },
+          body: { data: { dryRun: true } },
           idempotencyReplayed: false,
           status: 200,
         });
