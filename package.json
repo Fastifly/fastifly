@@ -1,0 +1,28 @@
+{
+  "name": "fastifly",
+  "private": true,
+  "packageManager": "pnpm@11.0.9+sha512.34ce82e6780233cf9cad8685029a8f81d2e06196c5a9bad98879f7424940c6817c4e4524fb7d38b8553ceed48b9758b8ebaf1abd3600c232c4c8cf7366086f38",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "lint:packages": "turbo run lint",
+    "test": "turbo run test",
+    "test:sqlite": "turbo run test:sqlite",
+    "test:postgres": "turbo run test:postgres",
+    "typecheck:tsc": "turbo run typecheck:tsc",
+    "db:generate:sqlite": "pnpm --filter @fastifly/db db:generate:sqlite",
+    "db:generate:postgres": "pnpm --filter @fastifly/db db:generate:postgres",
+    "db:migrate:sqlite": "pnpm --filter @fastifly/db db:migrate:sqlite",
+    "db:migrate:postgres": "pnpm --filter @fastifly/db db:migrate:postgres"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
+    "@typescript/native-preview": "latest",
+    "turbo": "latest",
+    "typescript": "latest"
+  }
+}

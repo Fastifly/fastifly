@@ -1,0 +1,23 @@
+{
+  "name": "@fastifly/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('web scaffold: dev server not implemented yet')\"",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "test": "node -e \"console.log('web scaffold: no tests yet')\"",
+    "test:sqlite": "node -e \"console.log('web scaffold: sqlite tests not applicable yet')\"",
+    "test:postgres": "node -e \"console.log('web scaffold: postgres tests not applicable yet')\""
+  },
+  "dependencies": {
+    "@fastifly/authz": "workspace:*",
+    "@fastifly/common": "workspace:*",
+    "@fastifly/config": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}

@@ -1,2 +1,13 @@
 rust
-ts/raw-docs
+ts
+
+node_modules
+.turbo
+dist
+build
+.vite
+coverage
+*.tsbuildinfo
+.env
+.env.*
+!.env.example

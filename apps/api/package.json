@@ -1,0 +1,24 @@
+{
+  "name": "@fastifly/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('api scaffold: dev server not implemented yet')\"",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "test": "node -e \"console.log('api scaffold: no tests yet')\"",
+    "test:sqlite": "node -e \"console.log('api scaffold: sqlite tests not implemented yet')\"",
+    "test:postgres": "node -e \"console.log('api scaffold: postgres tests not implemented yet')\""
+  },
+  "dependencies": {
+    "@fastifly/authz": "workspace:*",
+    "@fastifly/common": "workspace:*",
+    "@fastifly/config": "workspace:*",
+    "@fastifly/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}
