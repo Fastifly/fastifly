@@ -1,3 +1,30 @@
+export type {
+  BalanceDirtyRequest,
+  CreateAuditLogEntriesInput,
+  CreateIdempotencyReceiptInput,
+  IdempotencyReceiptRecord,
+  LedgerMutationAuditEntry,
+  LedgerMutationDomainEvent,
+  LedgerMutationEnvelope,
+  LedgerMutationHandler,
+  LedgerMutationHandlerContext,
+  LedgerMutationResponse,
+  LedgerMutationRunInput,
+  LedgerMutationRunResult,
+  LedgerMutationScope,
+  LedgerMutationSideEffectFlags,
+  LedgerMutationSource,
+  LedgerMutationStore,
+  LedgerMutationTransactionalStore,
+  LedgerWriteBoundary,
+} from "./ledger-mutations.js";
+export {
+  createInProcessLedgerWriteBoundary,
+  createPostgresLedgerMutationStore,
+  createSqliteLedgerMutationStore,
+  LedgerMutationError,
+  LedgerMutationRunner,
+} from "./ledger-mutations.js";
 export type { MigrationCommand, MigrationCommandName } from "./migrations/commands.js";
 export { MIGRATION_COMMANDS } from "./migrations/commands.js";
 export type {
@@ -62,6 +89,7 @@ export type {
   UserWorkspaceContextRecord,
   WorkspaceInvitationRecord,
   WorkspaceInvitationRole,
+  WorkspaceLedgerLifecycleStatus,
   WorkspaceMemberRecord,
   WorkspaceMemberWithUserRecord,
   WorkspaceRecord,

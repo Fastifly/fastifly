@@ -44,6 +44,27 @@ describe("SQLite migrations", () => {
       `);
       expect(userColumns.rows.map((row) => String(row.name))).toContain("password_hash");
 
+      const workspaceColumns = await db.execute(`
+        SELECT name
+        FROM pragma_table_info('workspaces')
+        ORDER BY cid
+      `);
+      expect(workspaceColumns.rows.map((row) => String(row.name))).toContain("status");
+
+      const ledgerColumns = await db.execute(`
+        SELECT name
+        FROM pragma_table_info('ledgers')
+        ORDER BY cid
+      `);
+      expect(ledgerColumns.rows.map((row) => String(row.name))).toContain("status");
+
+      const idempotencyColumns = await db.execute(`
+        SELECT name
+        FROM pragma_table_info('idempotency_receipts')
+        ORDER BY cid
+      `);
+      expect(idempotencyColumns.rows.map((row) => String(row.name))).toContain("device_id");
+
       const passkeyColumns = await db.execute(`
         SELECT name
         FROM pragma_table_info('passkeys')
@@ -130,6 +151,14 @@ describe("SQLite migrations", () => {
             '2026-05-09T00:00:00.000Z',
             '2026-05-09T00:00:00.000Z'
           )
+        `),
+      ).rejects.toThrow();
+
+      await expect(
+        db.execute(`
+          UPDATE workspaces
+          SET status = 'unknown'
+          WHERE id = 'workspace_1'
         `),
       ).rejects.toThrow();
     } finally {

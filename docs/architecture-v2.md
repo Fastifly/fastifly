@@ -423,6 +423,8 @@ Do not scatter product rules across routes, forms, services, and repositories.
 
 All ledger-affecting mutations must use one mutation envelope and runner. This applies to REST routes, sync replay, imports, rules, recurring generation, bulk edits, reconciliation, and maintenance repairs.
 
+Implementation detail and product behavior are tracked in `docs/ledger-mutation-runner.md`.
+
 Mutation envelope:
 
 ```text

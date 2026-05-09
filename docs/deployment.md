@@ -19,6 +19,8 @@ PostgreSQL 18
 
 Fastifly does not require Redis, BullMQ, Kafka, Elasticsearch, or any external queue service.
 
+Ledger-affecting writes are serialized by `LedgerMutationRunner`. The current write-boundary adapter is process-local, so the supported production shape is one writer API process per Fastifly instance. Do not horizontally scale API writers until the distributed ledger write boundary issue is resolved.
+
 ---
 
 ## Deployment principles

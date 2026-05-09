@@ -441,7 +441,7 @@ function toPasskeyChallengeRecord(
   };
 }
 
-function toWorkspaceRecord(row: SqliteWorkspaceRow | PostgresWorkspaceRow): WorkspaceRecord {
+export function toWorkspaceRecord(row: SqliteWorkspaceRow | PostgresWorkspaceRow): WorkspaceRecord {
   return {
     id: parseSyncedId(row.id),
     name: row.name,
@@ -467,7 +467,7 @@ function toWorkspaceMemberRecord(
   };
 }
 
-function toLedgerRecord(row: SqliteLedgerRow | PostgresLedgerRow): LedgerRecord {
+export function toLedgerRecord(row: SqliteLedgerRow | PostgresLedgerRow): LedgerRecord {
   return {
     id: parseSyncedId(row.id),
     workspaceId: parseSyncedId(row.workspaceId),
