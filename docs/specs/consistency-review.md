@@ -6,15 +6,15 @@ Scope: latest canonical TypeScript docs only.
 
 Included:
 
-- `docs/architecture-v2.md`
-- `docs/database-v2.md`
-- `docs/api-v2.md`
-- `docs/frontend-v2.md`
-- `docs/sync-v1.md`
-- `docs/pwa-mobile.md`
-- `docs/maintenance-v2.md`
-- `docs/backup-restore.md`
-- `docs/deployment.md`
+- `docs/specs/architecture-v2.md`
+- `docs/specs/database-v2.md`
+- `docs/specs/api-v2.md`
+- `docs/specs/frontend-v2.md`
+- `docs/specs/sync-v1.md`
+- `docs/specs/pwa-mobile.md`
+- `docs/specs/maintenance-v2.md`
+- `docs/specs/backup-restore.md`
+- `docs/specs/deployment.md`
 - `docs/prd/`
 
 Legacy docs reviewed for removal:

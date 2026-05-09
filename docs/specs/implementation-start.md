@@ -5,11 +5,11 @@ This document defines what must be true before implementation starts and the ord
 Use this with:
 
 - `AGENTS.md`
-- `docs/architecture-v2.md`
-- `docs/database-v2.md`
-- `docs/api-v2.md`
-- `docs/sync-v1.md`
-- `docs/frontend-v2.md`
+- `docs/specs/architecture-v2.md`
+- `docs/specs/database-v2.md`
+- `docs/specs/api-v2.md`
+- `docs/specs/sync-v1.md`
+- `docs/specs/frontend-v2.md`
 - `docs/prd/fastify_finance_app_implementation_prd.md`
 
 ## Implementation Gates
@@ -23,15 +23,15 @@ Use latest docs as source of truth.
 Canonical:
 
 ```text
-docs/architecture-v2.md
-docs/database-v2.md
-docs/api-v2.md
-docs/frontend-v2.md
-docs/sync-v1.md
-docs/pwa-mobile.md
-docs/maintenance-v2.md
-docs/backup-restore.md
-docs/deployment.md
+docs/specs/architecture-v2.md
+docs/specs/database-v2.md
+docs/specs/api-v2.md
+docs/specs/frontend-v2.md
+docs/specs/sync-v1.md
+docs/specs/pwa-mobile.md
+docs/specs/maintenance-v2.md
+docs/specs/backup-restore.md
+docs/specs/deployment.md
 docs/prd/
 ```
 

@@ -1256,16 +1256,16 @@ PostgreSQL
 After accepting this PRD, update:
 
 ```text
-docs/database-v2.md
-docs/architecture-v2.md
-docs/api-v2.md
-docs/frontend-v2.md
-docs/maintenance-v2.md
+docs/specs/database-v2.md
+docs/specs/architecture-v2.md
+docs/specs/api-v2.md
+docs/specs/frontend-v2.md
+docs/specs/maintenance-v2.md
 ```
 
 Minimum updates:
 
-### docs/database-v2.md
+### docs/specs/database-v2.md
 
 Add:
 
@@ -1277,7 +1277,7 @@ Add:
 - compatibility matrix
 - delete/archive/void semantics
 
-### docs/architecture-v2.md
+### docs/specs/architecture-v2.md
 
 Add:
 
@@ -1287,7 +1287,7 @@ Add:
 - semantic maintenance command categories
 - side-effect ownership
 
-### docs/api-v2.md
+### docs/specs/api-v2.md
 
 Add:
 
@@ -1297,7 +1297,7 @@ Add:
 - idempotency
 - enriched response contracts
 
-### docs/frontend-v2.md
+### docs/specs/frontend-v2.md
 
 Add:
 
@@ -1308,7 +1308,7 @@ Add:
 - return-to state
 - drill-down report flows
 
-### docs/maintenance-v2.md
+### docs/specs/maintenance-v2.md
 
 Add:
 

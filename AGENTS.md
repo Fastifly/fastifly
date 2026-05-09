@@ -29,24 +29,24 @@ Read these first:
 
 ```text
 docs/README.md
-docs/architecture-v2.md
-docs/database-v2.md
-docs/api-v2.md
-docs/frontend-v2.md
-docs/implementation-start.md
-docs/sync-v1.md
-docs/pwa-mobile.md
-docs/maintenance-v2.md
-docs/backup-restore.md
-docs/deployment.md
+docs/specs/architecture-v2.md
+docs/specs/database-v2.md
+docs/specs/api-v2.md
+docs/specs/frontend-v2.md
+docs/specs/implementation-start.md
+docs/specs/sync-v1.md
+docs/specs/pwa-mobile.md
+docs/specs/maintenance-v2.md
+docs/specs/backup-restore.md
+docs/specs/deployment.md
 docs/prd/
-docs/consistency-review.md
+docs/specs/consistency-review.md
 ```
 
 Raw docs:
 
 ```text
-raw-docs/
+ts/raw-docs/
 ```
 
 Raw docs are research evidence and historical notes. They are not the product spec. If raw docs and latest docs disagree, latest docs win.
@@ -273,7 +273,7 @@ Approved offline writes go through a local command outbox and server sync replay
 
 Do not implement raw row patch sync.
 
-Do not broaden offline support without updating `docs/sync-v1.md`, `docs/api-v2.md`, and `docs/database-v2.md`.
+Do not broaden offline support without updating `docs/specs/sync-v1.md`, `docs/specs/api-v2.md`, and `docs/specs/database-v2.md`.
 
 ---
 
@@ -547,7 +547,7 @@ generateRecurringTransactions
 calculateReport
 ```
 
-Ledger-affecting services must run through the shared mutation envelope/runner described in `docs/architecture-v2.md`.
+Ledger-affecting services must run through the shared mutation envelope/runner described in `docs/specs/architecture-v2.md`.
 
 The runner owns:
 
@@ -722,7 +722,7 @@ category.create.v1
 budget.assign_category_month.v1
 ```
 
-All other writes are online-only unless `docs/sync-v1.md`, `docs/api-v2.md`, and `docs/database-v2.md` are updated.
+All other writes are online-only unless `docs/specs/sync-v1.md`, `docs/specs/api-v2.md`, and `docs/specs/database-v2.md` are updated.
 
 Sync replay must:
 

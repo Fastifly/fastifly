@@ -556,7 +556,7 @@ JSON for full structured export
 - PostgreSQL user has working documented backup/restore steps.
 - User can export transactions to CSV.
 - User can create full JSON export.
-- Backup is documented in README or docs/deployment.md.
+- Backup is documented in README or docs/specs/deployment.md.
 - Migration docs recommend backup before production migration.
 
 ---
@@ -625,7 +625,7 @@ docker-compose.sqlite.yml
 docker-compose.postgres.yml
 Dockerfile
 .env.example
-docs/deployment.md
+docs/specs/deployment.md
 ```
 
 ### SQLite Compose
@@ -813,14 +813,14 @@ LICENSE
 CONTRIBUTING.md
 AGENTS.md
 SECURITY.md
-docs/architecture-v2.md
-docs/database-v2.md
-docs/api-v2.md
-docs/sync-v1.md
-docs/frontend-v2.md
-docs/deployment.md
-docs/backup-restore.md
-docs/pwa-mobile.md
+docs/specs/architecture-v2.md
+docs/specs/database-v2.md
+docs/specs/api-v2.md
+docs/specs/sync-v1.md
+docs/specs/frontend-v2.md
+docs/specs/deployment.md
+docs/specs/backup-restore.md
+docs/specs/pwa-mobile.md
 ```
 
 README should remain concise. Detailed production guidance belongs in docs.

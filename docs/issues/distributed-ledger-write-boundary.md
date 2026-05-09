@@ -20,9 +20,9 @@ Customer impact:
 ## Affected docs/code
 
 - `packages/db/src/ledger-mutations.ts`
-- `docs/ledger-mutation-runner.md`
-- `docs/architecture-v2.md`
-- `docs/deployment.md`
+- `docs/specs/ledger-mutation-runner.md`
+- `docs/specs/architecture-v2.md`
+- `docs/specs/deployment.md`
 
 ## Suggested fix
 

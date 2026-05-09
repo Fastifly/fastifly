@@ -4,24 +4,33 @@ This folder contains the canonical TypeScript implementation documentation.
 
 `ts/raw-docs/` contains research notes, comparisons, and older gap analyses. Raw docs are useful evidence, but they are not the product spec. When raw docs and this folder disagree, this folder wins.
 
-## Canonical Docs
+## Layout
+
+| Folder | Purpose |
+|---|---|
+| `specs/` | Canonical technical and implementation specs. |
+| `prd/` | Accepted product requirement documents. |
+| `pages/` | Customer-facing website/page copy. |
+| `issues/` | Deferred implementation concerns that should not block the current phase. |
+
+## Canonical Specs
 
 | Area | File |
 |---|---|
-| Architecture | `architecture-v2.md` |
-| Database | `database-v2.md` |
-| API | `api-v2.md` |
-| Frontend | `frontend-v2.md` |
-| Implementation start | `implementation-start.md` |
-| Ledger mutation runner | `ledger-mutation-runner.md` |
-| PWA/mobile/offline | `pwa-mobile.md` |
-| Sync | `sync-v1.md` |
-| Maintenance | `maintenance-v2.md` |
-| Backup/restore/export | `backup-restore.md` |
-| Deployment | `deployment.md` |
+| Architecture | `specs/architecture-v2.md` |
+| Database | `specs/database-v2.md` |
+| API | `specs/api-v2.md` |
+| Frontend | `specs/frontend-v2.md` |
+| Implementation start | `specs/implementation-start.md` |
+| Ledger mutation runner | `specs/ledger-mutation-runner.md` |
+| PWA/mobile/offline | `specs/pwa-mobile.md` |
+| Sync | `specs/sync-v1.md` |
+| Maintenance | `specs/maintenance-v2.md` |
+| Backup/restore/export | `specs/backup-restore.md` |
+| Deployment | `specs/deployment.md` |
 | PRDs | `prd/` |
 | Customer-facing pages | `pages/` |
-| Consistency review | `consistency-review.md` |
+| Consistency review | `specs/consistency-review.md` |
 
 Legacy `architecture.md` and `database.md` were reviewed, useful content was promoted, and the files were removed. New implementation decisions should update latest-version docs only.
 
