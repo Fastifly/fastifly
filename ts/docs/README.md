@@ -20,7 +20,7 @@ This folder contains the canonical TypeScript implementation documentation.
 | PRDs | `prd/` |
 | Consistency review | `consistency-review.md` |
 
-`architecture.md` and `database.md` are legacy summaries kept only until review/removal. New implementation decisions should update latest-version docs only.
+Legacy `architecture.md` and `database.md` were reviewed, useful content was promoted, and the files were removed. New implementation decisions should update latest-version docs only.
 
 ## Current Baseline
 

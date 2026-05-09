@@ -138,6 +138,50 @@ Reasons:
 
 ---
 
+## Date and time handling
+
+Store timestamps consistently.
+
+API timestamp format:
+
+```text
+ISO 8601 string with timezone
+```
+
+Database storage:
+
+- PostgreSQL uses `timestamptz` for timestamps.
+- SQLite stores normalized ISO 8601 UTC strings for timestamps.
+- Date-only financial fields stay date-only and must not be shifted by server timezone.
+
+Store user timezone in settings.
+
+Financial occurrence dates must be explicit and must not depend only on server timezone.
+
+Important fields:
+
+```text
+occurred_at
+created_at
+updated_at
+rate_date
+start_date
+end_date
+scheduled_for
+from_occurred_at
+last_seen_at
+expires_at
+```
+
+Rules:
+
+- `created_at` and `updated_at` are system timestamps.
+- `occurred_at` is the user/business transaction time.
+- `rate_date`, `start_date`, `end_date`, and `scheduled_for` are product dates and must be timezone-aware at the service boundary.
+- Period bucketing uses the ledger/user timezone from shared period utilities.
+
+---
+
 ## Core ownership model
 
 Fastifly is multi-user and sharing-ready from day one.

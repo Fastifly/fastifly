@@ -42,15 +42,6 @@ docs/prd/
 docs/consistency-review.md
 ```
 
-Legacy docs:
-
-```text
-docs/architecture.md
-docs/database.md
-```
-
-These legacy docs are kept only until review/removal. Do not use them as implementation authority when a latest-version doc exists.
-
 Raw docs:
 
 ```text
@@ -824,7 +815,7 @@ backup/restore behavior
 public API contracts
 ```
 
-Update latest-version docs only. Do not add new decisions to legacy `docs/architecture.md` or `docs/database.md`.
+Update latest-version docs only.
 
 ---
 

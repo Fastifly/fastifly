@@ -17,7 +17,12 @@ Included:
 - `docs/deployment.md`
 - `docs/prd/`
 
-Excluded from canonical consistency: legacy `docs/architecture.md` and `docs/database.md`. They are kept only until review/removal.
+Legacy docs reviewed for removal:
+
+- `docs/architecture.md`
+- `docs/database.md`
+
+Useful content was promoted into latest-version docs before deletion.
 
 ## Canonical Decisions
 
@@ -64,3 +69,14 @@ Open Decisions
 ```
 
 No remaining matches were found in latest canonical docs, except intentional mentions that `ts/raw-docs/` is research evidence and not the spec.
+
+## Legacy Removal Pass
+
+Reviewed `docs/architecture.md` and `docs/database.md` against `architecture-v2.md` and `database-v2.md`.
+
+Outcome:
+
+- `architecture-v2.md` already superseded the legacy architecture content.
+- `database-v2.md` already superseded the legacy database content except for the explicit date/time handling section.
+- Date/time handling was promoted into `database-v2.md`.
+- Legacy files were then deleted.
