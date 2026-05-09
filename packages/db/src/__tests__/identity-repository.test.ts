@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createConfiguredSqliteClient,
-  createPostgresDatabaseFromClient,
+  createPglitePostgresDatabaseFromClient,
   createPostgresIdentityRepository,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
@@ -17,7 +17,6 @@ import {
   runPostgresMigrations,
   runSqliteMigrations,
 } from "../testing/migrations.js";
-import { readMigration } from "./migration-files.js";
 
 type RepositoryFactory = {
   readonly name: string;
@@ -56,10 +55,7 @@ const repositoryFactories: readonly RepositoryFactory[] = [
       const client = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
 
       try {
-        await runSqliteMigrations(client, [
-          readMigration("sqlite", "0001_foundation"),
-          readMigration("sqlite", "0002_passkey_challenges"),
-        ]);
+        runSqliteMigrations(client);
         const repo = createSqliteIdentityRepository(createSqliteDatabaseFromClient(client), {
           clock: createClock(new Date("2026-05-09T00:00:00.000Z")),
           createId: createDeterministicIdGenerator(),
@@ -78,14 +74,14 @@ const repositoryFactories: readonly RepositoryFactory[] = [
       const client = await createInMemoryPostgresDatabase();
 
       try {
-        await runPostgresMigrations(client, [
-          readMigration("postgres", "0001_foundation"),
-          readMigration("postgres", "0002_passkey_challenges"),
-        ]);
-        const repo = createPostgresIdentityRepository(createPostgresDatabaseFromClient(client), {
-          clock: createClock(new Date("2026-05-09T00:00:00.000Z")),
-          createId: createDeterministicIdGenerator(),
-        });
+        await runPostgresMigrations(client);
+        const repo = createPostgresIdentityRepository(
+          createPglitePostgresDatabaseFromClient(client),
+          {
+            clock: createClock(new Date("2026-05-09T00:00:00.000Z")),
+            createId: createDeterministicIdGenerator(),
+          },
+        );
 
         await test(repo);
       } finally {

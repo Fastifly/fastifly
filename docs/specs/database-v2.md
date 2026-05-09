@@ -118,8 +118,16 @@ Package drivers:
 
 ```text
 sqlite: better-sqlite3
-postgres: @electric-sql/pglite for tests; production driver selected before hosted Postgres wiring
+postgres: postgres.js for production migration/runtime wiring; @electric-sql/pglite for tests
 ```
+
+PostgreSQL runtime rules:
+
+- production runtime uses `postgres` / postgres.js through `createPostgresClient`
+- tests may use `@electric-sql/pglite` only through explicitly named PGlite helpers
+- runtime client config must define pool size, idle timeout, connect timeout, application name, and optional SSL
+- graceful shutdown must call `closePostgresClient`, which delegates to postgres.js `sql.end()`
+- hosted PostgreSQL CI must run `test:postgres:runtime` with `FASTIFLY_TEST_POSTGRES_URL`
 
 ---
 
@@ -464,6 +472,20 @@ Database concept:
 amount_minor   integer / bigint
 currency_code  text / varchar(3)
 ```
+
+SQLite money boundary:
+
+- SQLite stores money in `INTEGER` columns so numeric checks, ordering, and indexes remain usable.
+- SQLite finance services must bind money through `bindSqliteMoneyMinor`.
+- SQLite finance services must read money through `prepareSqliteMoneyStatement`, then normalize with `readSqliteMoneyMinor` or `readRequiredSqliteMoneyMinor`.
+- Do not select SQLite money columns through a normal Drizzle/driver path and then use them for ledger math.
+- Unsafe JavaScript `number` values from SQLite money columns must fail closed.
+- Current SQLite money columns:
+  - `accounts.opening_balance_minor`
+  - `budget_limits.amount_minor`
+  - `transaction_postings.amount_minor`
+  - `transaction_postings.foreign_amount_minor`
+  - `transaction_postings.reporting_amount_minor`
 
 ---
 

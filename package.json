@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "test:sqlite": "pnpm --filter @fastifly/db test:sqlite",
     "test:postgres": "pnpm --filter @fastifly/db test:postgres",
+    "test:postgres:runtime": "pnpm --filter @fastifly/db test:postgres:runtime",
     "typecheck:tsc": "turbo run typecheck:tsc",
     "db:generate:sqlite": "pnpm --filter @fastifly/db db:generate:sqlite",
     "db:generate:postgres": "pnpm --filter @fastifly/db db:generate:postgres",

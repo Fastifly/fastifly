@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   createConfiguredSqliteClient,
   createInProcessLedgerWriteBoundary,
-  createPostgresDatabaseFromClient,
+  createPglitePostgresDatabaseFromClient,
   createPostgresIdentityRepository,
   createPostgresLedgerMutationStore,
   createSqliteDatabaseFromClient,
@@ -25,7 +25,6 @@ import {
   runPostgresMigrations,
   runSqliteMigrations,
 } from "../testing/migrations.js";
-import { readMigration } from "./migration-files.js";
 
 type RunnerFactory = {
   readonly name: string;
@@ -84,10 +83,7 @@ const factories: readonly RunnerFactory[] = [
       const client = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
 
       try {
-        await runSqliteMigrations(client, [
-          readMigration("sqlite", "0001_foundation"),
-          readMigration("sqlite", "0002_passkey_challenges"),
-        ]);
+        runSqliteMigrations(client);
         const db = createSqliteDatabaseFromClient(client);
         const createId = createDeterministicIdGenerator();
         const identityRepository = createSqliteIdentityRepository(db, {
@@ -115,11 +111,8 @@ const factories: readonly RunnerFactory[] = [
       const client = await createInMemoryPostgresDatabase();
 
       try {
-        await runPostgresMigrations(client, [
-          readMigration("postgres", "0001_foundation"),
-          readMigration("postgres", "0002_passkey_challenges"),
-        ]);
-        const db = createPostgresDatabaseFromClient(client);
+        await runPostgresMigrations(client);
+        const db = createPglitePostgresDatabaseFromClient(client);
         const createId = createDeterministicIdGenerator();
         const identityRepository = createPostgresIdentityRepository(db, {
           clock: repositoryClock,

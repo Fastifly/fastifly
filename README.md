@@ -215,6 +215,7 @@ pnpm db:migrate:postgres
 
 pnpm test:sqlite
 pnpm test:postgres
+pnpm test:postgres:runtime
 ```
 
 ---

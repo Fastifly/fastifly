@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import type { AuditAction, JobQueueStatus, JsonObject } from "../schema-types.js";
@@ -260,16 +261,497 @@ export const sqliteAuditLog = sqliteTable(
   ],
 );
 
+export const sqliteCurrencies = sqliteTable(
+  "currencies",
+  {
+    code: text("code", { length: 3 }).primaryKey().notNull(),
+    name: text("name").notNull(),
+    decimalPlaces: integer("decimal_places").notNull(),
+    symbol: text("symbol"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    check("currencies_code_check", sql`${table.code} GLOB '[A-Z][A-Z][A-Z]'`),
+    check("currencies_decimal_places_check", sql`${table.decimalPlaces} BETWEEN 0 AND 8`),
+  ],
+);
+
+export const sqliteExchangeRates = sqliteTable(
+  "exchange_rates",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    baseCurrencyCode: text("base_currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    quoteCurrencyCode: text("quote_currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    rate: text("rate").notNull(),
+    source: text("source").notNull(),
+    rateDate: text("rate_date").notNull(),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    index("exchange_rates_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    uniqueIndex("exchange_rates_pair_date_source_unique").on(
+      table.ledgerId,
+      table.baseCurrencyCode,
+      table.quoteCurrencyCode,
+      table.rateDate,
+      table.source,
+    ),
+    check("exchange_rates_base_code_check", sql`${table.baseCurrencyCode} GLOB '[A-Z][A-Z][A-Z]'`),
+    check(
+      "exchange_rates_quote_code_check",
+      sql`${table.quoteCurrencyCode} GLOB '[A-Z][A-Z][A-Z]'`,
+    ),
+    check(
+      "exchange_rates_rate_check",
+      sql`length(${table.rate}) > 0 AND ${table.rate} NOT GLOB '*[^0-9.]*' AND ${table.rate} <> '.' AND (length(${table.rate}) - length(replace(${table.rate}, '.', ''))) <= 1 AND substr(${table.rate}, 1, 1) <> '.' AND substr(${table.rate}, length(${table.rate}), 1) <> '.'`,
+    ),
+  ],
+);
+
+export const sqliteAccounts = sqliteTable(
+  "accounts",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    subtype: text("subtype").notNull(),
+    currencyCode: text("currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    openingBalanceMinor: integer("opening_balance_minor"),
+    openingBalanceDate: text("opening_balance_date"),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    archivedAt: optionalTimestampText("archived_at"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("accounts_workspace_id_idx").on(table.workspaceId),
+    index("accounts_ledger_id_idx").on(table.ledgerId),
+    index("accounts_currency_code_idx").on(table.currencyCode),
+    index("accounts_archived_at_idx").on(table.archivedAt),
+    uniqueIndex("accounts_ledger_name_unique").on(table.ledgerId, table.name),
+    check(
+      "accounts_kind_check",
+      sql`${table.kind} IN ('asset', 'liability', 'revenue', 'expense', 'equity')`,
+    ),
+    check(
+      "accounts_subtype_check",
+      sql`${table.subtype} IN ('bank', 'cash', 'wallet', 'credit_card', 'loan', 'investment', 'income_source', 'expense_category', 'external', 'opening_helper', 'reconciliation_helper')`,
+    ),
+    check("accounts_currency_code_check", sql`${table.currencyCode} GLOB '[A-Z][A-Z][A-Z]'`),
+    check(
+      "accounts_opening_balance_pair_check",
+      sql`(${table.openingBalanceMinor} IS NULL AND ${table.openingBalanceDate} IS NULL) OR (${table.openingBalanceMinor} IS NOT NULL AND ${table.openingBalanceDate} IS NOT NULL)`,
+    ),
+    check(
+      "accounts_archive_state_check",
+      sql`${table.archivedAt} IS NULL OR ${table.isActive} = 0`,
+    ),
+  ],
+);
+
+export const sqliteCategories = sqliteTable(
+  "categories",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    parentId: text("parent_id").references((): AnySQLiteColumn => sqliteCategories.id),
+    name: text("name").notNull(),
+    color: text("color"),
+    icon: text("icon"),
+    archivedAt: optionalTimestampText("archived_at"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("categories_workspace_id_idx").on(table.workspaceId),
+    index("categories_ledger_id_idx").on(table.ledgerId),
+    index("categories_parent_id_idx").on(table.parentId),
+    uniqueIndex("categories_ledger_root_name_unique")
+      .on(table.ledgerId, table.name)
+      .where(sql`${table.parentId} IS NULL`),
+    uniqueIndex("categories_ledger_parent_name_unique")
+      .on(table.ledgerId, table.parentId, table.name)
+      .where(sql`${table.parentId} IS NOT NULL`),
+  ],
+);
+
+export const sqliteTags = sqliteTable(
+  "tags",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    name: text("name").notNull(),
+    color: text("color"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("tags_workspace_id_idx").on(table.workspaceId),
+    index("tags_ledger_id_idx").on(table.ledgerId),
+    uniqueIndex("tags_ledger_name_unique").on(table.ledgerId, table.name),
+  ],
+);
+
+export const sqlitePayees = sqliteTable(
+  "payees",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("payees_workspace_id_idx").on(table.workspaceId),
+    index("payees_ledger_id_idx").on(table.ledgerId),
+    uniqueIndex("payees_ledger_normalized_name_unique").on(table.ledgerId, table.normalizedName),
+  ],
+);
+
+export const sqlitePayeeAliases = sqliteTable(
+  "payee_aliases",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    payeeId: requiredIdText("payee_id").references(() => sqlitePayees.id),
+    alias: text("alias").notNull(),
+    normalizedAlias: text("normalized_alias").notNull(),
+    source: text("source").notNull(),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    index("payee_aliases_payee_id_idx").on(table.payeeId),
+    uniqueIndex("payee_aliases_ledger_normalized_alias_unique").on(
+      table.ledgerId,
+      table.normalizedAlias,
+    ),
+  ],
+);
+
+export const sqlitePayeeMappings = sqliteTable(
+  "payee_mappings",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    fromPayeeId: requiredIdText("from_payee_id").references(() => sqlitePayees.id),
+    toPayeeId: requiredIdText("to_payee_id").references(() => sqlitePayees.id),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    index("payee_mappings_from_payee_id_idx").on(table.fromPayeeId),
+    index("payee_mappings_to_payee_id_idx").on(table.toPayeeId),
+    check("payee_mappings_no_self_merge_check", sql`${table.fromPayeeId} <> ${table.toPayeeId}`),
+  ],
+);
+
+export const sqliteBudgets = sqliteTable(
+  "budgets",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    name: text("name").notNull(),
+    currencyCode: text("currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    period: text("period").notNull(),
+    rolloverEnabled: integer("rollover_enabled", { mode: "boolean" }).notNull().default(false),
+    archivedAt: optionalTimestampText("archived_at"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("budgets_workspace_id_idx").on(table.workspaceId),
+    index("budgets_ledger_id_idx").on(table.ledgerId),
+    uniqueIndex("budgets_ledger_name_unique").on(table.ledgerId, table.name),
+    check("budgets_currency_code_check", sql`${table.currencyCode} GLOB '[A-Z][A-Z][A-Z]'`),
+    check(
+      "budgets_period_check",
+      sql`${table.period} IN ('weekly', 'bi_weekly', 'semi_monthly', 'monthly', 'quarterly', 'yearly', 'custom')`,
+    ),
+  ],
+);
+
+export const sqliteBudgetLimits = sqliteTable(
+  "budget_limits",
+  {
+    id: idText(),
+    budgetId: requiredIdText("budget_id").references(() => sqliteBudgets.id),
+    categoryId: text("category_id").references(() => sqliteCategories.id),
+    amountMinor: integer("amount_minor").notNull(),
+    currencyCode: text("currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("budget_limits_budget_id_idx").on(table.budgetId),
+    index("budget_limits_category_id_idx").on(table.categoryId),
+    check("budget_limits_currency_code_check", sql`${table.currencyCode} GLOB '[A-Z][A-Z][A-Z]'`),
+    check("budget_limits_amount_non_negative_check", sql`${table.amountMinor} >= 0`),
+    check("budget_limits_date_order_check", sql`${table.startDate} <= ${table.endDate}`),
+  ],
+);
+
+export const sqliteTransactionGroups = sqliteTable(
+  "transaction_groups",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    title: text("title").notNull(),
+    type: text("type").notNull(),
+    source: text("source").notNull(),
+    externalId: text("external_id"),
+    importJobId: text("import_job_id"),
+    createdBy: text("created_by").references(() => sqliteUsers.id),
+    updatedBy: text("updated_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    deletedAt: optionalTimestampText("deleted_at"),
+  },
+  (table) => [
+    index("transaction_groups_workspace_id_idx").on(table.workspaceId),
+    index("transaction_groups_ledger_id_idx").on(table.ledgerId),
+    index("transaction_groups_type_idx").on(table.type),
+    index("transaction_groups_import_job_id_idx").on(table.importJobId),
+    index("transaction_groups_external_id_idx").on(table.externalId),
+    check(
+      "transaction_groups_type_check",
+      sql`${table.type} IN ('expense', 'income', 'transfer', 'split', 'opening_balance', 'reconciliation', 'adjustment', 'exchange')`,
+    ),
+    check(
+      "transaction_groups_source_check",
+      sql`${table.source} IN ('manual', 'import', 'recurring', 'rule', 'api', 'system')`,
+    ),
+  ],
+);
+
+export const sqliteTransactionJournals = sqliteTable(
+  "transaction_journals",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    groupId: requiredIdText("group_id").references(() => sqliteTransactionGroups.id),
+    type: text("type").notNull(),
+    occurredAt: timestampText("occurred_at"),
+    description: text("description").notNull(),
+    notes: text("notes"),
+    payeeId: text("payee_id").references(() => sqlitePayees.id),
+    status: text("status").notNull(),
+    source: text("source").notNull(),
+    externalId: text("external_id"),
+    importJobId: text("import_job_id"),
+    recurrenceTemplateId: text("recurrence_template_id"),
+    createdBy: text("created_by").references(() => sqliteUsers.id),
+    updatedBy: text("updated_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    deletedAt: optionalTimestampText("deleted_at"),
+  },
+  (table) => [
+    index("transaction_journals_workspace_id_idx").on(table.workspaceId),
+    index("transaction_journals_ledger_id_idx").on(table.ledgerId),
+    index("transaction_journals_group_id_idx").on(table.groupId),
+    index("transaction_journals_occurred_at_idx").on(table.occurredAt),
+    index("transaction_journals_type_idx").on(table.type),
+    index("transaction_journals_status_idx").on(table.status),
+    index("transaction_journals_import_job_id_idx").on(table.importJobId),
+    index("transaction_journals_external_id_idx").on(table.externalId),
+    check(
+      "transaction_journals_type_check",
+      sql`${table.type} IN ('expense', 'income', 'transfer', 'split', 'opening_balance', 'reconciliation', 'adjustment', 'exchange')`,
+    ),
+    check(
+      "transaction_journals_status_check",
+      sql`${table.status} IN ('pending', 'cleared', 'reconciled', 'void')`,
+    ),
+    check(
+      "transaction_journals_source_check",
+      sql`${table.source} IN ('manual', 'import', 'recurring', 'rule', 'api', 'system')`,
+    ),
+  ],
+);
+
+export const sqliteTransactionPostings = sqliteTable(
+  "transaction_postings",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    journalId: requiredIdText("journal_id").references(() => sqliteTransactionJournals.id),
+    accountId: requiredIdText("account_id").references(() => sqliteAccounts.id),
+    amountMinor: integer("amount_minor").notNull(),
+    currencyCode: text("currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    foreignAmountMinor: integer("foreign_amount_minor"),
+    foreignCurrencyCode: text("foreign_currency_code", { length: 3 }).references(
+      () => sqliteCurrencies.code,
+    ),
+    reportingAmountMinor: integer("reporting_amount_minor").notNull(),
+    reportingCurrencyCode: text("reporting_currency_code", { length: 3 })
+      .notNull()
+      .references(() => sqliteCurrencies.code),
+    exchangeRateSnapshotJson: text("exchange_rate_snapshot_json", {
+      mode: "json",
+    }).$type<JsonObject | null>(),
+    categoryId: text("category_id").references(() => sqliteCategories.id),
+    budgetId: text("budget_id").references(() => sqliteBudgets.id),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    index("transaction_postings_workspace_id_idx").on(table.workspaceId),
+    index("transaction_postings_ledger_id_idx").on(table.ledgerId),
+    index("transaction_postings_journal_id_idx").on(table.journalId),
+    index("transaction_postings_account_id_idx").on(table.accountId),
+    index("transaction_postings_category_id_idx").on(table.categoryId),
+    index("transaction_postings_budget_id_idx").on(table.budgetId),
+    index("transaction_postings_currency_code_idx").on(table.currencyCode),
+    check(
+      "transaction_postings_currency_code_check",
+      sql`${table.currencyCode} GLOB '[A-Z][A-Z][A-Z]'`,
+    ),
+    check(
+      "transaction_postings_reporting_currency_code_check",
+      sql`${table.reportingCurrencyCode} GLOB '[A-Z][A-Z][A-Z]'`,
+    ),
+    check(
+      "transaction_postings_foreign_pair_check",
+      sql`(${table.foreignAmountMinor} IS NULL AND ${table.foreignCurrencyCode} IS NULL) OR (${table.foreignAmountMinor} IS NOT NULL AND ${table.foreignCurrencyCode} IS NOT NULL AND ${table.foreignCurrencyCode} GLOB '[A-Z][A-Z][A-Z]')`,
+    ),
+  ],
+);
+
+export const sqliteTransactionTags = sqliteTable(
+  "transaction_tags",
+  {
+    transactionJournalId: requiredIdText("transaction_journal_id").references(
+      () => sqliteTransactionJournals.id,
+    ),
+    tagId: requiredIdText("tag_id").references(() => sqliteTags.id),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    uniqueIndex("transaction_tags_journal_tag_unique").on(table.transactionJournalId, table.tagId),
+    index("transaction_tags_tag_id_idx").on(table.tagId),
+  ],
+);
+
+export const sqliteJournalMeta = sqliteTable(
+  "journal_meta",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    journalId: requiredIdText("journal_id").references(() => sqliteTransactionJournals.id),
+    key: text("key").notNull(),
+    valueJson: text("value_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("journal_meta_journal_id_idx").on(table.journalId),
+    uniqueIndex("journal_meta_journal_key_unique").on(table.journalId, table.key),
+  ],
+);
+
+export const sqliteAccountMeta = sqliteTable(
+  "account_meta",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    accountId: requiredIdText("account_id").references(() => sqliteAccounts.id),
+    key: text("key").notNull(),
+    valueJson: text("value_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    index("account_meta_account_id_idx").on(table.accountId),
+    uniqueIndex("account_meta_account_key_unique").on(table.accountId, table.key),
+  ],
+);
+
+export const sqliteBalanceRecalculationQueue = sqliteTable(
+  "balance_recalculation_queue",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    accountId: text("account_id").references(() => sqliteAccounts.id),
+    currencyCode: text("currency_code", { length: 3 }).references(() => sqliteCurrencies.code),
+    fromOccurredAt: timestampText("from_occurred_at"),
+    reason: text("reason").notNull(),
+    status: text("status").notNull(),
+    createdAt: timestampText("created_at"),
+  },
+  (table) => [
+    index("balance_recalculation_queue_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("balance_recalculation_queue_account_id_idx").on(table.accountId),
+    index("balance_recalculation_queue_status_idx").on(table.status),
+    check(
+      "balance_recalculation_queue_status_check",
+      sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`,
+    ),
+    check(
+      "balance_recalculation_queue_currency_code_check",
+      sql`${table.currencyCode} IS NULL OR ${table.currencyCode} GLOB '[A-Z][A-Z][A-Z]'`,
+    ),
+  ],
+);
+
 export const sqliteSchema = {
+  accountMeta: sqliteAccountMeta,
+  accounts: sqliteAccounts,
   auditLog: sqliteAuditLog,
+  balanceRecalculationQueue: sqliteBalanceRecalculationQueue,
+  budgetLimits: sqliteBudgetLimits,
+  budgets: sqliteBudgets,
+  categories: sqliteCategories,
+  currencies: sqliteCurrencies,
   devices: sqliteDevices,
+  exchangeRates: sqliteExchangeRates,
   idempotencyReceipts: sqliteIdempotencyReceipts,
+  journalMeta: sqliteJournalMeta,
   jobQueue: sqliteJobQueue,
   ledgers: sqliteLedgers,
   passkeyChallenges: sqlitePasskeyChallenges,
   passkeys: sqlitePasskeys,
+  payeeAliases: sqlitePayeeAliases,
+  payeeMappings: sqlitePayeeMappings,
+  payees: sqlitePayees,
   recoveryCodes: sqliteRecoveryCodes,
   sessions: sqliteSessions,
+  tags: sqliteTags,
+  transactionGroups: sqliteTransactionGroups,
+  transactionJournals: sqliteTransactionJournals,
+  transactionPostings: sqliteTransactionPostings,
+  transactionTags: sqliteTransactionTags,
   users: sqliteUsers,
   workspaceInvitations: sqliteWorkspaceInvitations,
   workspaceMembers: sqliteWorkspaceMembers,

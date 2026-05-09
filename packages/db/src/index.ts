@@ -30,17 +30,19 @@ export {
 export type { MigrationCommand, MigrationCommandName } from "./migrations/commands.js";
 export { MIGRATION_COMMANDS } from "./migrations/commands.js";
 export type {
-  DatabaseDialect,
-  Migration,
-  MigrationExecutor,
-} from "./migrations/types.js";
-export { runMigrations } from "./migrations/types.js";
-export type {
+  PglitePostgresClient,
+  PglitePostgresClientConfig,
+  PglitePostgresDatabase,
   PostgresClient,
   PostgresClientConfig,
   PostgresDatabase,
+  ProductionPostgresDatabase,
 } from "./postgres/client.js";
 export {
+  closePostgresClient,
+  createPglitePostgresClient,
+  createPglitePostgresDatabase,
+  createPglitePostgresDatabaseFromClient,
   createPostgresClient,
   createPostgresDatabase,
   createPostgresDatabaseFromClient,
@@ -116,6 +118,17 @@ export {
   createSqliteDatabaseFromClient,
   readSqliteRuntimePragmas,
 } from "./sqlite/client.js";
+export type { SqliteMoneyColumn, SqliteMoneyInput } from "./sqlite/money.js";
+export {
+  bindSqliteMoneyMinor,
+  formatSqliteMoneyMinor,
+  prepareSqliteMoneyStatement,
+  readRequiredSqliteMoneyMinor,
+  readSqliteMoneyMinor,
+  SQLITE_INT64_MAX,
+  SQLITE_INT64_MIN,
+  SQLITE_MONEY_COLUMNS,
+} from "./sqlite/money.js";
 export * as sqliteSchemaDefinitions from "./sqlite/schema.js";
 export { sqliteSchema } from "./sqlite/schema.js";
 export type { TransactionCapable } from "./transactions.js";

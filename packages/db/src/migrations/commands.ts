@@ -1,10 +1,10 @@
-import type { DatabaseDialect } from "./types.js";
-
 export type MigrationCommandName =
   | "generate:sqlite"
   | "generate:postgres"
   | "migrate:sqlite"
   | "migrate:postgres";
+
+export type DatabaseDialect = "sqlite" | "postgres";
 
 export type MigrationCommand = {
   readonly name: MigrationCommandName;

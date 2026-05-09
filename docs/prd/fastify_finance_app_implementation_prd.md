@@ -61,7 +61,7 @@ Lite does not mean weak architecture.
 | Language | TypeScript |
 | Backend framework | Fastify |
 | Validation | Zod v4 |
-| ORM/query layer | Drizzle ORM v1 beta/RC, isolated behind repositories |
+| ORM/query layer | Drizzle ORM v1 RC, exact pinned, isolated behind repositories |
 | Databases | SQLite + PostgreSQL 18 from v0.1 |
 | SQLite driver | `better-sqlite3`, latest compatible version pinned in lockfile |
 | PostgreSQL driver | `postgres` / postgres.js |
@@ -79,13 +79,13 @@ Lite does not mean weak architecture.
 | Background jobs | DB-backed job queue only |
 | Explicitly excluded now | BullMQ, Redis, microservices, GraphQL |
 
-### 2.2 Version assumptions as of 2026-05-05
+### 2.2 Version assumptions as of 2026-05-09
 
 - Node.js 24 is the target LTS line.
 - PostgreSQL 18 is the target PostgreSQL major version; use the latest PostgreSQL 18.x patch available during implementation.
 - SQLite 3.53.1 is the current SQLite release as of 2026-05-05.
 - Zod v4 is stable and should be used for all shared validation contracts.
-- Drizzle v1 beta/RC should be used only with exact version pinning and strict repository isolation.
+- Drizzle v1 should use the highest published v1 RC until stable `1.0.0` exists. Current implementation pins `drizzle-orm` and `drizzle-kit` to `1.0.0-rc.2` with strict repository isolation.
 
 ### 2.3 BullMQ decision
 
@@ -2569,7 +2569,7 @@ Index all common query paths:
 - Playwright.
 - ESLint.
 - Prettier.
-- Drizzle Kit v1 beta/RC.
+- Drizzle Kit v1 RC, exact pinned.
 
 ### 33.2 Code style
 
@@ -2584,7 +2584,7 @@ Index all common query paths:
 
 - Pin exact versions in lockfile.
 - Avoid adding dependencies without reason.
-- Drizzle v1 beta/RC must be pinned exactly.
+- Drizzle v1 RC must be pinned exactly until stable `1.0.0` is published.
 - Add ADR for any dependency that affects architecture.
 
 ---
@@ -2871,7 +2871,7 @@ docs/adr/0008-use-tanstack-form-not-react-hook-form.md
 
 ## 38. Key risks and mitigations
 
-### 38.1 Drizzle v1 beta/RC instability
+### 38.1 Drizzle v1 RC instability
 
 Risk:
 
@@ -2984,7 +2984,7 @@ These links were used for current technical assumptions and official documentati
 - SQLite change history: https://www.sqlite.org/changes.html
 - Fastify validation and serialization: https://fastify.io/docs/latest/Reference/Validation-and-Serialization/
 - Drizzle schema declaration: https://orm.drizzle.team/docs/sql-schema-declaration
-- Drizzle v1 beta release notes: https://orm.drizzle.team/docs/latest-releases/drizzle-orm-v1beta2
+- Drizzle v1 upgrade docs: https://orm.drizzle.team/docs/upgrade-v1
 - Zod v4 release notes: https://zod.dev/v4
 - TanStack Form validation docs: https://tanstack.com/form/v1/docs/framework/react/guides/validation
 - shadcn/ui TanStack Form guide: https://ui.shadcn.com/docs/forms/tanstack-form
@@ -3003,7 +3003,7 @@ Use this stack:
 ```text
 Fastify + TypeScript
 Zod v4
-Drizzle ORM v1 beta/RC
+Drizzle ORM v1 RC, exact pinned
 SQLite + PostgreSQL 18
 better-sqlite3
 Vite + React

@@ -138,15 +138,29 @@ export type LedgerMutationTransactionalStore = {
   ) => MaybePromise<readonly LedgerMutationAuditEntry[]>;
 };
 
-export type LedgerMutationStore<TTransaction> = {
-  readonly executionMode: "sync" | "async";
+export type LedgerMutationSyncStore<TTransaction> = {
+  readonly executionMode: "sync";
+  readonly transaction: <TResult>(
+    callback: (
+      transactionalStore: LedgerMutationTransactionalStore,
+      transaction: TTransaction,
+    ) => SyncTransactionResult<TResult>,
+  ) => SyncTransactionResult<TResult>;
+};
+
+export type LedgerMutationAsyncStore<TTransaction> = {
+  readonly executionMode: "async";
   readonly transaction: <TResult>(
     callback: (
       transactionalStore: LedgerMutationTransactionalStore,
       transaction: TTransaction,
     ) => MaybePromise<TResult>,
-  ) => MaybePromise<TResult>;
+  ) => Promise<TResult>;
 };
+
+export type LedgerMutationStore<TTransaction> =
+  | LedgerMutationSyncStore<TTransaction>
+  | LedgerMutationAsyncStore<TTransaction>;
 
 export type LedgerWriteBoundary = {
   readonly runExclusive: <TResult>(
@@ -181,6 +195,7 @@ export type LedgerMutationRunInput<TTransaction> = {
 };
 
 type MaybePromise<T> = T | Promise<T>;
+type SyncTransactionResult<T> = T extends PromiseLike<unknown> ? never : T;
 
 export type CreateIdempotencyReceiptInput = {
   readonly workspaceId: SyncedId;
@@ -508,8 +523,24 @@ export function createSqliteLedgerMutationStore(
 ): LedgerMutationStore<SqliteTransaction> {
   return {
     executionMode: "sync",
-    transaction(callback) {
-      return db.transaction((tx) => callback(createSqliteTransactionalStore(tx, options), tx));
+    transaction<TResult>(
+      callback: (
+        transactionalStore: LedgerMutationTransactionalStore,
+        transaction: SqliteTransaction,
+      ) => SyncTransactionResult<TResult>,
+    ) {
+      const result = db.transaction(
+        (tx) => {
+          const value = assertSyncValue(
+            callback(createSqliteTransactionalStore(tx, options), tx),
+            "Synchronous SQLite ledger mutation store callback",
+          );
+          return value as never;
+        },
+        { behavior: "immediate" },
+      );
+
+      return result as SyncTransactionResult<TResult>;
     },
   };
 }

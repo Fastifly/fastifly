@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createPostgresDatabaseFromClient,
+  createPglitePostgresDatabaseFromClient,
   createSqliteDatabaseFromClient,
   MIGRATION_COMMANDS,
   pgSchema,
@@ -34,7 +34,7 @@ describe("database package surface", () => {
 
     try {
       expect(createSqliteDatabaseFromClient(sqliteClient)).toBeDefined();
-      expect(createPostgresDatabaseFromClient(postgresClient)).toBeDefined();
+      expect(createPglitePostgresDatabaseFromClient(postgresClient)).toBeDefined();
     } finally {
       sqliteClient.close();
       await postgresClient.close();
