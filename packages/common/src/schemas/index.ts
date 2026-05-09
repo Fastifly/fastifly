@@ -19,3 +19,18 @@ export type { AmountMinorString, CurrencyCode, MoneyAmount } from "../money.js";
 export { AmountMinorStringSchema, CurrencyCodeSchema, MoneyAmountSchema } from "../money.js";
 export type { LedgerScope, WorkspaceScope } from "../scope.js";
 export { LedgerScopeSchema, WorkspaceScopeSchema } from "../scope.js";
+export type {
+  SyncOperationEnvelope,
+  SyncOperationId,
+  SyncOperationStatus,
+  SyncOperationType,
+  SyncRevisionString,
+} from "../sync/operations.js";
+export {
+  APPROVED_SYNC_OPERATION_TYPES,
+  SyncOperationEnvelopeSchema,
+  SyncOperationIdSchema,
+  SyncOperationStatusSchema,
+  SyncOperationTypeSchema,
+  SyncRevisionStringSchema,
+} from "../sync/operations.js";

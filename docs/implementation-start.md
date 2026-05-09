@@ -238,7 +238,7 @@ per-ledger write boundary
 domain event collection
 post-commit side-effect dispatch
 balance dirtying hook
-sync operation logging hook
+sync operation metadata and logging hook
 ```
 
 No ledger-affecting write may bypass this runner.
@@ -469,6 +469,7 @@ balance dirtying queue hook
 workspace/ledger lifecycle checks
 per-ledger write boundary
 audit event hook
+sync operation metadata and logging hook
 ```
 
 Stop condition:
@@ -477,6 +478,8 @@ Stop condition:
 - permission failure fails closed
 - read-only/maintenance ledger rejects writes
 - events dispatch only after commit
+- sync-sourced mutations require operation metadata
+- accepted sync operation hook runs only after committed sync mutations
 
 ### Phase 6: Core finance schema and services
 

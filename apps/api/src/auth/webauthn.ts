@@ -1,3 +1,4 @@
+import type { ApiConfig } from "@fastifly/config";
 import {
   type AuthenticationResponseJSON,
   type AuthenticatorTransportFuture,
@@ -9,8 +10,6 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
-
-import type { ApiConfig } from "../config.js";
 
 export type StoredPasskeyCredential = {
   readonly credentialId: string;

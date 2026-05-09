@@ -15,6 +15,8 @@ export type {
   LedgerMutationSideEffectFlags,
   LedgerMutationSource,
   LedgerMutationStore,
+  LedgerMutationSyncOperationContext,
+  LedgerMutationSyncOperationLog,
   LedgerMutationTransactionalStore,
   LedgerWriteBoundary,
 } from "./ledger-mutations.js";

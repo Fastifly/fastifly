@@ -11,9 +11,7 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "vitest run",
-    "test:sqlite": "node -e \"console.log('common scaffold: sqlite tests not applicable yet')\"",
-    "test:postgres": "node -e \"console.log('common scaffold: postgres tests not applicable yet')\""
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "latest"

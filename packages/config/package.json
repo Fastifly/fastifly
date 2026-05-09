@@ -11,12 +11,10 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "node -e \"console.log('config scaffold: no tests yet')\"",
-    "test:sqlite": "node -e \"console.log('config scaffold: sqlite tests not applicable yet')\"",
-    "test:postgres": "node -e \"console.log('config scaffold: postgres tests not applicable yet')\""
+    "test": "vitest run"
   },
   "dependencies": {
-    "@fastifly/common": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "latest"

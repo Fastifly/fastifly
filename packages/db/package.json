@@ -22,7 +22,6 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.4.5",
     "@fastifly/common": "workspace:*",
-    "@fastifly/config": "workspace:*",
     "@libsql/client": "^0.17.3",
     "drizzle-orm": "^0.45.2"
   },

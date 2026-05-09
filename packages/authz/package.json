@@ -11,9 +11,7 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "vitest run",
-    "test:sqlite": "vitest run",
-    "test:postgres": "vitest run"
+    "test": "vitest run"
   },
   "dependencies": {
     "@casl/ability": "^6.8.1",

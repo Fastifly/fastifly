@@ -533,6 +533,110 @@ describe("ledger mutation runner", () => {
       });
     });
 
+    it(`records accepted sync operations only after committed non-replayed sync mutations on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const records: { hash: string; operationId: string }[] = [];
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          recordSyncOperationAccepted: (entry) =>
+            records.push({
+              hash: entry.requestHash,
+              operationId: entry.envelope.syncOperation?.operationId ?? "",
+            }),
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_sync_operation",
+          ledgerId: workspaceState.ledger.id,
+          syncOperationId: "operation_1",
+          source: "sync",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        await runner.run({
+          envelope,
+          requestPayload: { operationId: "operation_1" },
+          handler: () => ({ body: { ok: true }, status: 202 }),
+        });
+        await runner.run({
+          envelope,
+          requestPayload: { operationId: "operation_1" },
+          handler: () => ({ body: { shouldReplay: true }, status: 202 }),
+        });
+        await runner.run({
+          envelope: createEnvelope({
+            actorUserId: user.id,
+            idempotencyKey: "idem_rest_operation",
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+          requestPayload: { operationId: "operation_2" },
+          handler: () => ({ body: { ok: true }, status: 201 }),
+        });
+
+        await expect(
+          runner.run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_sync_failure",
+              ledgerId: workspaceState.ledger.id,
+              syncOperationId: "operation_3",
+              source: "sync",
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { operationId: "operation_3" },
+            handler: () => {
+              throw new Error("sync failed");
+            },
+          }),
+        ).rejects.toThrow("sync failed");
+
+        expect(records).toHaveLength(1);
+        expect(records[0]?.hash).toMatch(/^[a-f0-9]{64}$/);
+        expect(records[0]?.operationId).toBe("operation_1");
+      });
+    });
+
+    it(`requires sync operation metadata only for sync-sourced mutations on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+
+        await expect(
+          runner.run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              ledgerId: workspaceState.ledger.id,
+              source: "sync",
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { operationId: "operation_missing_context" },
+            handler: () => ({ body: { ok: true }, status: 202 }),
+          }),
+        ).rejects.toMatchObject({ code: "INVALID_SYNC_OPERATION" });
+
+        await expect(
+          runner.run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              ledgerId: workspaceState.ledger.id,
+              syncOperationId: "operation_wrong_source",
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { operationId: "operation_wrong_source" },
+            handler: () => ({ body: { ok: true }, status: 202 }),
+          }),
+        ).rejects.toMatchObject({ code: "INVALID_SYNC_OPERATION" });
+      });
+    });
+
     it(`does not persist receipts, audit, or side effects for dry runs on ${factory.name}`, async () => {
       await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);
@@ -591,6 +695,7 @@ function createEnvelope(input: {
   readonly idempotencyKey?: string;
   readonly source?: LedgerMutationEnvelope["source"];
   readonly dryRun?: boolean;
+  readonly syncOperationId?: string;
 }): LedgerMutationEnvelope {
   return {
     actorUserId: input.actorUserId,
@@ -608,6 +713,13 @@ function createEnvelope(input: {
       skipNotifications: false,
     },
     source: input.source ?? "rest",
+    syncOperation: input.syncOperationId
+      ? {
+          localSequence: "1",
+          operationId: input.syncOperationId,
+          operationType: "transaction_group.create_expense.v1",
+        }
+      : null,
     workspaceId: input.workspaceId,
   };
 }

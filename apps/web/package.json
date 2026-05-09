@@ -8,14 +8,11 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "node -e \"console.log('web scaffold: no tests yet')\"",
-    "test:sqlite": "node -e \"console.log('web scaffold: sqlite tests not applicable yet')\"",
-    "test:postgres": "node -e \"console.log('web scaffold: postgres tests not applicable yet')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastifly/authz": "workspace:*",
-    "@fastifly/common": "workspace:*",
-    "@fastifly/config": "workspace:*"
+    "@fastifly/common": "workspace:*"
   },
   "devDependencies": {
     "typescript": "latest"

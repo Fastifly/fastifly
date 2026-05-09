@@ -1,4 +1,5 @@
 import { parseSyncedId } from "@fastifly/common";
+import type { ApiConfig } from "@fastifly/config";
 import type { IdentityRepository, UserRecord, WorkspaceMemberWithUserRecord } from "@fastifly/db";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -19,7 +20,6 @@ import {
   hashSessionToken,
 } from "../auth/sessions.js";
 import type { WebAuthnAdapter } from "../auth/webauthn.js";
-import type { ApiConfig } from "../config.js";
 import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
 
 const AuthCredentialsSchema = z

@@ -184,12 +184,15 @@ Handlers can collect:
 - domain events
 - audit log entries
 - balance dirty requests
+- accepted sync operation records
 
 Audit entries are stored inside the mutation transaction.
 
 Domain events and balance dirty requests are dispatched after commit. This prevents users seeing notifications, jobs, or balance recalculation for a write that failed.
 
 Dry-run mutations may collect events, audit entries, and balance dirty requests inside the handler, but the runner does not persist or dispatch them.
+
+When `source` is `sync`, the mutation envelope must include sync operation metadata: `operationId`, `operationType`, and `localSequence`. The runner exposes an accepted-operation logging hook after commit with that metadata and the request hash. It does not run for failed mutations, dry-runs, REST/import/rule/recurring sources, or idempotency replays. Phase 7 should connect this hook to the durable sync operation service.
 
 ## Write Boundary
 
@@ -247,6 +250,8 @@ Current tests verify:
 - maintenance-source writes can run against maintenance state
 - domain events dispatch only after committed mutations
 - balance dirty requests dispatch only after committed non-replayed mutations
+- sync-sourced mutations require operation metadata
+- accepted sync operation hook runs only after committed non-replayed sync mutations
 - dry-runs do not persist receipts, audit entries, or side effects
 - audit and idempotency rows are persisted
 - SQLite and PostgreSQL migration shape includes required lifecycle/idempotency columns

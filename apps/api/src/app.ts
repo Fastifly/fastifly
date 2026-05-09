@@ -1,5 +1,6 @@
 import { defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7 } from "@fastifly/common";
+import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
 import type { IdentityRepository } from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
@@ -13,7 +14,6 @@ import {
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
 import { simpleWebAuthnAdapter, type WebAuthnAdapter } from "./auth/webauthn.js";
-import { type ApiConfig, makeTestApiConfig } from "./config.js";
 import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
 import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";

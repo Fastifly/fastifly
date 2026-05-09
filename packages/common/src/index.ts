@@ -60,8 +60,18 @@ export {
 } from "./product-rules/accounts.js";
 export type { LedgerScope, WorkspaceScope } from "./scope.js";
 export { LedgerScopeSchema, WorkspaceScopeSchema } from "./scope.js";
-export type { SyncOperationStatus, SyncOperationType } from "./sync/operations.js";
+export type {
+  SyncOperationEnvelope,
+  SyncOperationId,
+  SyncOperationStatus,
+  SyncOperationType,
+  SyncRevisionString,
+} from "./sync/operations.js";
 export {
+  APPROVED_SYNC_OPERATION_TYPES,
+  SyncOperationEnvelopeSchema,
+  SyncOperationIdSchema,
   SyncOperationStatusSchema,
   SyncOperationTypeSchema,
+  SyncRevisionStringSchema,
 } from "./sync/operations.js";

@@ -49,6 +49,12 @@ function toLedgerMutationHttpError(error: LedgerMutationError): {
         message: "This retry key was already used for a different request.",
         statusCode: 409,
       };
+    case "INVALID_SYNC_OPERATION":
+      return {
+        code: "BAD_REQUEST",
+        message: "The sync operation metadata is invalid.",
+        statusCode: 400,
+      };
     case "LEDGER_NOT_FOUND":
       return {
         code: "NOT_FOUND",

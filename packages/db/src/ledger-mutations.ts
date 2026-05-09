@@ -1,4 +1,4 @@
-import type { SyncedId } from "@fastifly/common";
+import type { SyncedId, SyncOperationType } from "@fastifly/common";
 import { and, eq } from "drizzle-orm";
 
 import type { PostgresDatabase } from "./postgres/client.js";
@@ -43,8 +43,15 @@ export type LedgerMutationEnvelope = {
   readonly idempotencyKey?: string | null;
   readonly baseRevision?: number | null;
   readonly source: LedgerMutationSource;
+  readonly syncOperation?: LedgerMutationSyncOperationContext | null;
   readonly dryRun: boolean;
   readonly sideEffectFlags: LedgerMutationSideEffectFlags;
+};
+
+export type LedgerMutationSyncOperationContext = {
+  readonly operationId: string;
+  readonly operationType: SyncOperationType;
+  readonly localSequence: string;
 };
 
 export type LedgerMutationResponse = {
@@ -74,6 +81,12 @@ export type BalanceDirtyRequest = {
   readonly accountId?: SyncedId | null;
   readonly fromOccurredAt?: string | null;
   readonly reason: string;
+};
+
+export type LedgerMutationSyncOperationLog = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly requestHash: string;
+  readonly result: LedgerMutationRunResult;
 };
 
 export type LedgerMutationHandlerContext<TTransaction> = {
@@ -153,6 +166,9 @@ export type LedgerMutationRunnerOptions<TTransaction> = {
     requests: readonly BalanceDirtyRequest[],
     envelope: LedgerMutationEnvelope,
   ) => Promise<void> | void;
+  readonly recordSyncOperationAccepted?: (
+    entry: LedgerMutationSyncOperationLog,
+  ) => Promise<void> | void;
   readonly receiptTtlMs?: number;
   readonly now?: () => Date;
 };
@@ -185,6 +201,7 @@ export class LedgerMutationError extends Error {
     message: string,
     readonly code:
       | "IDEMPOTENCY_CONFLICT"
+      | "INVALID_SYNC_OPERATION"
       | "LEDGER_NOT_FOUND"
       | "LEDGER_NOT_WRITABLE"
       | "INVALID_MUTATION_RESPONSE",
@@ -210,6 +227,7 @@ export class LedgerMutationRunner<TTransaction> {
 
   async run(input: LedgerMutationRunInput<TTransaction>): Promise<LedgerMutationRunResult> {
     await this.#options.authorize(input.envelope);
+    assertSyncOperationContext(input.envelope);
 
     const requestHash = await hashJson({
       envelope: {
@@ -303,6 +321,14 @@ export class LedgerMutationRunner<TTransaction> {
 
       if (balanceDirtyRequests.length > 0 && this.#options.dispatchBalanceDirtyRequests) {
         await this.#options.dispatchBalanceDirtyRequests(balanceDirtyRequests, input.envelope);
+      }
+
+      if (input.envelope.source === "sync" && this.#options.recordSyncOperationAccepted) {
+        await this.#options.recordSyncOperationAccepted({
+          envelope: input.envelope,
+          requestHash,
+          result,
+        });
       }
     }
 
@@ -553,6 +579,22 @@ function assertWritableScope(envelope: LedgerMutationEnvelope, scope: LedgerMuta
 
   if (!allowedStatuses.has(scope.workspace.status) || !allowedStatuses.has(scope.ledger.status)) {
     throw new LedgerMutationError("Ledger scope is not writable.", "LEDGER_NOT_WRITABLE");
+  }
+}
+
+function assertSyncOperationContext(envelope: LedgerMutationEnvelope): void {
+  if (envelope.source === "sync" && !envelope.syncOperation) {
+    throw new LedgerMutationError(
+      "Sync mutations require operation metadata.",
+      "INVALID_SYNC_OPERATION",
+    );
+  }
+
+  if (envelope.source !== "sync" && envelope.syncOperation) {
+    throw new LedgerMutationError(
+      "Only sync mutations can include operation metadata.",
+      "INVALID_SYNC_OPERATION",
+    );
   }
 }
 

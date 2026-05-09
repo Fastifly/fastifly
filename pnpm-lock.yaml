@@ -84,9 +84,6 @@ importers:
       '@fastifly/common':
         specifier: workspace:*
         version: link:../../packages/common
-      '@fastifly/config':
-        specifier: workspace:*
-        version: link:../../packages/config
     devDependencies:
       typescript:
         specifier: latest
@@ -117,9 +114,9 @@ importers:
 
   packages/config:
     dependencies:
-      '@fastifly/common':
-        specifier: workspace:*
-        version: link:../common
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       typescript:
         specifier: latest
@@ -133,9 +130,6 @@ importers:
       '@fastifly/common':
         specifier: workspace:*
         version: link:../common
-      '@fastifly/config':
-        specifier: workspace:*
-        version: link:../config
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3

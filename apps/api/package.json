@@ -9,9 +9,7 @@
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
     "start": "node dist/server.js",
-    "test": "vitest run",
-    "test:sqlite": "vitest run",
-    "test:postgres": "vitest run"
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastifly/authz": "workspace:*",
