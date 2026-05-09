@@ -1,0 +1,388 @@
+# Fastifly
+
+**Fast personal finance, without losing control.**
+
+Fastifly is a modern, self-hosted personal finance app built for fast daily use, clean dashboards, multi-currency support, and a serious ledger-ready foundation underneath.
+
+> **Status:** Pre-alpha / early development  
+> Fastifly is not production-ready yet. Expect breaking changes.
+
+---
+
+## Contents
+
+- [Why Fastifly?](#why-fastifly)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Development setup](#development-setup)
+- [Configuration](#configuration)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
+---
+
+## Why Fastifly?
+
+Most personal finance apps fall into one of two groups:
+
+- simple apps that are easy to start but hard to grow with
+- powerful apps that are flexible but feel complex too early
+
+Fastifly aims for the middle:
+
+```text
+Simple by default.
+Powerful when needed.
+Self-hosted from day one.
+```
+
+The first releases focus on accounts, transactions, categories, budgets, imports, reports, and a polished responsive UI. The architecture is designed to support deeper finance workflows later without forcing complexity into the first-time user experience.
+
+---
+
+## Features
+
+### Planned for early releases
+
+- Accounts and balances
+- Transactions: income, expense, and transfer
+- Categories and tags
+- Budgets
+- Dashboard and basic reports
+- Installable PWA with limited offline writes
+- Device registration and outbox sync
+- CSV import with preview
+- Multi-currency support
+- SQLite and PostgreSQL support
+- Dark mode
+- Responsive web UI
+- REST API with OpenAPI documentation
+- DB-backed background jobs
+
+### Designed for future growth
+
+- Advanced rules
+- Recurring transactions
+- Split transactions
+- Reconciliation
+- Multi-ledger support
+- Shared workspaces
+- Roles and permissions
+- Audit log
+- Advanced reports
+- Backup and restore tools
+- API tokens
+- Conflict resolution and deeper sync
+
+---
+
+## Screenshots
+
+Screenshots and demo GIFs will be added once the first usable UI is available.
+
+Planned screenshots:
+
+- Dashboard
+- Transaction entry
+- Accounts
+- Budgets
+- Import preview
+- Reports
+- Mobile layout
+- Dark mode
+
+---
+
+## Tech stack
+
+### Backend
+
+- Node.js 24 LTS
+- TypeScript
+- Fastify
+- Zod v4
+- Drizzle ORM v1 beta/RC
+- better-sqlite3
+- PostgreSQL 18
+- OpenAPI + Scalar API Reference
+
+### Frontend
+
+- Vite
+- React
+- TypeScript
+- TanStack Router
+- TanStack Query
+- TanStack Form
+- Tailwind CSS
+- shadcn/ui
+
+### Database modes
+
+Fastifly supports both database modes as first-class targets:
+
+```text
+SQLite      → default, easiest self-hosting
+PostgreSQL  → larger installs and serious deployments
+```
+
+Fastifly does not require Redis, BullMQ, Kafka, Elasticsearch, or external queue services in the initial architecture.
+
+---
+
+## Quick start
+
+The quick-start flow will be finalized after the first runnable release.
+
+Expected Docker usage:
+
+```bash
+docker run \
+  -p 3000:3000 \
+  -v ./data:/app/data \
+  -e DATABASE_DRIVER=sqlite \
+  -e DATABASE_URL=/app/data/fastifly.db \
+  -e SESSION_SECRET=change-me \
+  ghcr.io/fastifly-hq/fastifly:latest
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+> The Docker image is not published yet.
+
+---
+
+## Development setup
+
+### Requirements
+
+- Node.js 24 LTS
+- pnpm
+- SQLite
+- PostgreSQL 18, optional for PostgreSQL mode
+
+### Install dependencies
+
+```bash
+pnpm install
+```
+
+### Start development
+
+```bash
+pnpm dev
+```
+
+Expected local services:
+
+```text
+API:  http://localhost:3000
+Web:  http://localhost:5173
+Docs: http://localhost:3000/api/docs
+```
+
+### Planned scripts
+
+```bash
+pnpm dev
+pnpm build
+pnpm start
+
+pnpm lint
+pnpm typecheck
+pnpm test
+
+pnpm db:generate:sqlite
+pnpm db:generate:postgres
+pnpm db:migrate:sqlite
+pnpm db:migrate:postgres
+
+pnpm test:sqlite
+pnpm test:postgres
+```
+
+---
+
+## Configuration
+
+Create an `.env` file.
+
+### SQLite mode
+
+```env
+APP_ENV=development
+APP_PORT=3000
+APP_URL=http://localhost:3000
+
+DATABASE_DRIVER=sqlite
+DATABASE_URL=./data/fastifly.db
+
+SESSION_SECRET=change-me-in-production
+COOKIE_SECURE=false
+
+LOG_LEVEL=debug
+AUTO_MIGRATE=true
+```
+
+### PostgreSQL mode
+
+```env
+APP_ENV=development
+APP_PORT=3000
+APP_URL=http://localhost:3000
+
+DATABASE_DRIVER=postgres
+DATABASE_URL=postgres://fastifly:fastifly@localhost:5432/fastifly?sslmode=disable
+
+SESSION_SECRET=change-me-in-production
+COOKIE_SECURE=false
+
+LOG_LEVEL=debug
+AUTO_MIGRATE=true
+```
+
+---
+
+## Project structure
+
+```text
+apps/
+├── api/          # Fastify backend
+└── web/          # Vite React frontend
+
+packages/
+├── common/       # shared types, enums, Zod schemas, money, ID, sync, API contracts
+├── db/           # Drizzle schemas, migrations, database clients
+└── config/       # shared configuration helpers
+```
+
+Important architecture notes:
+
+- The UI should be simple by default, with advanced controls available when needed.
+- The backend should use a ledger-ready model from day one.
+- Money must never be stored as floating point values.
+- Synced domain objects should use client-generated UUIDv7-compatible text IDs.
+- v0.1 includes device registration and a limited offline outbox for safe domain commands.
+- SQLite and PostgreSQL support must be tested separately.
+- Shared validation, enums, and DTOs should live in `packages/common`.
+
+Detailed architecture belongs in the `docs/` directory, not in this README.
+
+---
+
+## Documentation
+
+Planned documentation:
+
+```text
+docs/
+├── README.md
+├── architecture-v2.md
+├── database-v2.md
+├── api-v2.md
+├── sync-v1.md
+├── frontend-v2.md
+├── pwa-mobile.md
+├── maintenance-v2.md
+├── prd/
+├── deployment.md
+├── backup-restore.md
+└── decisions/
+```
+
+Useful files once available:
+
+- `AGENTS.md` — development rules for AI agents and contributors
+- `CONTRIBUTING.md` — contribution workflow
+- `CODE_OF_CONDUCT.md` — community behavior guidelines
+- `SECURITY.md` — responsible disclosure policy
+
+---
+
+## Roadmap
+
+### Phase 0 — Foundation
+
+- pnpm workspace
+- Fastify API
+- Vite React app
+- shared common package
+- SQLite and PostgreSQL setup
+- OpenAPI docs
+- Docker setup
+
+### Phase 1 — Core finance
+
+- auth
+- workspaces
+- ledgers
+- accounts
+- transactions
+- categories
+- tags
+- dashboard
+
+### Phase 2 — Daily-use polish
+
+- responsive transaction entry
+- dark theme
+- language foundation
+- reports
+- simple and advanced UI views
+
+### Phase 3 — Imports and budgets
+
+- CSV upload
+- import preview
+- duplicate detection
+- import commit
+- undo import batch
+- budgets
+
+### Phase 4 — Automation and power features
+
+- DB-backed jobs
+- recurring transactions
+- rules
+- reconciliation
+- advanced reports
+- audit log
+
+---
+
+## Contributing
+
+Contributions will be welcome once the initial foundation is ready.
+
+Before contributing, please read:
+
+- `CONTRIBUTING.md`
+- `AGENTS.md`
+- `docs/architecture-v2.md`
+- `docs/database-v2.md`
+- `docs/api-v2.md`
+- `docs/sync-v1.md`
+
+---
+
+## License
+
+License: **TBD**
+
+The license will be finalized before the first public stable release.
+
+---
+
+## Disclaimer
+
+Fastifly is personal finance software. It is not financial, tax, accounting, or investment advice. Always verify important financial records independently.
