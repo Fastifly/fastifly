@@ -112,9 +112,6 @@ packages/common
 packages/authz
   CASL abilities and policies
 
-packages/api-client
-  generated or handwritten typed API client
-
 packages/ui
   optional shared UI primitives later
 ```

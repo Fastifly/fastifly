@@ -33,6 +33,7 @@ docs/architecture-v2.md
 docs/database-v2.md
 docs/api-v2.md
 docs/frontend-v2.md
+docs/implementation-start.md
 docs/sync-v1.md
 docs/pwa-mobile.md
 docs/maintenance-v2.md
@@ -137,10 +138,9 @@ apps/
 
 packages/
 ├── common/
+├── authz/
 ├── db/
 ├── config/
-├── authz/
-└── api-client/
 ```
 
 Backend flow:
@@ -280,6 +280,25 @@ Do not broaden offline support without updating `docs/sync-v1.md`, `docs/api-v2.
 ## Code quality and anti-hallucination rules
 
 Code must be boring, explicit, and traceable to the docs.
+
+### Linting, formatting, and TypeScript checking
+
+Use Biome for formatting, import organization, and non-semantic lint rules.
+
+Use `tsgo` from `@typescript/native-preview` for fast local type-checking when available.
+
+Use `tsc` for build/declaration output until `tsgo` has the required emit/project-reference parity.
+
+Required script split:
+
+```text
+lint           -> biome check .
+lint:fix       -> biome check --write .
+format         -> biome format --write .
+typecheck      -> tsgo
+typecheck:tsc  -> tsc fallback/parity check
+build          -> tsc or bundler build that emits artifacts
+```
 
 ### Do not invent architecture
 

@@ -12,6 +12,7 @@ This folder contains the canonical TypeScript implementation documentation.
 | Database | `database-v2.md` |
 | API | `api-v2.md` |
 | Frontend | `frontend-v2.md` |
+| Implementation start | `implementation-start.md` |
 | PWA/mobile/offline | `pwa-mobile.md` |
 | Sync | `sync-v1.md` |
 | Maintenance | `maintenance-v2.md` |

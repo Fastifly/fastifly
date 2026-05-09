@@ -168,6 +168,9 @@ http://localhost:3000
 
 - Node.js 24 LTS
 - pnpm
+- Turborepo
+- Biome for linting and formatting
+- tsgo via `@typescript/native-preview` for fast type-checking
 - SQLite
 - PostgreSQL 18, optional for PostgreSQL mode
 
@@ -199,7 +202,10 @@ pnpm build
 pnpm start
 
 pnpm lint
+pnpm lint:fix
+pnpm format
 pnpm typecheck
+pnpm typecheck:tsc
 pnpm test
 
 pnpm db:generate:sqlite
@@ -262,6 +268,7 @@ apps/
 
 packages/
 ├── common/       # shared types, enums, Zod schemas, money, ID, sync, API contracts
+├── authz/        # shared authorization roles, actions, subjects, policies
 ├── db/           # Drizzle schemas, migrations, database clients
 └── config/       # shared configuration helpers
 ```
@@ -292,6 +299,7 @@ docs/
 ├── api-v2.md
 ├── sync-v1.md
 ├── frontend-v2.md
+├── implementation-start.md
 ├── pwa-mobile.md
 ├── maintenance-v2.md
 ├── prd/
