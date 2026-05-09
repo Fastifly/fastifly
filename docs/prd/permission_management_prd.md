@@ -245,7 +245,7 @@ CASL conditions are appropriate for:
 - ledger-scoped reads
 - object ownership
 - transaction status restrictions
-- member role restrictions
+- workspace role restrictions
 - UI gating
 - simple object-level rules
 
@@ -492,11 +492,11 @@ Permission failures during sync replay should not silently disappear. They shoul
 Create audit events for permission-sensitive actions:
 
 ```text
-member.invited
-member.invite_revoked
-member.joined
-member.role_changed
-member.removed
+workspace_member.invited
+workspace_member.invite_revoked
+workspace_member.joined
+workspace_member.role_changed
+workspace_member.removed
 workspace.updated
 workspace.archived
 transaction.reconciled

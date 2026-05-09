@@ -398,9 +398,18 @@ Do not add clever abstractions unless they remove real duplication already visib
 
 Every non-trivial implementation should include tests and doc updates when contracts change.
 
-### Phase transition review
+### Implementation review
 
-Before moving from one implementation phase to the next, stop and review the completed phase.
+Every non-trivial implementation slice must be reviewed before moving on.
+
+This includes:
+
+- phase transitions
+- new packages
+- new dependencies
+- database schema or migration changes
+- auth, security, permission, sync, money, backup, restore, import, or ledger logic
+- public API contract changes
 
 The review must use both:
 
@@ -413,16 +422,19 @@ Run three separate review cycles:
 2. Senior software engineer review: correctness, type safety, tests, dependency usage, maintainability.
 3. User review: workflow usefulness, visible behavior, confusing gaps, product expectations.
 
-Each review must record:
+Do not create review files.
 
-- commit or diff range reviewed
-- files reviewed
-- sources checked
-- findings by severity
-- local verification commands and results
-- explicit decision: proceed, fix first, or update the phase gate
+Fix issues immediately when they are in scope for the current slice.
 
-Do not start the next phase until all `fix first` findings are resolved or deliberately accepted in docs.
+If a valid issue should be fixed later, record it in `docs/issues/` with:
+
+- issue title
+- why it matters
+- affected docs/code
+- suggested fix
+- blocking milestone
+
+Do not continue past the slice until in-scope findings are fixed and deferred findings are captured in `docs/issues/`.
 
 ---
 

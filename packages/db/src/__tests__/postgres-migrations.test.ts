@@ -32,6 +32,69 @@ describe("PostgreSQL migrations", () => {
         "workspaces",
       ]);
 
+      const userColumns = await db.query<{ column_name: string }>(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users'
+        ORDER BY ordinal_position
+      `);
+      expect(userColumns.rows.map((row) => row.column_name)).toContain("password_hash");
+
+      await expect(
+        db.query(`
+          INSERT INTO users (
+            id,
+            username,
+            username_normalized,
+            display_name,
+            password_hash,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            'user_1',
+            'Owner',
+            'owner',
+            'Owner',
+            '$argon2id$fixture',
+            '2026-05-09T00:00:00.000Z',
+            '2026-05-09T00:00:00.000Z'
+          );
+
+          INSERT INTO workspaces (
+            id,
+            name,
+            owner_user_id,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            'workspace_1',
+            'Main',
+            'user_1',
+            '2026-05-09T00:00:00.000Z',
+            '2026-05-09T00:00:00.000Z'
+          );
+
+          INSERT INTO workspace_members (
+            id,
+            workspace_id,
+            user_id,
+            role,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            'member_1',
+            'workspace_1',
+            'user_1',
+            'invalid_role',
+            '2026-05-09T00:00:00.000Z',
+            '2026-05-09T00:00:00.000Z'
+          )
+        `),
+      ).rejects.toThrow();
+
       await expect(
         db.query(`
           INSERT INTO ledgers (

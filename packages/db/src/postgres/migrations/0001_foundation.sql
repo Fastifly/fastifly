@@ -3,6 +3,7 @@ CREATE TABLE users (
   username TEXT NOT NULL,
   username_normalized TEXT NOT NULL,
   display_name TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   disabled_at TIMESTAMPTZ
@@ -60,7 +61,8 @@ CREATE TABLE workspace_members (
   role TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
-  removed_at TIMESTAMPTZ
+  removed_at TIMESTAMPTZ,
+  CONSTRAINT workspace_members_role_check CHECK (role IN ('owner', 'admin', 'editor', 'viewer'))
 );
 CREATE INDEX workspace_members_workspace_id_idx ON workspace_members (workspace_id);
 CREATE INDEX workspace_members_user_id_idx ON workspace_members (user_id);
@@ -76,7 +78,8 @@ CREATE TABLE workspace_invitations (
   created_at TIMESTAMPTZ NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   accepted_at TIMESTAMPTZ,
-  revoked_at TIMESTAMPTZ
+  revoked_at TIMESTAMPTZ,
+  CONSTRAINT workspace_invitations_role_check CHECK (role IN ('admin', 'editor', 'viewer'))
 );
 CREATE INDEX workspace_invitations_workspace_id_idx ON workspace_invitations (workspace_id);
 CREATE UNIQUE INDEX workspace_invitations_token_hash_unique ON workspace_invitations (token_hash);

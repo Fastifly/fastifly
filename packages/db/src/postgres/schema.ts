@@ -1,4 +1,14 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import type { AuditAction, JobQueueStatus, JsonObject } from "../schema-types.js";
 
@@ -14,6 +24,7 @@ export const pgUsers = pgTable(
     username: text("username").notNull(),
     usernameNormalized: text("username_normalized").notNull(),
     displayName: text("display_name").notNull(),
+    passwordHash: text("password_hash").notNull(),
     createdAt: timestampTz("created_at"),
     updatedAt: timestampTz("updated_at"),
     disabledAt: optionalTimestampTz("disabled_at"),
@@ -93,6 +104,10 @@ export const pgWorkspaceMembers = pgTable(
     index("workspace_members_workspace_id_idx").on(table.workspaceId),
     index("workspace_members_user_id_idx").on(table.userId),
     uniqueIndex("workspace_members_workspace_user_unique").on(table.workspaceId, table.userId),
+    check(
+      "workspace_members_role_check",
+      sql`${table.role} IN ('owner', 'admin', 'editor', 'viewer')`,
+    ),
   ],
 );
 
@@ -113,6 +128,7 @@ export const pgWorkspaceInvitations = pgTable(
   (table) => [
     index("workspace_invitations_workspace_id_idx").on(table.workspaceId),
     uniqueIndex("workspace_invitations_token_hash_unique").on(table.tokenHash),
+    check("workspace_invitations_role_check", sql`${table.role} IN ('admin', 'editor', 'viewer')`),
   ],
 );
 

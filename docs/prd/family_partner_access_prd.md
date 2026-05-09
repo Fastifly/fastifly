@@ -41,7 +41,7 @@ Fastifly should avoid this by making shared workspaces part of the core architec
 - Keep personal and shared data separate.
 - Ensure all financial data is scoped by workspace and ledger.
 - Provide clear UI showing who has access.
-- Provide safe controls for inviting, removing, and changing member roles.
+- Provide safe controls for inviting, removing, and changing workspace roles.
 - Revalidate workspace membership during sync operation replay.
 - Prepare architecture for future family/business/team use cases.
 
@@ -178,7 +178,7 @@ Can:
 - manage ledgers
 - invite members
 - remove members
-- change member roles
+- change workspace roles
 - transfer ownership
 - delete/archive workspace
 - view audit log
@@ -710,11 +710,11 @@ workspace.created
 workspace.updated
 workspace.archived
 
-member.invited
-member.invite_revoked
-member.joined
-member.role_changed
-member.removed
+workspace_member.invited
+workspace_member.invite_revoked
+workspace_member.joined
+workspace_member.role_changed
+workspace_member.removed
 
 ownership.transferred
 ```
@@ -799,7 +799,7 @@ Member removal must not delete historical transactions created by that member. I
 - user belongs to many workspaces
 - member removed while they are currently active in that workspace
 - removed member has unsynced outbox operations
-- member role is downgraded before queued operations are pushed
+- workspace role is downgraded before queued operations are pushed
 - device is revoked while it has pending outbox operations
 - transaction created by removed member remains visible
 - workspace archived while members are active

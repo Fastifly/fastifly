@@ -1648,7 +1648,7 @@ passkey add
 passkey remove
 recovery code generation
 member invite
-member role change
+workspace role change
 member removal
 transaction create
 transaction update

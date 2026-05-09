@@ -1027,7 +1027,7 @@ workspace_members
 - id
 - workspace_id
 - user_id
-- role: owner | admin | member | viewer
+- role: owner | admin | editor | viewer
 - created_at
 - updated_at
 ```

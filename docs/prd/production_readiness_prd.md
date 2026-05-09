@@ -770,7 +770,7 @@ password change
 passkey add/remove
 recovery code generation
 member invite
-member role change
+workspace role change
 member removal
 transaction delete
 transaction reconcile

@@ -1,3 +1,4 @@
+import { createFastiflyAbility, type FastiflyAbility } from "@fastifly/authz";
 import type { SyncedId } from "@fastifly/common";
 
 export type AuthContext =
@@ -9,19 +10,13 @@ export type AuthContext =
       readonly userId: SyncedId;
     };
 
-export type AuthzAbility = {
-  readonly can: (action: string, subject: string) => boolean;
-};
-
 export const anonymousAuthContext: AuthContext = { kind: "anonymous" };
 
-export const denyAllAbility: AuthzAbility = {
-  can: () => false,
-};
+export const denyAllAbility: FastiflyAbility = createFastiflyAbility();
 
 declare module "fastify" {
   interface FastifyRequest {
     authContext: AuthContext;
-    authzAbility: AuthzAbility;
+    authzAbility: FastiflyAbility;
   }
 }

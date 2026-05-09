@@ -78,9 +78,18 @@ Rules:
 - no route-handler business logic
 - no React component business logic
 
-### 3.1 Phase transition review gate
+### 3.1 Implementation review gate
 
-Before moving from one phase to the next, review the completed phase as three separate review cycles.
+Every non-trivial implementation slice must be reviewed as three separate review cycles before moving on.
+
+This includes:
+
+- phase transitions
+- new packages
+- new dependencies
+- database schema or migration changes
+- auth, security, permission, sync, money, backup, restore, import, or ledger logic
+- public API contract changes
 
 Required review personas:
 
@@ -97,25 +106,23 @@ Context7 docs for every changed framework/library surface
 current online sources, preferring official docs, release notes, package READMEs, and security notes
 ```
 
-Required artifact:
+Review output:
 
 ```text
-docs/phase-reviews/phase-N-<name>-review.md
+Do not create review files.
+Fix in-scope findings immediately.
+Record only deferred findings in docs/issues/.
 ```
 
-Each review artifact must include:
+Each deferred issue file must include:
 
-- reviewed commit or diff range
-- files reviewed
-- Context7 sources checked
-- online sources checked
-- CTO findings
-- senior engineer findings
-- user findings
-- local verification commands and results
-- explicit decision: proceed, fix first, or update the phase gate
+- issue title
+- why it matters
+- affected docs/code
+- suggested fix
+- blocking milestone
 
-Do not begin the next phase until every `fix first` finding is resolved or deliberately accepted in the relevant latest doc.
+Do not continue past the slice until in-scope findings are fixed and deferred findings are captured in `docs/issues/`.
 
 ### 4. Common package first
 
@@ -435,7 +442,7 @@ passkey registration/login skeleton or complete flow
 recovery codes
 default workspace creation
 default ledger creation
-workspace member roles
+workspace workspace roles
 copyable invite links
 CASL abilities
 service policies

@@ -540,8 +540,8 @@ budget.updated
 rule.action_failed
 recurring.generated
 import.committed
-member.invited
-member.role_changed
+workspace_member.invited
+workspace_member.role_changed
 exchange_rate.updated
 ```
 
