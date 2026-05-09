@@ -29,7 +29,7 @@ Customer impact:
 Add a production `LedgerWriteBoundary` adapter backed by database or infrastructure-level locking:
 
 - PostgreSQL: advisory transaction locks keyed by `(workspace_id, ledger_id)`.
-- SQLite/libSQL: explicit single-writer deployment mode or a transaction-backed lock table with timeout semantics.
+- SQLite/better-sqlite3: explicit single-writer deployment mode or a transaction-backed lock table with timeout semantics.
 - Hosted/multi-region future: queue or distributed lock service with fencing tokens.
 
 Document which adapter is active for each deployment mode and fail startup if a multi-worker deployment is configured with only the in-process boundary.

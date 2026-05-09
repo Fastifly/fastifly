@@ -1,11 +1,17 @@
 import { PGlite } from "@electric-sql/pglite";
-import { createClient, type Client as LibsqlClient } from "@libsql/client";
 
 import type { Migration } from "../migrations/types.js";
 import { runMigrations } from "../migrations/types.js";
+import {
+  configureSqliteRuntime,
+  createUnconfiguredSqliteClient,
+  type SqliteClient,
+} from "../sqlite/client.js";
 
-export function createInMemorySqliteDatabase(): LibsqlClient {
-  return createClient({ url: ":memory:" });
+export function createInMemorySqliteDatabase(): SqliteClient {
+  const client = createUnconfiguredSqliteClient({ source: ":memory:" });
+  configureSqliteRuntime(client);
+  return client;
 }
 
 export async function createInMemoryPostgresDatabase(): Promise<PGlite> {
@@ -13,19 +19,13 @@ export async function createInMemoryPostgresDatabase(): Promise<PGlite> {
 }
 
 export async function runSqliteMigrations(
-  db: LibsqlClient,
+  db: SqliteClient,
   migrations: readonly Migration[],
 ): Promise<void> {
   await runMigrations(
     {
-      execute: async (sql) => {
-        const statements = splitSqlStatements(sql);
-        if (statements.length > 0) {
-          await db.batch(
-            statements.map((statement) => ({ sql: statement, args: [] })),
-            "write",
-          );
-        }
+      execute: (sql) => {
+        db.exec(sql);
       },
     },
     migrations,

@@ -1,11 +1,32 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { createConfiguredSqliteClient, readSqliteRuntimePragmas } from "../index.js";
 import { createInMemorySqliteDatabase, runSqliteMigrations } from "../testing/migrations.js";
 import { readMigration } from "./migration-files.js";
 
 describe("SQLite migrations", () => {
+  it("configures and verifies required SQLite runtime pragmas for file databases", async () => {
+    const sqliteDir = mkdtempSync(join(tmpdir(), "fastifly-sqlite-pragmas-"));
+    const db = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
+
+    try {
+      expect(readSqliteRuntimePragmas(db)).toEqual({
+        busyTimeoutMs: 5000,
+        foreignKeys: true,
+        journalMode: "wal",
+        synchronous: 1,
+      });
+    } finally {
+      db.close();
+      rmSync(sqliteDir, { force: true, recursive: true });
+    }
+  });
+
   it("applies the foundation migration into a clean database", async () => {
-    const db = await createInMemorySqliteDatabase();
+    const db = createInMemorySqliteDatabase();
 
     try {
       await runSqliteMigrations(db, [
@@ -13,13 +34,15 @@ describe("SQLite migrations", () => {
         readMigration("sqlite", "0002_passkey_challenges"),
       ]);
 
-      const tables = await db.execute(`
+      const tables = db
+        .prepare(`
         SELECT name
         FROM sqlite_schema
         WHERE type = 'table'
         ORDER BY name
-      `);
-      const tableNames = tables.rows.map((row) => String(row.name));
+      `)
+        .all() as { name: string }[];
+      const tableNames = tables.map((row) => String(row.name));
 
       expect(tableNames).toEqual([
         "audit_log",
@@ -37,42 +60,52 @@ describe("SQLite migrations", () => {
         "workspaces",
       ]);
 
-      const userColumns = await db.execute(`
+      const userColumns = db
+        .prepare(`
         SELECT name
         FROM pragma_table_info('users')
         ORDER BY cid
-      `);
-      expect(userColumns.rows.map((row) => String(row.name))).toContain("password_hash");
+      `)
+        .all() as { name: string }[];
+      expect(userColumns.map((row) => String(row.name))).toContain("password_hash");
 
-      const workspaceColumns = await db.execute(`
+      const workspaceColumns = db
+        .prepare(`
         SELECT name
         FROM pragma_table_info('workspaces')
         ORDER BY cid
-      `);
-      expect(workspaceColumns.rows.map((row) => String(row.name))).toContain("status");
+      `)
+        .all() as { name: string }[];
+      expect(workspaceColumns.map((row) => String(row.name))).toContain("status");
 
-      const ledgerColumns = await db.execute(`
+      const ledgerColumns = db
+        .prepare(`
         SELECT name
         FROM pragma_table_info('ledgers')
         ORDER BY cid
-      `);
-      expect(ledgerColumns.rows.map((row) => String(row.name))).toContain("status");
+      `)
+        .all() as { name: string }[];
+      expect(ledgerColumns.map((row) => String(row.name))).toContain("status");
 
-      const idempotencyColumns = await db.execute(`
+      const idempotencyColumns = db
+        .prepare(`
         SELECT name
         FROM pragma_table_info('idempotency_receipts')
         ORDER BY cid
-      `);
-      expect(idempotencyColumns.rows.map((row) => String(row.name))).toContain("device_id");
+      `)
+        .all() as { name: string }[];
+      expect(idempotencyColumns.map((row) => String(row.name))).toContain("device_id");
 
-      const passkeyColumns = await db.execute(`
+      const passkeyColumns = db
+        .prepare(`
         SELECT name
         FROM pragma_table_info('passkeys')
         ORDER BY cid
-      `);
-      expect(passkeyColumns.rows.map((row) => String(row.name))).toContain("name");
+      `)
+        .all() as { name: string }[];
+      expect(passkeyColumns.map((row) => String(row.name))).toContain("name");
 
-      await db.execute(`
+      db.exec(`
         INSERT INTO users (
           id,
           username,
@@ -93,7 +126,7 @@ describe("SQLite migrations", () => {
         )
       `);
 
-      await db.execute(`
+      db.exec(`
         INSERT INTO workspaces (
           id,
           name,
@@ -110,8 +143,8 @@ describe("SQLite migrations", () => {
         )
       `);
 
-      await expect(
-        db.execute(`
+      expect(() =>
+        db.exec(`
         INSERT INTO workspace_members (
           id,
           workspace_id,
@@ -129,10 +162,10 @@ describe("SQLite migrations", () => {
           '2026-05-09T00:00:00.000Z'
         )
       `),
-      ).rejects.toThrow();
+      ).toThrow();
 
-      await expect(
-        db.execute(`
+      expect(() =>
+        db.exec(`
           INSERT INTO ledgers (
             id,
             workspace_id,
@@ -152,15 +185,15 @@ describe("SQLite migrations", () => {
             '2026-05-09T00:00:00.000Z'
           )
         `),
-      ).rejects.toThrow();
+      ).toThrow();
 
-      await expect(
-        db.execute(`
+      expect(() =>
+        db.exec(`
           UPDATE workspaces
           SET status = 'unknown'
           WHERE id = 'workspace_1'
         `),
-      ).rejects.toThrow();
+      ).toThrow();
     } finally {
       db.close();
     }

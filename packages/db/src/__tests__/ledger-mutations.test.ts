@@ -5,11 +5,11 @@ import { createUuidV7, type SyncedId } from "@fastifly/common";
 import { describe, expect, it } from "vitest";
 
 import {
+  createConfiguredSqliteClient,
   createInProcessLedgerWriteBoundary,
   createPostgresDatabaseFromClient,
   createPostgresIdentityRepository,
   createPostgresLedgerMutationStore,
-  createSqliteClient,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
@@ -18,6 +18,7 @@ import {
   type LedgerMutationError,
   LedgerMutationRunner,
   type LedgerMutationStore,
+  type SqliteClient,
 } from "../index.js";
 import {
   createInMemoryPostgresDatabase,
@@ -33,10 +34,7 @@ type RunnerFactory = {
 
 type RunnerContext = {
   readonly dialect: "sqlite" | "postgres";
-  readonly rawDb: {
-    readonly execute?: (sql: string) => Promise<unknown>;
-    readonly query?: (sql: string) => Promise<unknown>;
-  };
+  readonly rawDb: SqliteClient | { readonly query: (sql: string) => Promise<unknown> };
   readonly identityRepository: IdentityRepository;
   readonly store: LedgerMutationStore<unknown>;
 };
@@ -83,7 +81,7 @@ const factories: readonly RunnerFactory[] = [
     name: "SQLite",
     async run(test) {
       const sqliteDir = mkdtempSync(join(tmpdir(), "fastifly-ledger-mutation-sqlite-"));
-      const client = createSqliteClient({ url: `file:${join(sqliteDir, "test.db")}` });
+      const client = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
 
       try {
         await runSqliteMigrations(client, [
@@ -316,9 +314,9 @@ describe("ledger mutation runner", () => {
         const { user, workspaceState } = await createBaseState(identityRepository);
         let calls = 0;
 
-        if (dialect === "sqlite" && rawDb.execute) {
-          await rawDb.execute(`UPDATE ledgers SET status = 'read_only'`);
-        } else if (rawDb.query) {
+        if (dialect === "sqlite" && "exec" in rawDb) {
+          rawDb.exec(`UPDATE ledgers SET status = 'read_only'`);
+        } else if ("query" in rawDb) {
           await rawDb.query(`UPDATE ledgers SET status = 'read_only'`);
         }
 
@@ -736,12 +734,12 @@ async function updateLifecycle(
       ? `UPDATE ${tableName} SET ${columnName} = '${value}'::timestamptz`
       : `UPDATE ${tableName} SET ${columnName} = '${value}'`;
 
-  if (dialect === "sqlite" && rawDb.execute) {
-    await rawDb.execute(sql);
+  if (dialect === "sqlite" && "exec" in rawDb) {
+    rawDb.exec(sql);
     return;
   }
 
-  if (rawDb.query) {
+  if ("query" in rawDb) {
     await rawDb.query(sql);
     return;
   }
@@ -754,14 +752,14 @@ async function countRows(
   rawDb: RunnerContext["rawDb"],
   tableName: "audit_log" | "idempotency_receipts",
 ): Promise<number> {
-  if (dialect === "sqlite" && rawDb.execute) {
-    const result = (await rawDb.execute(`SELECT COUNT(*) AS count FROM ${tableName}`)) as {
-      readonly rows: readonly { readonly count: unknown }[];
-    };
-    return Number(result.rows[0]?.count ?? 0);
+  if (dialect === "sqlite" && "prepare" in rawDb) {
+    const row = rawDb.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get() as
+      | { readonly count: unknown }
+      | undefined;
+    return Number(row?.count ?? 0);
   }
 
-  if (rawDb.query) {
+  if ("query" in rawDb) {
     const result = (await rawDb.query(`SELECT COUNT(*) AS count FROM ${tableName}`)) as {
       readonly rows: readonly { readonly count: unknown }[];
     };

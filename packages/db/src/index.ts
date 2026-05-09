@@ -102,11 +102,19 @@ export {
   normalizeUsername,
 } from "./repositories/identity.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
-export type { SqliteClient, SqliteClientConfig, SqliteDatabase } from "./sqlite/client.js";
+export type {
+  SqliteClient,
+  SqliteClientConfig,
+  SqliteDatabase,
+  SqliteRuntimePragmas,
+} from "./sqlite/client.js";
 export {
-  createSqliteClient,
+  assertSqliteRuntimePragmas,
+  configureSqliteRuntime,
+  createConfiguredSqliteClient,
   createSqliteDatabase,
   createSqliteDatabaseFromClient,
+  readSqliteRuntimePragmas,
 } from "./sqlite/client.js";
 export * as sqliteSchemaDefinitions from "./sqlite/schema.js";
 export { sqliteSchema } from "./sqlite/schema.js";

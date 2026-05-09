@@ -114,6 +114,13 @@ sqlite
 postgres
 ```
 
+Package drivers:
+
+```text
+sqlite: better-sqlite3
+postgres: @electric-sql/pglite for tests; production driver selected before hosted Postgres wiring
+```
+
 ---
 
 ## SQLite runtime settings

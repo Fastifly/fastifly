@@ -628,10 +628,10 @@ export function createSqliteIdentityRepository(
     },
 
     async bootstrapDefaultWorkspace(input) {
-      return db.transaction(async (tx) => {
+      return db.transaction((tx) => {
         const now = makeTimestamp(resolved.clock);
         const workspace = assertCreated(
-          await tx
+          tx
             .insert(sqliteWorkspaces)
             .values({
               id: resolved.createId(),
@@ -640,11 +640,12 @@ export function createSqliteIdentityRepository(
               createdAt: now,
               updatedAt: now,
             })
-            .returning(),
+            .returning()
+            .all(),
           "Workspace",
         );
         const membership = assertCreated(
-          await tx
+          tx
             .insert(sqliteWorkspaceMembers)
             .values({
               id: resolved.createId(),
@@ -654,11 +655,12 @@ export function createSqliteIdentityRepository(
               createdAt: now,
               updatedAt: now,
             })
-            .returning(),
+            .returning()
+            .all(),
           "Workspace membership",
         );
         const ledger = assertCreated(
-          await tx
+          tx
             .insert(sqliteLedgers)
             .values({
               id: resolved.createId(),
@@ -669,7 +671,8 @@ export function createSqliteIdentityRepository(
               createdAt: now,
               updatedAt: now,
             })
-            .returning(),
+            .returning()
+            .all(),
           "Ledger",
         );
 
@@ -726,15 +729,15 @@ export function createSqliteIdentityRepository(
     },
 
     async replaceRecoveryCodes(input) {
-      return db.transaction(async (tx) => {
-        await tx.delete(sqliteRecoveryCodes).where(eq(sqliteRecoveryCodes.userId, input.userId));
+      return db.transaction((tx) => {
+        tx.delete(sqliteRecoveryCodes).where(eq(sqliteRecoveryCodes.userId, input.userId)).run();
 
         if (input.codeHashes.length === 0) {
           return [];
         }
 
         const now = makeTimestamp(resolved.clock);
-        const rows = await tx
+        const rows = tx
           .insert(sqliteRecoveryCodes)
           .values(
             input.codeHashes.map((codeHash) => ({
@@ -744,7 +747,8 @@ export function createSqliteIdentityRepository(
               createdAt: now,
             })),
           )
-          .returning();
+          .returning()
+          .all();
 
         return rows.map(toRecoveryCodeRecord);
       });
@@ -797,9 +801,9 @@ export function createSqliteIdentityRepository(
     },
 
     async acceptWorkspaceInvitation(input) {
-      return db.transaction(async (tx) => {
+      return db.transaction((tx) => {
         const now = makeTimestamp(resolved.clock);
-        const invitationRows = await tx
+        const invitationRows = tx
           .select()
           .from(sqliteWorkspaceInvitations)
           .where(
@@ -810,14 +814,15 @@ export function createSqliteIdentityRepository(
               gt(sqliteWorkspaceInvitations.expiresAt, now),
             ),
           )
-          .limit(1);
+          .limit(1)
+          .all();
         const invitation = invitationRows[0];
 
         if (!invitation) {
           return null;
         }
 
-        const existingMembershipRows = await tx
+        const existingMembershipRows = tx
           .select()
           .from(sqliteWorkspaceMembers)
           .where(
@@ -826,13 +831,14 @@ export function createSqliteIdentityRepository(
               eq(sqliteWorkspaceMembers.userId, input.userId),
             ),
           )
-          .limit(1);
+          .limit(1)
+          .all();
         const existingMembership = existingMembershipRows[0];
         const membership = existingMembership
           ? existingMembership.removedAt === null
             ? null
             : assertCreated(
-                await tx
+                tx
                   .update(sqliteWorkspaceMembers)
                   .set({
                     removedAt: null,
@@ -840,11 +846,12 @@ export function createSqliteIdentityRepository(
                     updatedAt: now,
                   })
                   .where(eq(sqliteWorkspaceMembers.id, existingMembership.id))
-                  .returning(),
+                  .returning()
+                  .all(),
                 "Workspace membership",
               )
           : assertCreated(
-              await tx
+              tx
                 .insert(sqliteWorkspaceMembers)
                 .values({
                   id: resolved.createId(),
@@ -854,7 +861,8 @@ export function createSqliteIdentityRepository(
                   createdAt: now,
                   updatedAt: now,
                 })
-                .returning(),
+                .returning()
+                .all(),
               "Workspace membership",
             );
 
@@ -862,10 +870,10 @@ export function createSqliteIdentityRepository(
           return null;
         }
 
-        await tx
-          .update(sqliteWorkspaceInvitations)
+        tx.update(sqliteWorkspaceInvitations)
           .set({ acceptedAt: now })
-          .where(eq(sqliteWorkspaceInvitations.id, input.invitationId));
+          .where(eq(sqliteWorkspaceInvitations.id, input.invitationId))
+          .run();
 
         return toWorkspaceMemberRecord(membership);
       });

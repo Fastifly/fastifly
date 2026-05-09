@@ -5,9 +5,9 @@ import { createUuidV7, type SyncedId } from "@fastifly/common";
 import { describe, expect, it } from "vitest";
 
 import {
+  createConfiguredSqliteClient,
   createPostgresDatabaseFromClient,
   createPostgresIdentityRepository,
-  createSqliteClient,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
   normalizeUsername,
@@ -52,9 +52,8 @@ const repositoryFactories: readonly RepositoryFactory[] = [
   {
     name: "SQLite",
     async run(test) {
-      // Repository tests exercise Drizzle transactions; libSQL :memory: databases are connection-local.
       const sqliteDir = mkdtempSync(join(tmpdir(), "fastifly-sqlite-"));
-      const client = createSqliteClient({ url: `file:${join(sqliteDir, "test.db")}` });
+      const client = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
 
       try {
         await runSqliteMigrations(client, [

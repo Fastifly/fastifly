@@ -99,7 +99,7 @@ export type LedgerMutationHandlerContext<TTransaction> = {
 
 export type LedgerMutationHandler<TTransaction> = (
   context: LedgerMutationHandlerContext<TTransaction>,
-) => Promise<LedgerMutationResponse> | LedgerMutationResponse;
+) => MaybePromise<LedgerMutationResponse>;
 
 export type IdempotencyReceiptRecord = {
   readonly id: SyncedId;
@@ -124,27 +124,28 @@ export type LedgerMutationTransactionalStore = {
   readonly findScope: (
     workspaceId: SyncedId,
     ledgerId: SyncedId,
-  ) => Promise<LedgerMutationScope | null>;
+  ) => MaybePromise<LedgerMutationScope | null>;
   readonly findIdempotencyReceipt: (
     actorUserId: SyncedId,
     idempotencyKey: string,
-  ) => Promise<IdempotencyReceiptRecord | null>;
+  ) => MaybePromise<IdempotencyReceiptRecord | null>;
   readonly createIdempotencyReceipt: (
     input: CreateIdempotencyReceiptInput,
-  ) => Promise<IdempotencyReceiptRecord>;
-  readonly deleteIdempotencyReceipt: (id: SyncedId) => Promise<void>;
+  ) => MaybePromise<IdempotencyReceiptRecord>;
+  readonly deleteIdempotencyReceipt: (id: SyncedId) => MaybePromise<void>;
   readonly createAuditLogEntries: (
     input: CreateAuditLogEntriesInput,
-  ) => Promise<readonly LedgerMutationAuditEntry[]>;
+  ) => MaybePromise<readonly LedgerMutationAuditEntry[]>;
 };
 
 export type LedgerMutationStore<TTransaction> = {
+  readonly executionMode: "sync" | "async";
   readonly transaction: <TResult>(
     callback: (
       transactionalStore: LedgerMutationTransactionalStore,
       transaction: TTransaction,
-    ) => Promise<TResult>,
-  ) => Promise<TResult>;
+    ) => MaybePromise<TResult>,
+  ) => MaybePromise<TResult>;
 };
 
 export type LedgerWriteBoundary = {
@@ -178,6 +179,8 @@ export type LedgerMutationRunInput<TTransaction> = {
   readonly requestPayload: JsonObject;
   readonly handler: LedgerMutationHandler<TTransaction>;
 };
+
+type MaybePromise<T> = T | Promise<T>;
 
 export type CreateIdempotencyReceiptInput = {
   readonly workspaceId: SyncedId;
@@ -243,76 +246,36 @@ export class LedgerMutationRunner<TTransaction> {
     const auditEntries: LedgerMutationAuditEntry[] = [];
     const balanceDirtyRequests: BalanceDirtyRequest[] = [];
 
-    const result = await this.#options.writeBoundary.runExclusive(lockKey, async () =>
-      this.#options.store.transaction(async (store, transaction) => {
-        if (input.envelope.idempotencyKey) {
-          const receipt = await store.findIdempotencyReceipt(
-            input.envelope.actorUserId,
-            input.envelope.idempotencyKey,
-          );
+    const result = await this.#options.writeBoundary.runExclusive(lockKey, async () => {
+      if (this.#options.store.executionMode === "sync") {
+        return assertSyncValue(
+          this.#options.store.transaction((store, transaction) =>
+            this.#runSyncTransaction({
+              auditEntries,
+              balanceDirtyRequests,
+              events,
+              input,
+              requestHash,
+              store,
+              transaction,
+            }),
+          ),
+          "Synchronous ledger mutation transaction",
+        );
+      }
 
-          if (receipt) {
-            if (isExpiredReceipt(receipt, this.#options.now())) {
-              await store.deleteIdempotencyReceipt(receipt.id);
-            } else {
-              if (receipt.requestHash !== requestHash) {
-                throw new LedgerMutationError(
-                  "Idempotency key was already used with a different request.",
-                  "IDEMPOTENCY_CONFLICT",
-                );
-              }
-
-              return {
-                body: receipt.responseBodyJson,
-                idempotencyReplayed: true,
-                status: receipt.responseStatus,
-              };
-            }
-          }
-        }
-
-        const scope = await store.findScope(input.envelope.workspaceId, input.envelope.ledgerId);
-
-        if (!scope) {
-          throw new LedgerMutationError("Ledger scope was not found.", "LEDGER_NOT_FOUND");
-        }
-
-        assertWritableScope(input.envelope, scope);
-
-        const response = await input.handler({
-          envelope: input.envelope,
+      return this.#options.store.transaction(async (store, transaction) =>
+        this.#runAsyncTransaction({
+          auditEntries,
+          balanceDirtyRequests,
+          events,
+          input,
+          requestHash,
+          store,
           transaction,
-          emitEvent: (event) => events.push(event),
-          recordAudit: (entry) => auditEntries.push(entry),
-          markBalanceDirty: (request) => balanceDirtyRequests.push(request),
-        });
-        assertMutationResponse(response);
-
-        if (auditEntries.length > 0 && !input.envelope.dryRun) {
-          await store.createAuditLogEntries({
-            entries: auditEntries,
-            envelope: input.envelope,
-          });
-        }
-
-        if (input.envelope.idempotencyKey && !input.envelope.dryRun) {
-          const expiresAt = new Date(this.#options.now().getTime() + this.#options.receiptTtlMs);
-          await store.createIdempotencyReceipt({
-            actorUserId: input.envelope.actorUserId,
-            deviceId: input.envelope.deviceId ?? null,
-            expiresAt,
-            idempotencyKey: input.envelope.idempotencyKey,
-            ledgerId: input.envelope.ledgerId,
-            requestHash,
-            responseBodyJson: response.body,
-            responseStatus: response.status,
-            workspaceId: input.envelope.workspaceId,
-          });
-        }
-
-        return { ...response, idempotencyReplayed: false };
-      }),
-    );
+        }),
+      );
+    });
 
     if (!result.idempotencyReplayed && !input.envelope.dryRun) {
       if (events.length > 0 && this.#options.dispatchDomainEvents) {
@@ -334,7 +297,180 @@ export class LedgerMutationRunner<TTransaction> {
 
     return result;
   }
+
+  #runSyncTransaction(
+    input: LedgerTransactionExecutionInput<TTransaction>,
+  ): LedgerMutationRunResult {
+    const { auditEntries, balanceDirtyRequests, events, requestHash, store, transaction } = input;
+    const envelope = input.input.envelope;
+
+    if (envelope.idempotencyKey) {
+      const receipt = assertSyncValue(
+        store.findIdempotencyReceipt(envelope.actorUserId, envelope.idempotencyKey),
+        "Synchronous idempotency lookup",
+      );
+
+      if (receipt) {
+        if (isExpiredReceipt(receipt, this.#options.now())) {
+          assertSyncValue(
+            store.deleteIdempotencyReceipt(receipt.id),
+            "Synchronous idempotency deletion",
+          );
+        } else {
+          if (receipt.requestHash !== requestHash) {
+            throw new LedgerMutationError(
+              "Idempotency key was already used with a different request.",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+
+          return {
+            body: receipt.responseBodyJson,
+            idempotencyReplayed: true,
+            status: receipt.responseStatus,
+          };
+        }
+      }
+    }
+
+    const scope = assertSyncValue(
+      store.findScope(envelope.workspaceId, envelope.ledgerId),
+      "Synchronous ledger scope lookup",
+    );
+
+    if (!scope) {
+      throw new LedgerMutationError("Ledger scope was not found.", "LEDGER_NOT_FOUND");
+    }
+
+    assertWritableScope(envelope, scope);
+
+    const response = assertSyncValue(
+      input.input.handler({
+        envelope,
+        transaction,
+        emitEvent: (event) => events.push(event),
+        recordAudit: (entry) => auditEntries.push(entry),
+        markBalanceDirty: (request) => balanceDirtyRequests.push(request),
+      }),
+      "Synchronous ledger mutation handler",
+    );
+    assertMutationResponse(response);
+
+    if (auditEntries.length > 0 && !envelope.dryRun) {
+      assertSyncValue(
+        store.createAuditLogEntries({
+          entries: auditEntries,
+          envelope,
+        }),
+        "Synchronous audit log insert",
+      );
+    }
+
+    if (envelope.idempotencyKey && !envelope.dryRun) {
+      const expiresAt = new Date(this.#options.now().getTime() + this.#options.receiptTtlMs);
+      assertSyncValue(
+        store.createIdempotencyReceipt({
+          actorUserId: envelope.actorUserId,
+          deviceId: envelope.deviceId ?? null,
+          expiresAt,
+          idempotencyKey: envelope.idempotencyKey,
+          ledgerId: envelope.ledgerId,
+          requestHash,
+          responseBodyJson: response.body,
+          responseStatus: response.status,
+          workspaceId: envelope.workspaceId,
+        }),
+        "Synchronous idempotency receipt insert",
+      );
+    }
+
+    return { ...response, idempotencyReplayed: false };
+  }
+
+  async #runAsyncTransaction(
+    input: LedgerTransactionExecutionInput<TTransaction>,
+  ): Promise<LedgerMutationRunResult> {
+    const { auditEntries, balanceDirtyRequests, events, requestHash, store, transaction } = input;
+    const envelope = input.input.envelope;
+
+    if (envelope.idempotencyKey) {
+      const receipt = await store.findIdempotencyReceipt(
+        envelope.actorUserId,
+        envelope.idempotencyKey,
+      );
+
+      if (receipt) {
+        if (isExpiredReceipt(receipt, this.#options.now())) {
+          await store.deleteIdempotencyReceipt(receipt.id);
+        } else {
+          if (receipt.requestHash !== requestHash) {
+            throw new LedgerMutationError(
+              "Idempotency key was already used with a different request.",
+              "IDEMPOTENCY_CONFLICT",
+            );
+          }
+
+          return {
+            body: receipt.responseBodyJson,
+            idempotencyReplayed: true,
+            status: receipt.responseStatus,
+          };
+        }
+      }
+    }
+
+    const scope = await store.findScope(envelope.workspaceId, envelope.ledgerId);
+
+    if (!scope) {
+      throw new LedgerMutationError("Ledger scope was not found.", "LEDGER_NOT_FOUND");
+    }
+
+    assertWritableScope(envelope, scope);
+
+    const response = await input.input.handler({
+      envelope,
+      transaction,
+      emitEvent: (event) => events.push(event),
+      recordAudit: (entry) => auditEntries.push(entry),
+      markBalanceDirty: (request) => balanceDirtyRequests.push(request),
+    });
+    assertMutationResponse(response);
+
+    if (auditEntries.length > 0 && !envelope.dryRun) {
+      await store.createAuditLogEntries({
+        entries: auditEntries,
+        envelope,
+      });
+    }
+
+    if (envelope.idempotencyKey && !envelope.dryRun) {
+      const expiresAt = new Date(this.#options.now().getTime() + this.#options.receiptTtlMs);
+      await store.createIdempotencyReceipt({
+        actorUserId: envelope.actorUserId,
+        deviceId: envelope.deviceId ?? null,
+        expiresAt,
+        idempotencyKey: envelope.idempotencyKey,
+        ledgerId: envelope.ledgerId,
+        requestHash,
+        responseBodyJson: response.body,
+        responseStatus: response.status,
+        workspaceId: envelope.workspaceId,
+      });
+    }
+
+    return { ...response, idempotencyReplayed: false };
+  }
 }
+
+type LedgerTransactionExecutionInput<TTransaction> = {
+  readonly auditEntries: LedgerMutationAuditEntry[];
+  readonly balanceDirtyRequests: BalanceDirtyRequest[];
+  readonly events: LedgerMutationDomainEvent[];
+  readonly input: LedgerMutationRunInput<TTransaction>;
+  readonly requestHash: string;
+  readonly store: LedgerMutationTransactionalStore;
+  readonly transaction: TTransaction;
+};
 
 export function createInProcessLedgerWriteBoundary(): LedgerWriteBoundary {
   const tails = new Map<string, Promise<void>>();
@@ -371,10 +507,9 @@ export function createSqliteLedgerMutationStore(
   options: { readonly createId: RepositoryIdGenerator; readonly now?: () => Date },
 ): LedgerMutationStore<SqliteTransaction> {
   return {
-    async transaction(callback) {
-      return db.transaction(async (tx) =>
-        callback(createSqliteTransactionalStore(tx, options), tx),
-      );
+    executionMode: "sync",
+    transaction(callback) {
+      return db.transaction((tx) => callback(createSqliteTransactionalStore(tx, options), tx));
     },
   };
 }
@@ -384,9 +519,10 @@ export function createPostgresLedgerMutationStore(
   options: { readonly createId: RepositoryIdGenerator; readonly now?: () => Date },
 ): LedgerMutationStore<PostgresTransaction> {
   return {
+    executionMode: "async",
     async transaction(callback) {
-      return db.transaction(async (tx) =>
-        callback(createPostgresTransactionalStore(tx, options), tx),
+      return db.transaction(
+        async (tx) => await callback(createPostgresTransactionalStore(tx, options), tx),
       );
     },
   };
@@ -397,25 +533,27 @@ function createSqliteTransactionalStore(
   options: { readonly createId: RepositoryIdGenerator; readonly now?: () => Date },
 ): LedgerMutationTransactionalStore {
   return {
-    async findScope(workspaceId, ledgerId) {
-      const workspaceRows = await tx
+    findScope(workspaceId, ledgerId) {
+      const workspaceRows = tx
         .select()
         .from(sqliteWorkspaces)
         .where(eq(sqliteWorkspaces.id, workspaceId))
-        .limit(1);
-      const ledgerRows = await tx
+        .limit(1)
+        .all();
+      const ledgerRows = tx
         .select()
         .from(sqliteLedgers)
         .where(and(eq(sqliteLedgers.id, ledgerId), eq(sqliteLedgers.workspaceId, workspaceId)))
-        .limit(1);
+        .limit(1)
+        .all();
 
       return workspaceRows[0] && ledgerRows[0]
         ? { workspace: toWorkspaceRecord(workspaceRows[0]), ledger: toLedgerRecord(ledgerRows[0]) }
         : null;
     },
 
-    async findIdempotencyReceipt(actorUserId, idempotencyKey) {
-      const rows = await tx
+    findIdempotencyReceipt(actorUserId, idempotencyKey) {
+      const rows = tx
         .select()
         .from(sqliteIdempotencyReceipts)
         .where(
@@ -424,14 +562,15 @@ function createSqliteTransactionalStore(
             eq(sqliteIdempotencyReceipts.idempotencyKey, idempotencyKey),
           ),
         )
-        .limit(1);
+        .limit(1)
+        .all();
 
       return rows[0] ? toIdempotencyReceiptRecord(rows[0]) : null;
     },
 
-    async createIdempotencyReceipt(input) {
+    createIdempotencyReceipt(input) {
       const now = (options.now ?? (() => new Date()))().toISOString();
-      const rows = await tx
+      const rows = tx
         .insert(sqliteIdempotencyReceipts)
         .values({
           id: options.createId(),
@@ -446,7 +585,8 @@ function createSqliteTransactionalStore(
           createdAt: now,
           expiresAt: input.expiresAt.toISOString(),
         })
-        .returning();
+        .returning()
+        .all();
 
       const row = rows[0];
       if (!row) {
@@ -456,25 +596,27 @@ function createSqliteTransactionalStore(
       return toIdempotencyReceiptRecord(row);
     },
 
-    async deleteIdempotencyReceipt(id) {
-      await tx.delete(sqliteIdempotencyReceipts).where(eq(sqliteIdempotencyReceipts.id, id));
+    deleteIdempotencyReceipt(id) {
+      tx.delete(sqliteIdempotencyReceipts).where(eq(sqliteIdempotencyReceipts.id, id)).run();
     },
 
-    async createAuditLogEntries(input) {
+    createAuditLogEntries(input) {
       const now = (options.now ?? (() => new Date()))().toISOString();
-      await tx.insert(sqliteAuditLog).values(
-        input.entries.map((entry) => ({
-          id: options.createId(),
-          workspaceId: input.envelope.workspaceId,
-          ledgerId: input.envelope.ledgerId,
-          actorUserId: input.envelope.actorUserId,
-          action: entry.action,
-          entityType: entry.entityType,
-          entityId: entry.entityId,
-          metadataJson: entry.metadataJson,
-          createdAt: now,
-        })),
-      );
+      tx.insert(sqliteAuditLog)
+        .values(
+          input.entries.map((entry) => ({
+            id: options.createId(),
+            workspaceId: input.envelope.workspaceId,
+            ledgerId: input.envelope.ledgerId,
+            actorUserId: input.envelope.actorUserId,
+            action: entry.action,
+            entityType: entry.entityType,
+            entityId: entry.entityId,
+            metadataJson: entry.metadataJson,
+            createdAt: now,
+          })),
+        )
+        .run();
 
       return input.entries;
     },
@@ -605,6 +747,23 @@ function assertMutationResponse(response: LedgerMutationResponse): void {
       "INVALID_MUTATION_RESPONSE",
     );
   }
+}
+
+function assertSyncValue<TValue>(value: MaybePromise<TValue>, label: string): TValue {
+  if (isPromiseLike(value)) {
+    throw new Error(`${label} returned a promise inside a synchronous SQLite transaction.`);
+  }
+
+  return value;
+}
+
+function isPromiseLike(value: unknown): value is Promise<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "then" in value &&
+    typeof (value as { readonly then?: unknown }).then === "function"
+  );
 }
 
 function isExpiredReceipt(receipt: IdempotencyReceiptRecord, now: Date): boolean {
