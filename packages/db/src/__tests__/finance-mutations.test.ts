@@ -244,7 +244,7 @@ describe("finance mutation service", () => {
             accountRepository,
           );
 
-          const result = await service.createTransaction({
+          const result = await service.createExpense({
             envelope: createEnvelope({
               actorUserId: user.id,
               idempotencyKey: "idem_create_transaction",
@@ -257,7 +257,6 @@ describe("finance mutation service", () => {
               lines: [{ amountMinor: 12_000n, destinationAccountId: accounts.groceries.id }],
               occurredAt: "2026-05-09T08:00:00.000Z",
               sourceAccountId: accounts.bank.id,
-              type: "expense",
             },
           });
 

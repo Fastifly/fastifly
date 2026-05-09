@@ -145,6 +145,8 @@ export type {
   CreateAccountMutationPayload,
   CreateTransactionMutationInput,
   CreateTransactionMutationPayload,
+  CreateTypedTransactionMutationInput,
+  CreateTypedTransactionMutationPayload,
   LedgerFinanceMutationService,
   LedgerFinanceMutationServiceOptions,
 } from "./services/finance-mutations.js";

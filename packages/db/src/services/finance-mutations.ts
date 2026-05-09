@@ -29,6 +29,8 @@ export type CreateTransactionMutationPayload = Omit<
   "createdBy" | "ledgerId" | "workspaceId"
 >;
 
+export type CreateTypedTransactionMutationPayload = Omit<CreateTransactionMutationPayload, "type">;
+
 export type ArchiveAccountMutationPayload = {
   readonly accountId: AccountRecord["id"];
 };
@@ -48,9 +50,23 @@ export type CreateTransactionMutationInput = {
   readonly transaction: CreateTransactionMutationPayload;
 };
 
+export type CreateTypedTransactionMutationInput = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly transaction: CreateTypedTransactionMutationPayload;
+};
+
 export type LedgerFinanceMutationService = {
   readonly createAccount: (input: CreateAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly archiveAccount: (input: ArchiveAccountMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly createExpense: (
+    input: CreateTypedTransactionMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
+  readonly createIncome: (
+    input: CreateTypedTransactionMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
+  readonly createTransfer: (
+    input: CreateTypedTransactionMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
   readonly createTransaction: (
     input: CreateTransactionMutationInput,
   ) => Promise<LedgerMutationRunResult>;
@@ -192,64 +208,97 @@ export function createLedgerFinanceMutationService(
       });
     },
 
+    createExpense(input) {
+      return createTypedTransaction(options, input, "expense");
+    },
+
+    createIncome(input) {
+      return createTypedTransaction(options, input, "income");
+    },
+
+    createTransfer(input) {
+      return createTypedTransaction(options, input, "transfer");
+    },
+
     createTransaction(input) {
-      const requestPayload = serializeCreateTransactionPayload(input.transaction);
-
-      return options.runner.run({
-        envelope: input.envelope,
-        requestPayload,
-        handler: ({ emitEvent, envelope, recordAudit, transaction }) => {
-          if (envelope.dryRun) {
-            return {
-              body: {
-                dryRun: true,
-                transaction: requestPayload,
-              },
-              status: 200,
-            };
-          }
-
-          const repository =
-            options.createTransactionRepositoryForTransaction?.(transaction) ??
-            options.transactionRepository;
-          const result = repository.createTransaction({
-            ...input.transaction,
-            createdBy: envelope.actorUserId,
-            ledgerId: envelope.ledgerId,
-            workspaceId: envelope.workspaceId,
-          });
-
-          return mapMaybePromise(result, (group) => {
-            emitEvent({
-              payload: {
-                ledgerId: envelope.ledgerId,
-                transactionGroupId: group.id,
-                type: group.type,
-                workspaceId: envelope.workspaceId,
-              },
-              type: "transaction.created",
-            });
-            recordAudit({
-              action: "transaction.created",
-              entityId: group.id,
-              entityType: "transaction_group",
-              metadataJson: {
-                journalCount: group.journals.length,
-                type: group.type,
-              },
-            });
-
-            return {
-              body: {
-                transactionGroup: serializeTransactionGroup(group),
-              },
-              status: 201,
-            };
-          });
-        },
-      });
+      return createTransactionMutation(options, input);
     },
   };
+}
+
+function createTypedTransaction(
+  options: LedgerFinanceMutationServiceOptions,
+  input: CreateTypedTransactionMutationInput,
+  type: CreateTransactionMutationPayload["type"],
+): Promise<LedgerMutationRunResult> {
+  return createTransactionMutation(options, {
+    envelope: input.envelope,
+    transaction: {
+      ...input.transaction,
+      type,
+    },
+  });
+}
+
+function createTransactionMutation(
+  options: LedgerFinanceMutationServiceOptions,
+  input: CreateTransactionMutationInput,
+): Promise<LedgerMutationRunResult> {
+  const requestPayload = serializeCreateTransactionPayload(input.transaction);
+
+  return options.runner.run({
+    envelope: input.envelope,
+    requestPayload,
+    handler: ({ emitEvent, envelope, recordAudit, transaction }) => {
+      if (envelope.dryRun) {
+        return {
+          body: {
+            dryRun: true,
+            transaction: requestPayload,
+          },
+          status: 200,
+        };
+      }
+
+      const repository =
+        options.createTransactionRepositoryForTransaction?.(transaction) ??
+        options.transactionRepository;
+      const result = repository.createTransaction({
+        ...input.transaction,
+        createdBy: envelope.actorUserId,
+        ledgerId: envelope.ledgerId,
+        workspaceId: envelope.workspaceId,
+      });
+
+      return mapMaybePromise(result, (group) => {
+        emitEvent({
+          payload: {
+            ledgerId: envelope.ledgerId,
+            transactionGroupId: group.id,
+            type: group.type,
+            workspaceId: envelope.workspaceId,
+          },
+          type: "transaction.created",
+        });
+        recordAudit({
+          action: "transaction.created",
+          entityId: group.id,
+          entityType: "transaction_group",
+          metadataJson: {
+            journalCount: group.journals.length,
+            type: group.type,
+          },
+        });
+
+        return {
+          body: {
+            transactionGroup: serializeTransactionGroup(group),
+          },
+          status: 201,
+        };
+      });
+    },
+  });
 }
 
 type MaybePromise<T> = T | Promise<T>;
