@@ -103,4 +103,42 @@ describe("Fastifly API app", () => {
       },
     });
   });
+
+  it("preserves important standard error codes for future route layers", async () => {
+    const app = await makeApp();
+
+    for (const [statusCode] of [
+      [401, "UNAUTHENTICATED"],
+      [403, "FORBIDDEN"],
+      [409, "CONFLICT"],
+    ] as const) {
+      app.route({
+        method: "GET",
+        url: `/test/errors/${statusCode}`,
+        handler: () => {
+          const error = new Error(`status ${statusCode}`) as Error & { statusCode: number };
+          error.statusCode = statusCode;
+          throw error;
+        },
+      });
+    }
+
+    for (const [statusCode, code] of [
+      [401, "UNAUTHENTICATED"],
+      [403, "FORBIDDEN"],
+      [409, "CONFLICT"],
+    ] as const) {
+      const response = await app.inject({
+        method: "GET",
+        url: `/test/errors/${statusCode}`,
+      });
+
+      expect(response.statusCode).toBe(statusCode);
+      expect(response.json()).toMatchObject({
+        error: {
+          code,
+        },
+      });
+    }
+  });
 });

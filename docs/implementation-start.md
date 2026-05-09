@@ -78,6 +78,45 @@ Rules:
 - no route-handler business logic
 - no React component business logic
 
+### 3.1 Phase transition review gate
+
+Before moving from one phase to the next, review the completed phase as three separate review cycles.
+
+Required review personas:
+
+```text
+CTO
+senior software engineer
+user
+```
+
+Required research:
+
+```text
+Context7 docs for every changed framework/library surface
+current online sources, preferring official docs, release notes, package READMEs, and security notes
+```
+
+Required artifact:
+
+```text
+docs/phase-reviews/phase-N-<name>-review.md
+```
+
+Each review artifact must include:
+
+- reviewed commit or diff range
+- files reviewed
+- Context7 sources checked
+- online sources checked
+- CTO findings
+- senior engineer findings
+- user findings
+- local verification commands and results
+- explicit decision: proceed, fix first, or update the phase gate
+
+Do not begin the next phase until every `fix first` finding is resolved or deliberately accepted in the relevant latest doc.
+
 ### 4. Common package first
 
 `packages/common` must exist before API/database/frontend feature work.
@@ -383,6 +422,7 @@ Stop condition:
 - `/ready` reflects migration/config state
 - `/api/openapi.json` works
 - standard error fixture is tested
+- if no frontend build exists yet, static serving must be explicitly marked as deferred to the frontend/PWA phase
 
 ### Phase 4: Auth, workspace, ledger, permissions
 

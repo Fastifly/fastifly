@@ -1,9 +1,17 @@
-import { type FieldErrorMap, makeApiError, makeValidationError } from "@fastifly/common";
+import {
+  type ApiErrorCode,
+  type FieldErrorMap,
+  makeApiError,
+  makeValidationError,
+} from "@fastifly/common";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 const DEFAULT_ERROR_MESSAGES = {
   BAD_REQUEST: "The request is invalid.",
+  UNAUTHENTICATED: "Authentication is required.",
+  FORBIDDEN: "You do not have permission to perform this action.",
   NOT_FOUND: "The requested resource was not found.",
+  CONFLICT: "The request conflicts with the current resource state.",
   INTERNAL_SERVER_ERROR: "An unexpected error occurred.",
 } as const;
 
@@ -26,6 +34,23 @@ function isFastifyError(error: unknown): error is FastifyError {
 
 function isFastifyValidationError(error: unknown): error is FastifyError {
   return isFastifyError(error) && Array.isArray(error.validation);
+}
+
+function mapStatusToApiErrorCode(statusCode: number): ApiErrorCode {
+  switch (statusCode) {
+    case 401:
+      return "UNAUTHENTICATED";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 409:
+      return "CONFLICT";
+    case 400:
+      return "BAD_REQUEST";
+    default:
+      return statusCode >= 500 ? "INTERNAL_SERVER_ERROR" : "BAD_REQUEST";
+  }
 }
 
 function toFieldErrorMap(error: FastifyError): FieldErrorMap {
@@ -80,7 +105,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     const statusCode =
       isFastifyError(error) && error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
-    const isClientError = statusCode < 500;
+    const code = mapStatusToApiErrorCode(statusCode);
     const clientMessage = isFastifyError(error)
       ? error.message
       : DEFAULT_ERROR_MESSAGES.BAD_REQUEST;
@@ -89,8 +114,8 @@ export function registerErrorHandlers(app: FastifyInstance): void {
       reply,
       statusCode,
       makeApiError({
-        code: isClientError ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR",
-        message: isClientError ? clientMessage : DEFAULT_ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        code,
+        message: code === "INTERNAL_SERVER_ERROR" ? DEFAULT_ERROR_MESSAGES[code] : clientMessage,
         details: {},
         requestId: getRequestId(request),
       }),

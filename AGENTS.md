@@ -398,6 +398,32 @@ Do not add clever abstractions unless they remove real duplication already visib
 
 Every non-trivial implementation should include tests and doc updates when contracts change.
 
+### Phase transition review
+
+Before moving from one implementation phase to the next, stop and review the completed phase.
+
+The review must use both:
+
+- Context7 for current library/framework documentation
+- current online sources, preferring official docs, release notes, and package READMEs
+
+Run three separate review cycles:
+
+1. CTO review: architecture fit, sequencing, long-term risk, missing foundations.
+2. Senior software engineer review: correctness, type safety, tests, dependency usage, maintainability.
+3. User review: workflow usefulness, visible behavior, confusing gaps, product expectations.
+
+Each review must record:
+
+- commit or diff range reviewed
+- files reviewed
+- sources checked
+- findings by severity
+- local verification commands and results
+- explicit decision: proceed, fix first, or update the phase gate
+
+Do not start the next phase until all `fix first` findings are resolved or deliberately accepted in docs.
+
 ---
 
 ## UI rules
