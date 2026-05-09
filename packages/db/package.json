@@ -11,17 +11,20 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
-    "test": "node -e \"console.log('db scaffold: no tests yet')\"",
-    "test:sqlite": "node -e \"console.log('db scaffold: sqlite tests not implemented yet')\"",
-    "test:postgres": "node -e \"console.log('db scaffold: postgres tests not implemented yet')\"",
-    "db:generate:sqlite": "node -e \"console.log('db scaffold: sqlite generation not implemented yet')\"",
-    "db:generate:postgres": "node -e \"console.log('db scaffold: postgres generation not implemented yet')\"",
-    "db:migrate:sqlite": "node -e \"console.log('db scaffold: sqlite migrations not implemented yet')\"",
-    "db:migrate:postgres": "node -e \"console.log('db scaffold: postgres migrations not implemented yet')\""
+    "test": "vitest run",
+    "test:sqlite": "vitest run src/__tests__/sqlite-migrations.test.ts",
+    "test:postgres": "vitest run src/__tests__/postgres-migrations.test.ts",
+    "db:generate:sqlite": "node -e \"console.error('SQLite migration generation is not wired yet. Add drizzle-kit config before using this command.'); process.exit(1)\"",
+    "db:generate:postgres": "node -e \"console.error('PostgreSQL migration generation is not wired yet. Add drizzle-kit config before using this command.'); process.exit(1)\"",
+    "db:migrate:sqlite": "node -e \"console.error('SQLite production migration command is not wired yet. Use tested migration helpers only.'); process.exit(1)\"",
+    "db:migrate:postgres": "node -e \"console.error('PostgreSQL production migration command is not wired yet. Use tested migration helpers only.'); process.exit(1)\""
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.4.5",
     "@fastifly/common": "workspace:*",
-    "@fastifly/config": "workspace:*"
+    "@fastifly/config": "workspace:*",
+    "@libsql/client": "^0.17.3",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "typescript": "latest"
