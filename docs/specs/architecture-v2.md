@@ -17,7 +17,7 @@ Fastifly should be:
 - limited offline-write capable
 - sync-ready from day one
 - family/partner sharing ready
-- multi-currency from day one
+- multi-currency foundations from day one
 - SQLite-first and PostgreSQL-ready
 - simple by default
 - advanced when needed
@@ -1065,7 +1065,7 @@ Critical invariants:
 - account compatibility enforced
 - account balances match postings
 - money uses integer minor units
-- cross-currency values preserve exchange snapshots
+- same-currency writes reject converted reporting amounts until cross-currency support is explicit
 - imports are idempotent
 - recurring jobs are idempotent
 - duplicate sync operations are idempotent

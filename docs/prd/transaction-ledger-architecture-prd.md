@@ -69,8 +69,8 @@ That model becomes painful when supporting:
 - transfers
 - reconciliation
 - account compatibility rules
-- multi-currency transactions
-- cross-currency reporting
+- multi-currency foundations
+- deferred cross-currency transaction reporting
 - imports
 - undo import batch
 - recurring templates
@@ -93,7 +93,7 @@ Therefore, Fastifly should use a ledger-safe model from the first implementation
 - Support advanced ledger/accounting views.
 - Support split transactions.
 - Support grouped visible transaction rows.
-- Support multi-currency transactions.
+- Support multi-currency foundations; simultaneous cross-currency transaction writes are deferred.
 - Support strict account-pair compatibility validation.
 - Support domain events and side-effect ownership.
 - Support balance dirtying and recalculation.
@@ -341,6 +341,8 @@ sum(transaction_postings.amount_minor) = 0
 ```
 
 ### Cross-currency journals
+
+Deferred beyond the initial same-currency write path.
 
 For cross-currency journals:
 
@@ -1176,7 +1178,7 @@ transfer creates balanced postings
 split creates valid group/journals/postings
 opening balance creates proper journal/postings
 reconciliation transaction is valid
-cross-currency transaction stores reporting values and exchange snapshot
+same-currency transaction rejects converted reporting amounts until cross-currency support is explicit
 ```
 
 ### Account compatibility tests

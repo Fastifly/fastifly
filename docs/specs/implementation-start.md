@@ -520,7 +520,7 @@ Stop condition:
 
 - ledger invariants pass
 - account compatibility matrix is enforced
-- cross-currency snapshot is stored
+- same-currency transaction writes reject converted reporting amounts until cross-currency support is explicit
 - account balances derive from postings
 - SQLite and PostgreSQL behavior match
 

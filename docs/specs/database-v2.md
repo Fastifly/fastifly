@@ -20,7 +20,7 @@ The database design must support:
 - fast daily personal finance tracking
 - family/partner workspace sharing
 - multi-ledger architecture
-- multi-currency from day one
+- multi-currency foundations from day one
 - double-entry-ready ledger behavior
 - split transactions
 - imports and import undo
@@ -491,14 +491,16 @@ SQLite money boundary:
 
 ## Multi-currency model
 
-Multi-currency support is required from day one.
+Multi-currency foundations are required from day one.
+
+V0.1 transaction writes are same-currency only. Simultaneous cross-currency transaction writes are deferred until the product has a dedicated exchange-rate UX and API contract.
 
 Principles:
 
 - every ledger has a base/reporting currency
 - every account has a currency
 - every posting has an original currency
-- cross-currency transactions store exchange-rate snapshots
+- cross-currency transactions store exchange-rate snapshots when that deferred write path is enabled
 - original transaction amounts are preserved
 - reports can show original currency and reporting/base currency
 
@@ -779,6 +781,8 @@ sum(transaction_postings.amount_minor) = 0
 ```
 
 ### Cross-currency journal
+
+Deferred beyond the initial same-currency write path.
 
 ```text
 original posting amounts are preserved
@@ -1884,7 +1888,7 @@ create expense
 create income
 create transfer
 create split transaction
-create cross-currency transaction
+deferred cross-currency transaction
 account compatibility matrix
 calculate account balance
 import CSV preview
@@ -1906,7 +1910,7 @@ Required invariants:
 
 ```text
 same-currency postings balance to zero
-cross-currency transactions store exchange snapshot
+same-currency writes reject converted reporting amounts until cross-currency support is explicit
 money values are integer minor units
 workspace isolation is enforced
 ledger isolation is enforced

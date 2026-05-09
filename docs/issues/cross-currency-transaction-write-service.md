@@ -1,14 +1,14 @@
 # Cross-Currency Transaction Write Service
 
-Status: open
-Phase: 6
-Severity: blocking before multi-currency transaction release
+Status: deferred
+Phase: post-v0.1
+Severity: not blocking current implementation
 
 ## Problem
 
 The current transaction write repository creates same-currency expense, income, transfer, and split transactions. It rejects account currencies that do not match the submitted transaction currency.
 
-This is correct for the first safe write path, but the Phase 6/database specs also require cross-currency transactions with preserved original amounts, reporting amounts, and immutable exchange-rate snapshots.
+This is the intended v0.1 behavior. Fastifly keeps multi-currency foundations in the schema, but simultaneous cross-currency transaction writes are deferred until the product has a dedicated exchange-rate UX and contract.
 
 ## Required Fix
 

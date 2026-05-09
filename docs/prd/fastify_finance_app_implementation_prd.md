@@ -160,7 +160,7 @@ A simpler, modern personal finance manager inspired by the needs of self-hosted 
 2. Keep installation simple.
 3. Make the UI much easier and more modern than traditional finance apps.
 4. Support SQLite and PostgreSQL from the first public release.
-5. Support multi-currency and multi-language foundations from the first release.
+5. Support multi-currency and multi-language foundations from the first release; simultaneous cross-currency transaction writes can wait.
 6. Store money safely using integer minor units and/or exact string representations.
 7. Use a double-entry-compatible internal ledger model even if the UI is simple.
 8. Support mobile users with a first-class responsive design.
@@ -813,7 +813,7 @@ For same-currency transactions:
 amount_minor and reporting_amount_minor may be equivalent.
 ```
 
-For cross-currency transactions:
+For deferred cross-currency transactions:
 
 ```text
 original amounts are preserved
