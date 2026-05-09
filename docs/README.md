@@ -20,6 +20,7 @@ This folder contains the canonical TypeScript implementation documentation.
 | Backup/restore/export | `backup-restore.md` |
 | Deployment | `deployment.md` |
 | PRDs | `prd/` |
+| Customer-facing pages | `pages/` |
 | Consistency review | `consistency-review.md` |
 
 Legacy `architecture.md` and `database.md` were reviewed, useful content was promoted, and the files were removed. New implementation decisions should update latest-version docs only.
