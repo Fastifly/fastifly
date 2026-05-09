@@ -4,6 +4,7 @@ import {
   makeApiError,
   makeValidationError,
 } from "@fastifly/common";
+import { LedgerMutationError } from "@fastifly/db";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 const DEFAULT_ERROR_MESSAGES = {
@@ -34,6 +35,39 @@ function isFastifyError(error: unknown): error is FastifyError {
 
 function isFastifyValidationError(error: unknown): error is FastifyError {
   return isFastifyError(error) && Array.isArray(error.validation);
+}
+
+function toLedgerMutationHttpError(error: LedgerMutationError): {
+  readonly statusCode: number;
+  readonly code: ApiErrorCode;
+  readonly message: string;
+} {
+  switch (error.code) {
+    case "IDEMPOTENCY_CONFLICT":
+      return {
+        code: "CONFLICT",
+        message: "This retry key was already used for a different request.",
+        statusCode: 409,
+      };
+    case "LEDGER_NOT_FOUND":
+      return {
+        code: "NOT_FOUND",
+        message: "The requested ledger was not found.",
+        statusCode: 404,
+      };
+    case "LEDGER_NOT_WRITABLE":
+      return {
+        code: "CONFLICT",
+        message: "This ledger cannot be changed right now.",
+        statusCode: 409,
+      };
+    case "INVALID_MUTATION_RESPONSE":
+      return {
+        code: "INTERNAL_SERVER_ERROR",
+        message: DEFAULT_ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        statusCode: 500,
+      };
+  }
 }
 
 function mapStatusToApiErrorCode(statusCode: number): ApiErrorCode {
@@ -97,6 +131,21 @@ export function registerErrorHandlers(app: FastifyInstance): void {
         400,
         makeValidationError({
           fields: toFieldErrorMap(error),
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof LedgerMutationError) {
+      const mappedError = toLedgerMutationHttpError(error);
+      sendError(
+        reply,
+        mappedError.statusCode,
+        makeApiError({
+          code: mappedError.code,
+          message: mappedError.message,
+          details: {},
           requestId: getRequestId(request),
         }),
       );

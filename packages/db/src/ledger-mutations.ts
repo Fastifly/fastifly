@@ -119,6 +119,7 @@ export type LedgerMutationTransactionalStore = {
   readonly createIdempotencyReceipt: (
     input: CreateIdempotencyReceiptInput,
   ) => Promise<IdempotencyReceiptRecord>;
+  readonly deleteIdempotencyReceipt: (id: SyncedId) => Promise<void>;
   readonly createAuditLogEntries: (
     input: CreateAuditLogEntriesInput,
   ) => Promise<readonly LedgerMutationAuditEntry[]>;
@@ -233,18 +234,22 @@ export class LedgerMutationRunner<TTransaction> {
           );
 
           if (receipt) {
-            if (receipt.requestHash !== requestHash) {
-              throw new LedgerMutationError(
-                "Idempotency key was already used with a different request.",
-                "IDEMPOTENCY_CONFLICT",
-              );
-            }
+            if (isExpiredReceipt(receipt, this.#options.now())) {
+              await store.deleteIdempotencyReceipt(receipt.id);
+            } else {
+              if (receipt.requestHash !== requestHash) {
+                throw new LedgerMutationError(
+                  "Idempotency key was already used with a different request.",
+                  "IDEMPOTENCY_CONFLICT",
+                );
+              }
 
-            return {
-              body: receipt.responseBodyJson,
-              idempotencyReplayed: true,
-              status: receipt.responseStatus,
-            };
+              return {
+                body: receipt.responseBodyJson,
+                idempotencyReplayed: true,
+                status: receipt.responseStatus,
+              };
+            }
           }
         }
 
@@ -425,6 +430,10 @@ function createSqliteTransactionalStore(
       return toIdempotencyReceiptRecord(row);
     },
 
+    async deleteIdempotencyReceipt(id) {
+      await tx.delete(sqliteIdempotencyReceipts).where(eq(sqliteIdempotencyReceipts.id, id));
+    },
+
     async createAuditLogEntries(input) {
       const now = (options.now ?? (() => new Date()))().toISOString();
       await tx.insert(sqliteAuditLog).values(
@@ -509,6 +518,10 @@ function createPostgresTransactionalStore(
       return toIdempotencyReceiptRecord(row);
     },
 
+    async deleteIdempotencyReceipt(id) {
+      await tx.delete(pgIdempotencyReceipts).where(eq(pgIdempotencyReceipts.id, id));
+    },
+
     async createAuditLogEntries(input) {
       const now = (options.now ?? (() => new Date()))();
       await tx.insert(pgAuditLog).values(
@@ -550,6 +563,11 @@ function assertMutationResponse(response: LedgerMutationResponse): void {
       "INVALID_MUTATION_RESPONSE",
     );
   }
+}
+
+function isExpiredReceipt(receipt: IdempotencyReceiptRecord, now: Date): boolean {
+  const expiresAt = Date.parse(receipt.expiresAt);
+  return Number.isNaN(expiresAt) || expiresAt <= now.getTime();
 }
 
 async function hashJson(value: unknown): Promise<string> {

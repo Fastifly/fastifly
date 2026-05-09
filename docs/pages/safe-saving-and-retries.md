@@ -14,11 +14,27 @@ If the same request comes in again, the app can return that original result inst
 
 That helps prevent duplicate transactions from accidental retries.
 
+Fastifly only keeps retry memory for a limited time. After that, the same save should be treated as a new save instead of replaying an old result forever.
+
 ## If The Request Changed, Fastifly Rejects It
 
 A retry key should not be reused for a different change.
 
 If the same key is used with different content, Fastifly rejects it. This protects users from confusing mixed-up saves.
+
+In the app, this should appear as a clear message:
+
+```text
+This retry key was already used for a different request.
+```
+
+If the retry key itself is not valid, Fastifly should reject the save before changing anything.
+
+In the app, this should appear as:
+
+```text
+Idempotency key is invalid.
+```
 
 ## Failed Saves Do Not Trigger Extra Work
 
@@ -33,6 +49,12 @@ If the save fails, the follow-up work does not run.
 If a ledger is read-only, archived, restoring, or broken, normal saves are rejected.
 
 That protects old or unsafe data states from accidental changes.
+
+In the app, this should appear as:
+
+```text
+This ledger cannot be changed right now.
+```
 
 ## Why This Matters
 

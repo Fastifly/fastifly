@@ -1,8 +1,15 @@
-import { ApiErrorSchema, isSyncedId, ValidationErrorSchema } from "@fastifly/common";
+import {
+  ApiErrorSchema,
+  IDEMPOTENCY_REPLAYED_HEADER,
+  isSyncedId,
+  ValidationErrorSchema,
+} from "@fastifly/common";
+import { LedgerMutationError } from "@fastifly/db";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 
 import { buildApiApp } from "../app.js";
+import { getRequestIdempotencyKey, sendLedgerMutationResult } from "../idempotency.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
 
@@ -140,5 +147,85 @@ describe("Fastifly API app", () => {
         },
       });
     }
+  });
+
+  it("maps ledger mutation errors to customer-safe API errors", async () => {
+    const app = await makeApp();
+    app.route({
+      method: "POST",
+      url: "/test/ledger/idempotency-conflict",
+      handler: () => {
+        throw new LedgerMutationError(
+          "Idempotency key was already used with a different request.",
+          "IDEMPOTENCY_CONFLICT",
+        );
+      },
+    });
+    app.route({
+      method: "POST",
+      url: "/test/ledger/read-only",
+      handler: () => {
+        throw new LedgerMutationError("Ledger scope is not writable.", "LEDGER_NOT_WRITABLE");
+      },
+    });
+
+    const conflict = await app.inject({
+      method: "POST",
+      url: "/test/ledger/idempotency-conflict",
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json()).toMatchObject({
+      error: {
+        code: "CONFLICT",
+        message: "This retry key was already used for a different request.",
+      },
+    });
+
+    const readOnly = await app.inject({ method: "POST", url: "/test/ledger/read-only" });
+    expect(readOnly.statusCode).toBe(409);
+    expect(readOnly.json()).toMatchObject({
+      error: {
+        code: "CONFLICT",
+        message: "This ledger cannot be changed right now.",
+      },
+    });
+  });
+
+  it("normalizes ledger mutation idempotency headers for routes", async () => {
+    const app = await makeApp();
+    app.route({
+      method: "POST",
+      url: "/test/ledger/idempotency",
+      handler: (request, reply) =>
+        sendLedgerMutationResult(reply, {
+          body: { idempotencyKey: getRequestIdempotencyKey(request) },
+          idempotencyReplayed: true,
+          status: 201,
+        }),
+    });
+
+    const response = await app.inject({
+      headers: { "idempotency-key": " retry_123 " },
+      method: "POST",
+      url: "/test/ledger/idempotency",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.headers[IDEMPOTENCY_REPLAYED_HEADER]).toBe("true");
+    expect(response.json()).toEqual({ idempotencyKey: "retry_123" });
+
+    const invalid = await app.inject({
+      headers: { "idempotency-key": "contains space" },
+      method: "POST",
+      url: "/test/ledger/idempotency",
+    });
+
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json()).toMatchObject({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Idempotency key is invalid.",
+      },
+    });
   });
 });

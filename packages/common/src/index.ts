@@ -7,6 +7,13 @@ export {
   makeValidationError,
   ValidationErrorSchema,
 } from "./api/errors.js";
+export type { IdempotencyKey } from "./api/idempotency.js";
+export {
+  IDEMPOTENCY_KEY_HEADER,
+  IDEMPOTENCY_REPLAYED_HEADER,
+  IdempotencyKeySchema,
+  parseOptionalIdempotencyKey,
+} from "./api/idempotency.js";
 export type { CursorPaginationQuery, PageInfo } from "./api/pagination.js";
 export {
   CursorPaginationQuerySchema,

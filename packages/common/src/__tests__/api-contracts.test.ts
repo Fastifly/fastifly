@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { makeValidationError } from "../api/errors.js";
+import {
+  IDEMPOTENCY_KEY_HEADER,
+  IDEMPOTENCY_REPLAYED_HEADER,
+  IdempotencyKeySchema,
+  parseOptionalIdempotencyKey,
+} from "../api/idempotency.js";
 import { CursorPaginationQuerySchema, paginatedResponseSchema } from "../api/pagination.js";
 import {
   emptyPaginatedMoneyFixture,
@@ -37,6 +43,15 @@ describe("API contract schemas", () => {
     expect(CursorPaginationQuerySchema.parse({ limit: "25" })).toEqual({ limit: 25 });
     expect(CursorPaginationQuerySchema.parse({})).toEqual({ limit: 50 });
     expect(CursorPaginationQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+
+  it("keeps idempotency headers and keys strict", () => {
+    expect(IDEMPOTENCY_KEY_HEADER).toBe("idempotency-key");
+    expect(IDEMPOTENCY_REPLAYED_HEADER).toBe("idempotency-replayed");
+    expect(parseOptionalIdempotencyKey(" retry_123 ")).toBe("retry_123");
+    expect(parseOptionalIdempotencyKey(["retry_456"])).toBe("retry_456");
+    expect(parseOptionalIdempotencyKey(undefined)).toBeNull();
+    expect(IdempotencyKeySchema.safeParse("contains space").success).toBe(false);
   });
 
   it("creates strict paginated response schemas", () => {

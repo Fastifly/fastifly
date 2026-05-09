@@ -237,6 +237,50 @@ describe("ledger mutation runner", () => {
       });
     });
 
+    it(`ignores expired idempotency receipts on ${factory.name}`, async () => {
+      await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        let now = new Date("2026-05-09T00:00:00.000Z");
+        let calls = 0;
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          now: () => now,
+          receiptTtlMs: 1000,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_expires",
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        const first = await runner.run({
+          envelope,
+          requestPayload: { amountMinor: "100" },
+          handler: () => {
+            calls += 1;
+            return { body: { calls }, status: 201 };
+          },
+        });
+        now = new Date("2026-05-09T00:00:02.000Z");
+        const second = await runner.run({
+          envelope,
+          requestPayload: { amountMinor: "100" },
+          handler: () => {
+            calls += 1;
+            return { body: { calls }, status: 201 };
+          },
+        });
+
+        expect(first).toMatchObject({ body: { calls: 1 }, idempotencyReplayed: false });
+        expect(second).toMatchObject({ body: { calls: 2 }, idempotencyReplayed: false });
+        expect(calls).toBe(2);
+        await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
+      });
+    });
+
     it(`fails closed before handler execution when authorization fails on ${factory.name}`, async () => {
       await factory.run(async ({ identityRepository, store }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);
@@ -304,6 +348,90 @@ describe("ledger mutation runner", () => {
       });
     });
 
+    it(`enforces lifecycle write rules on ${factory.name}`, async () => {
+      await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const blockedStatuses = [
+          "read_only",
+          "maintenance",
+          "archived",
+          "restore_preview",
+          "pending_restore",
+          "broken",
+        ] as const;
+
+        for (const status of blockedStatuses) {
+          await updateLifecycle(dialect, rawDb, "ledgers", "status", status);
+
+          await expect(
+            new LedgerMutationRunner({
+              authorize: () => undefined,
+              store,
+              writeBoundary: createInProcessLedgerWriteBoundary(),
+            }).run({
+              envelope: createEnvelope({
+                actorUserId: user.id,
+                idempotencyKey: `idem_blocked_${status}`,
+                ledgerId: workspaceState.ledger.id,
+                workspaceId: workspaceState.workspace.id,
+              }),
+              requestPayload: { status },
+              handler: () => ({ body: { ok: true }, status: 201 }),
+            }),
+          ).rejects.toMatchObject({
+            code: "LEDGER_NOT_WRITABLE",
+          } satisfies Partial<LedgerMutationError>);
+        }
+
+        await updateLifecycle(dialect, rawDb, "ledgers", "status", "maintenance");
+        const maintenanceResult = await new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        }).run({
+          envelope: createEnvelope({
+            actorUserId: user.id,
+            idempotencyKey: "idem_maintenance_source",
+            ledgerId: workspaceState.ledger.id,
+            source: "maintenance",
+            workspaceId: workspaceState.workspace.id,
+          }),
+          requestPayload: { status: "maintenance" },
+          handler: () => ({ body: { ok: true }, status: 200 }),
+        });
+
+        expect(maintenanceResult).toMatchObject({ body: { ok: true }, status: 200 });
+
+        await updateLifecycle(dialect, rawDb, "ledgers", "status", "active");
+        await updateLifecycle(
+          dialect,
+          rawDb,
+          "workspaces",
+          "archived_at",
+          "2026-05-09T01:00:00.000Z",
+        );
+
+        await expect(
+          new LedgerMutationRunner({
+            authorize: () => undefined,
+            store,
+            writeBoundary: createInProcessLedgerWriteBoundary(),
+          }).run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_archived_workspace",
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { ok: true },
+            handler: () => ({ body: { ok: true }, status: 201 }),
+          }),
+        ).rejects.toMatchObject({
+          code: "LEDGER_NOT_WRITABLE",
+        } satisfies Partial<LedgerMutationError>);
+      });
+    });
+
     it(`dispatches events only after a committed mutation on ${factory.name}`, async () => {
       await factory.run(async ({ identityRepository, store }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);
@@ -335,6 +463,124 @@ describe("ledger mutation runner", () => {
         expect(dispatched).toEqual([]);
       });
     });
+
+    it(`dispatches balance dirty requests only after committed non-replayed mutations on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const dispatchedReasons: string[] = [];
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          dispatchBalanceDirtyRequests: (requests) =>
+            dispatchedReasons.push(...requests.map((request) => request.reason)),
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_balance_dirty",
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        await runner.run({
+          envelope,
+          requestPayload: { ok: true },
+          handler: ({ markBalanceDirty }) => {
+            markBalanceDirty({
+              ledgerId: workspaceState.ledger.id,
+              reason: "transaction.created",
+              workspaceId: workspaceState.workspace.id,
+            });
+
+            return { body: { ok: true }, status: 201 };
+          },
+        });
+        await runner.run({
+          envelope,
+          requestPayload: { ok: true },
+          handler: ({ markBalanceDirty }) => {
+            markBalanceDirty({
+              ledgerId: workspaceState.ledger.id,
+              reason: "should_not_dispatch_on_replay",
+              workspaceId: workspaceState.workspace.id,
+            });
+
+            return { body: { ok: true }, status: 201 };
+          },
+        });
+
+        await expect(
+          runner.run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_balance_dirty_failure",
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { ok: false },
+            handler: ({ markBalanceDirty }) => {
+              markBalanceDirty({
+                ledgerId: workspaceState.ledger.id,
+                reason: "should_not_dispatch_on_failure",
+                workspaceId: workspaceState.workspace.id,
+              });
+              throw new Error("failed");
+            },
+          }),
+        ).rejects.toThrow("failed");
+
+        expect(dispatchedReasons).toEqual(["transaction.created"]);
+      });
+    });
+
+    it(`does not persist receipts, audit, or side effects for dry runs on ${factory.name}`, async () => {
+      await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const events: string[] = [];
+        const balanceDirtyReasons: string[] = [];
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          dispatchBalanceDirtyRequests: (requests) =>
+            balanceDirtyReasons.push(...requests.map((request) => request.reason)),
+          dispatchDomainEvents: (items) => events.push(...items.map((event) => event.type)),
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+
+        const result = await runner.run({
+          envelope: createEnvelope({
+            actorUserId: user.id,
+            dryRun: true,
+            idempotencyKey: "idem_dry_run",
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+          requestPayload: { ok: true },
+          handler: ({ emitEvent, markBalanceDirty, recordAudit }) => {
+            emitEvent({ payload: { ok: true }, type: "transaction.previewed" });
+            markBalanceDirty({
+              ledgerId: workspaceState.ledger.id,
+              reason: "preview",
+              workspaceId: workspaceState.workspace.id,
+            });
+            recordAudit({
+              action: "ledger.created",
+              entityId: workspaceState.ledger.id,
+              entityType: "ledger",
+              metadataJson: { dryRun: true },
+            });
+
+            return { body: { ok: true }, status: 200 };
+          },
+        });
+
+        expect(result).toMatchObject({ body: { ok: true }, idempotencyReplayed: false });
+        expect(events).toEqual([]);
+        expect(balanceDirtyReasons).toEqual([]);
+        await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(0);
+        await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(0);
+      });
+    });
   }
 });
 
@@ -343,12 +589,14 @@ function createEnvelope(input: {
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
   readonly idempotencyKey?: string;
+  readonly source?: LedgerMutationEnvelope["source"];
+  readonly dryRun?: boolean;
 }): LedgerMutationEnvelope {
   return {
     actorUserId: input.actorUserId,
     baseRevision: null,
     deviceId: null,
-    dryRun: false,
+    dryRun: input.dryRun ?? false,
     idempotencyKey: input.idempotencyKey ?? "idem_success",
     ledgerId: input.ledgerId,
     requestId: "request_1",
@@ -359,9 +607,34 @@ function createEnvelope(input: {
       recalculateBalances: true,
       skipNotifications: false,
     },
-    source: "rest",
+    source: input.source ?? "rest",
     workspaceId: input.workspaceId,
   };
+}
+
+async function updateLifecycle(
+  dialect: "sqlite" | "postgres",
+  rawDb: RunnerContext["rawDb"],
+  tableName: "workspaces" | "ledgers",
+  columnName: "status" | "archived_at",
+  value: string,
+): Promise<void> {
+  const sql =
+    dialect === "postgres" && columnName === "archived_at"
+      ? `UPDATE ${tableName} SET ${columnName} = '${value}'::timestamptz`
+      : `UPDATE ${tableName} SET ${columnName} = '${value}'`;
+
+  if (dialect === "sqlite" && rawDb.execute) {
+    await rawDb.execute(sql);
+    return;
+  }
+
+  if (rawDb.query) {
+    await rawDb.query(sql);
+    return;
+  }
+
+  throw new Error("Unsupported test database");
 }
 
 async function countRows(

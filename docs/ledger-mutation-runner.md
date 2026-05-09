@@ -87,6 +87,18 @@ If the handler throws, the database transaction rolls back and post-commit dispa
 
 ## Idempotency Rules
 
+Retryable ledger writes use:
+
+```text
+Idempotency-Key: <retry key>
+```
+
+When a response is served from an existing receipt, API routes should expose:
+
+```text
+Idempotency-Replayed: true
+```
+
 Receipts are keyed by:
 
 ```text
@@ -112,8 +124,27 @@ Rules:
 
 - same key + same request hash returns the stored response
 - same key + different request hash fails with `IDEMPOTENCY_CONFLICT`
+- expired receipts are deleted inside the mutation transaction and do not replay
 - dry-run mutations do not write receipts
 - failed mutations do not write receipts
+
+Customer-safe API messages:
+
+| Internal condition | HTTP status | User-facing message |
+|---|---:|---|
+| Malformed retry key | 400 | Idempotency key is invalid. |
+| Same retry key, different request | 409 | This retry key was already used for a different request. |
+| Ledger missing | 404 | The requested ledger was not found. |
+| Ledger is read-only/archived/unsafe | 409 | This ledger cannot be changed right now. |
+
+API route code should not parse or emit these headers ad hoc. Use the shared API helpers:
+
+```text
+getRequestIdempotencyKey(request)
+sendLedgerMutationResult(reply, result)
+```
+
+The first helper turns malformed retry keys into the standard API error shape. The second helper sets `Idempotency-Replayed: true` only when the runner returned a replayed receipt.
 
 ## Lifecycle Rules
 
@@ -158,6 +189,8 @@ Audit entries are stored inside the mutation transaction.
 
 Domain events and balance dirty requests are dispatched after commit. This prevents users seeing notifications, jobs, or balance recalculation for a write that failed.
 
+Dry-run mutations may collect events, audit entries, and balance dirty requests inside the handler, but the runner does not persist or dispatch them.
+
 ## Write Boundary
 
 The runner requires a `LedgerWriteBoundary`.
@@ -181,6 +214,7 @@ docs/issues/distributed-ledger-write-boundary.md
 Core:
 
 ```text
+apps/api/src/idempotency.ts
 packages/db/src/ledger-mutations.ts
 ```
 
@@ -207,9 +241,13 @@ Current tests verify:
 
 - duplicate idempotency key replays the original response
 - idempotency key reuse with different request content fails
+- expired idempotency receipts do not replay and are replaced safely
 - authorization failure fails before handler execution
-- read-only ledger state rejects writes
+- read-only, maintenance, archived, restore-preview, pending-restore, broken, and archived workspace states reject normal writes
+- maintenance-source writes can run against maintenance state
 - domain events dispatch only after committed mutations
+- balance dirty requests dispatch only after committed non-replayed mutations
+- dry-runs do not persist receipts, audit entries, or side effects
 - audit and idempotency rows are persisted
 - SQLite and PostgreSQL migration shape includes required lifecycle/idempotency columns
 
