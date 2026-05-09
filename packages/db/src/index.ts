@@ -50,6 +50,20 @@ export {
 export * as postgresSchema from "./postgres/schema.js";
 export { pgSchema } from "./postgres/schema.js";
 export type {
+  AccountBalanceRecord,
+  AccountRecord,
+  AccountRepository,
+  AccountRepositoryOptions,
+  ArchiveAccountInput,
+  CreateAccountInput,
+  CreateAccountResult,
+  FindAccountInput,
+} from "./repositories/accounts.js";
+export {
+  createPostgresAccountRepository,
+  createSqliteAccountRepository,
+} from "./repositories/accounts.js";
+export type {
   LedgerRepositoryContext,
   RepositoryClock,
   RepositoryContext,

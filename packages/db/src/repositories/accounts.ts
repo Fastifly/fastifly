@@ -1,0 +1,967 @@
+import {
+  type AccountKind,
+  AccountKindSchema,
+  type AccountSubtype,
+  AccountSubtypeSchema,
+  createUuidV7,
+  type LedgerScope,
+  parseSyncedId,
+  type SyncedId,
+} from "@fastifly/common";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+
+import type { PostgresDatabase } from "../postgres/client.js";
+import {
+  pgAccounts,
+  pgTransactionGroups,
+  pgTransactionJournals,
+  pgTransactionPostings,
+} from "../postgres/schema.js";
+import type { SqliteClient } from "../sqlite/client.js";
+import {
+  bindSqliteMoneyMinor,
+  prepareSqliteMoneyStatement,
+  readRequiredSqliteMoneyMinor,
+  readSqliteMoneyMinor,
+} from "../sqlite/money.js";
+import type { RepositoryClock } from "./base.js";
+import { assertLedgerScope, makeTimestamp, systemClock } from "./base.js";
+
+const OPENING_BALANCE_ACCOUNT_NAME_PREFIX = "Opening Balances";
+
+export type AccountRepositoryOptions = {
+  readonly clock?: RepositoryClock;
+  readonly createId?: () => SyncedId;
+};
+
+export type AccountRecord = {
+  readonly id: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly name: string;
+  readonly kind: AccountKind;
+  readonly subtype: AccountSubtype;
+  readonly currencyCode: string;
+  readonly openingBalanceMinor: bigint | null;
+  readonly openingBalanceDate: string | null;
+  readonly isActive: boolean;
+  readonly archivedAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
+
+export type AccountBalanceRecord = {
+  readonly accountId: SyncedId;
+  readonly currencyCode: string;
+  readonly balanceMinor: bigint;
+  readonly reportingCurrencyCode: string;
+  readonly reportingBalanceMinor: bigint;
+};
+
+export type CreateAccountInput = LedgerScope & {
+  readonly name: string;
+  readonly kind: AccountKind;
+  readonly subtype: AccountSubtype;
+  readonly currencyCode: string;
+  readonly openingBalanceMinor?: bigint | null;
+  readonly openingBalanceDate?: string | null;
+  readonly createdBy?: SyncedId | null;
+};
+
+export type CreateAccountResult = {
+  readonly account: AccountRecord;
+  readonly openingBalanceGroupId: SyncedId | null;
+  readonly openingBalanceJournalId: SyncedId | null;
+};
+
+export type ArchiveAccountInput = LedgerScope & {
+  readonly accountId: SyncedId;
+};
+
+export type FindAccountInput = LedgerScope & {
+  readonly accountId: SyncedId;
+};
+
+export type AccountRepository = {
+  readonly createAccount: (input: CreateAccountInput) => Promise<CreateAccountResult>;
+  readonly archiveAccount: (input: ArchiveAccountInput) => Promise<AccountRecord | null>;
+  readonly findAccount: (input: FindAccountInput) => Promise<AccountRecord | null>;
+  readonly listAccounts: (scope: LedgerScope) => Promise<readonly AccountRecord[]>;
+  readonly getAccountBalance: (input: FindAccountInput) => Promise<AccountBalanceRecord | null>;
+};
+
+type ResolvedOptions = {
+  readonly clock: RepositoryClock;
+  readonly createId: () => SyncedId;
+};
+
+type SqliteAccountRow = {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly ledger_id: string;
+  readonly name: string;
+  readonly kind: string;
+  readonly subtype: string;
+  readonly currency_code: string;
+  readonly opening_balance_minor: bigint | number | string | null;
+  readonly opening_balance_date: string | null;
+  readonly is_active: bigint | boolean | number | string;
+  readonly archived_at: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+};
+
+type SqliteBalanceRow = {
+  readonly account_id: string;
+  readonly currency_code: string;
+  readonly balance_minor: bigint | number | string;
+  readonly reporting_currency_code: string | null;
+  readonly reporting_balance_minor: bigint | number | string;
+};
+
+type PostgresTransaction = Parameters<Parameters<PostgresDatabase["transaction"]>[0]>[0];
+type PostgresExecutor = PostgresDatabase | PostgresTransaction;
+
+function defaultCreateId(): SyncedId {
+  return createUuidV7();
+}
+
+function resolveOptions(options?: AccountRepositoryOptions): ResolvedOptions {
+  return {
+    clock: options?.clock ?? systemClock,
+    createId: options?.createId ?? defaultCreateId,
+  };
+}
+
+export function createSqliteAccountRepository(
+  client: SqliteClient,
+  options?: AccountRepositoryOptions,
+): AccountRepository {
+  const resolved = resolveOptions(options);
+
+  return {
+    async createAccount(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeCreateAccountInput(input);
+      const now = makeTimestamp(resolved.clock);
+
+      return client
+        .transaction(() => {
+          assertSqliteLedgerScope(client, scope);
+          const account = insertSqliteAccount(client, {
+            ...normalized,
+            id: resolved.createId(),
+            now,
+            workspaceId: scope.workspaceId,
+            ledgerId: scope.ledgerId,
+          });
+          const openingBalance = hasOpeningBalance(normalized)
+            ? insertSqliteOpeningBalance(client, {
+                account,
+                amountMinor: normalized.openingBalanceMinor,
+                createdBy: input.createdBy ?? null,
+                createId: resolved.createId,
+                now,
+                openingBalanceDate: normalized.openingBalanceDate,
+              })
+            : null;
+
+          return {
+            account,
+            openingBalanceGroupId: openingBalance?.groupId ?? null,
+            openingBalanceJournalId: openingBalance?.journalId ?? null,
+          };
+        })
+        .immediate();
+    },
+
+    async archiveAccount(input) {
+      const scope = assertLedgerScope(input);
+      const archivedAt = makeTimestamp(resolved.clock);
+      const row = client
+        .prepare<unknown[], SqliteAccountRow>(
+          `
+            UPDATE accounts
+            SET is_active = 0, archived_at = ?, updated_at = ?
+            WHERE id = ?
+              AND workspace_id = ?
+              AND ledger_id = ?
+              AND archived_at IS NULL
+            RETURNING *
+          `,
+        )
+        .get(archivedAt, archivedAt, input.accountId, scope.workspaceId, scope.ledgerId);
+
+      return row ? toSqliteAccountRecord(row) : null;
+    },
+
+    async findAccount(input) {
+      const scope = assertLedgerScope(input);
+      const row = prepareSqliteMoneyStatement<SqliteAccountRow>(
+        client,
+        `
+          SELECT *
+          FROM accounts
+          WHERE id = ?
+            AND workspace_id = ?
+            AND ledger_id = ?
+          LIMIT 1
+        `,
+      ).get(input.accountId, scope.workspaceId, scope.ledgerId);
+
+      return row ? toSqliteAccountRecord(row) : null;
+    },
+
+    async listAccounts(scopeInput) {
+      const scope = assertLedgerScope(scopeInput);
+      const rows = prepareSqliteMoneyStatement<SqliteAccountRow>(
+        client,
+        `
+          SELECT *
+          FROM accounts
+          WHERE workspace_id = ?
+            AND ledger_id = ?
+          ORDER BY name, id
+        `,
+      ).all(scope.workspaceId, scope.ledgerId);
+
+      return rows.map(toSqliteAccountRecord);
+    },
+
+    async getAccountBalance(input) {
+      const scope = assertLedgerScope(input);
+      const row = prepareSqliteMoneyStatement<SqliteBalanceRow>(
+        client,
+        `
+          SELECT
+            accounts.id AS account_id,
+            accounts.currency_code,
+            COALESCE(SUM(
+              CASE
+                WHEN transaction_journals.id IS NOT NULL
+                  AND transaction_journals.deleted_at IS NULL
+                  AND transaction_journals.status <> 'void'
+                THEN transaction_postings.amount_minor
+                ELSE 0
+              END
+            ), 0) AS balance_minor,
+            COALESCE(MAX(transaction_postings.reporting_currency_code), accounts.currency_code) AS reporting_currency_code,
+            COALESCE(SUM(
+              CASE
+                WHEN transaction_journals.id IS NOT NULL
+                  AND transaction_journals.deleted_at IS NULL
+                  AND transaction_journals.status <> 'void'
+                THEN transaction_postings.reporting_amount_minor
+                ELSE 0
+              END
+            ), 0) AS reporting_balance_minor
+          FROM accounts
+          LEFT JOIN transaction_postings
+            ON transaction_postings.account_id = accounts.id
+          LEFT JOIN transaction_journals
+            ON transaction_journals.id = transaction_postings.journal_id
+          WHERE accounts.id = ?
+            AND accounts.workspace_id = ?
+            AND accounts.ledger_id = ?
+          GROUP BY accounts.id, accounts.currency_code
+          LIMIT 1
+        `,
+      ).get(input.accountId, scope.workspaceId, scope.ledgerId);
+
+      return row ? toSqliteBalanceRecord(row) : null;
+    },
+  };
+}
+
+export function createPostgresAccountRepository(
+  db: PostgresDatabase,
+  options?: AccountRepositoryOptions,
+): AccountRepository {
+  const resolved = resolveOptions(options);
+
+  return {
+    async createAccount(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeCreateAccountInput(input);
+
+      return db.transaction(async (tx) => {
+        const now = resolved.clock.now();
+        await assertPostgresLedgerScope(tx, scope);
+        const accountRow = assertCreated(
+          await tx
+            .insert(pgAccounts)
+            .values({
+              id: resolved.createId(),
+              workspaceId: scope.workspaceId,
+              ledgerId: scope.ledgerId,
+              name: normalized.name,
+              kind: normalized.kind,
+              subtype: normalized.subtype,
+              currencyCode: normalized.currencyCode,
+              openingBalanceMinor: normalized.openingBalanceMinor,
+              openingBalanceDate: normalized.openingBalanceDate,
+              isActive: true,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Account",
+        );
+        const account = toPostgresAccountRecord(accountRow);
+        const openingBalance = hasOpeningBalance(normalized)
+          ? await insertPostgresOpeningBalance(tx, {
+              account,
+              amountMinor: normalized.openingBalanceMinor,
+              createdBy: input.createdBy ?? null,
+              createId: resolved.createId,
+              now,
+              openingBalanceDate: normalized.openingBalanceDate,
+            })
+          : null;
+
+        return {
+          account,
+          openingBalanceGroupId: openingBalance?.groupId ?? null,
+          openingBalanceJournalId: openingBalance?.journalId ?? null,
+        };
+      });
+    },
+
+    async archiveAccount(input) {
+      const scope = assertLedgerScope(input);
+      const archivedAt = resolved.clock.now();
+      const rows = await db
+        .update(pgAccounts)
+        .set({ archivedAt, isActive: false, updatedAt: archivedAt })
+        .where(
+          and(
+            eq(pgAccounts.id, input.accountId),
+            eq(pgAccounts.workspaceId, scope.workspaceId),
+            eq(pgAccounts.ledgerId, scope.ledgerId),
+            isNull(pgAccounts.archivedAt),
+          ),
+        )
+        .returning();
+
+      return rows[0] ? toPostgresAccountRecord(rows[0]) : null;
+    },
+
+    async findAccount(input) {
+      const scope = assertLedgerScope(input);
+      const rows = await db
+        .select()
+        .from(pgAccounts)
+        .where(
+          and(
+            eq(pgAccounts.id, input.accountId),
+            eq(pgAccounts.workspaceId, scope.workspaceId),
+            eq(pgAccounts.ledgerId, scope.ledgerId),
+          ),
+        )
+        .limit(1);
+
+      return rows[0] ? toPostgresAccountRecord(rows[0]) : null;
+    },
+
+    async listAccounts(scopeInput) {
+      const scope = assertLedgerScope(scopeInput);
+      const rows = await db
+        .select()
+        .from(pgAccounts)
+        .where(
+          and(
+            eq(pgAccounts.workspaceId, scope.workspaceId),
+            eq(pgAccounts.ledgerId, scope.ledgerId),
+          ),
+        )
+        .orderBy(asc(pgAccounts.name), asc(pgAccounts.id));
+
+      return rows.map(toPostgresAccountRecord);
+    },
+
+    async getAccountBalance(input) {
+      const scope = assertLedgerScope(input);
+      const rows = await db
+        .select({
+          accountId: pgAccounts.id,
+          balanceMinor: sql<bigint>`COALESCE(SUM(
+            CASE
+              WHEN ${pgTransactionJournals.id} IS NOT NULL
+                AND ${pgTransactionJournals.deletedAt} IS NULL
+                AND ${pgTransactionJournals.status} <> 'void'
+              THEN ${pgTransactionPostings.amountMinor}
+              ELSE 0
+            END
+          ), 0)::bigint`,
+          currencyCode: pgAccounts.currencyCode,
+          reportingBalanceMinor: sql<bigint>`COALESCE(SUM(
+            CASE
+              WHEN ${pgTransactionJournals.id} IS NOT NULL
+                AND ${pgTransactionJournals.deletedAt} IS NULL
+                AND ${pgTransactionJournals.status} <> 'void'
+              THEN ${pgTransactionPostings.reportingAmountMinor}
+              ELSE 0
+            END
+          ), 0)::bigint`,
+          reportingCurrencyCode: sql<string>`COALESCE(MAX(${pgTransactionPostings.reportingCurrencyCode}), ${pgAccounts.currencyCode})`,
+        })
+        .from(pgAccounts)
+        .leftJoin(pgTransactionPostings, eq(pgTransactionPostings.accountId, pgAccounts.id))
+        .leftJoin(
+          pgTransactionJournals,
+          eq(pgTransactionJournals.id, pgTransactionPostings.journalId),
+        )
+        .where(
+          and(
+            eq(pgAccounts.id, input.accountId),
+            eq(pgAccounts.workspaceId, scope.workspaceId),
+            eq(pgAccounts.ledgerId, scope.ledgerId),
+          ),
+        )
+        .groupBy(pgAccounts.id, pgAccounts.currencyCode)
+        .limit(1);
+
+      const row = rows[0];
+      return row
+        ? {
+            accountId: parseSyncedId(row.accountId),
+            balanceMinor: readPostgresMoneyMinor(row.balanceMinor),
+            currencyCode: row.currencyCode,
+            reportingBalanceMinor: readPostgresMoneyMinor(row.reportingBalanceMinor),
+            reportingCurrencyCode: row.reportingCurrencyCode,
+          }
+        : null;
+    },
+  };
+}
+
+function normalizeCreateAccountInput(input: CreateAccountInput) {
+  const openingBalanceMinor = input.openingBalanceMinor ?? null;
+  const openingBalanceDate = input.openingBalanceDate ?? null;
+  if ((openingBalanceMinor === null) !== (openingBalanceDate === null)) {
+    throw new Error("Opening balance amount and date must be provided together.");
+  }
+
+  return {
+    currencyCode: normalizeCurrencyCode(input.currencyCode),
+    kind: AccountKindSchema.parse(input.kind),
+    name: normalizeName(input.name),
+    openingBalanceDate,
+    openingBalanceMinor,
+    subtype: AccountSubtypeSchema.parse(input.subtype),
+  };
+}
+
+function hasOpeningBalance(
+  input: ReturnType<typeof normalizeCreateAccountInput>,
+): input is ReturnType<typeof normalizeCreateAccountInput> & {
+  readonly openingBalanceDate: string;
+  readonly openingBalanceMinor: bigint;
+} {
+  return input.openingBalanceMinor !== null && input.openingBalanceDate !== null;
+}
+
+function normalizeName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    throw new Error("Account name is required.");
+  }
+
+  return trimmed;
+}
+
+function normalizeCurrencyCode(currencyCode: string): string {
+  const normalized = currencyCode.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(normalized)) {
+    throw new Error("Account currency code must be a three-letter uppercase code.");
+  }
+
+  return normalized;
+}
+
+function openingBalanceOccurredAt(openingBalanceDate: string): string {
+  return `${openingBalanceDate}T00:00:00.000Z`;
+}
+
+function assertCreated<TRow>(rows: readonly TRow[], entity: string): TRow {
+  const row = rows[0];
+  if (!row) {
+    throw new Error(`${entity} was not created.`);
+  }
+
+  return row;
+}
+
+function assertSqliteLedgerScope(client: SqliteClient, scope: LedgerScope): void {
+  const row = client
+    .prepare(
+      `
+        SELECT id
+        FROM ledgers
+        WHERE id = ?
+          AND workspace_id = ?
+          AND archived_at IS NULL
+        LIMIT 1
+      `,
+    )
+    .get(scope.ledgerId, scope.workspaceId);
+
+  if (!row) {
+    throw new Error("Ledger scope was not found.");
+  }
+}
+
+async function assertPostgresLedgerScope(db: PostgresExecutor, scope: LedgerScope): Promise<void> {
+  const rows = await db.execute(sql`
+    SELECT id
+    FROM ledgers
+    WHERE id = ${scope.ledgerId}
+      AND workspace_id = ${scope.workspaceId}
+      AND archived_at IS NULL
+    LIMIT 1
+  `);
+
+  if (extractRows(rows).length === 0) {
+    throw new Error("Ledger scope was not found.");
+  }
+}
+
+function insertSqliteAccount(
+  client: SqliteClient,
+  input: ReturnType<typeof normalizeCreateAccountInput> & {
+    readonly id: SyncedId;
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+    readonly now: string;
+  },
+): AccountRecord {
+  const row = prepareSqliteMoneyStatement<SqliteAccountRow>(
+    client,
+    `
+      INSERT INTO accounts (
+        id,
+        workspace_id,
+        ledger_id,
+        name,
+        kind,
+        subtype,
+        currency_code,
+        opening_balance_minor,
+        opening_balance_date,
+        is_active,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      RETURNING *
+    `,
+  ).get(
+    input.id,
+    input.workspaceId,
+    input.ledgerId,
+    input.name,
+    input.kind,
+    input.subtype,
+    input.currencyCode,
+    input.openingBalanceMinor === null
+      ? null
+      : bindSqliteMoneyMinor(input.openingBalanceMinor, "opening_balance_minor"),
+    input.openingBalanceDate,
+    input.now,
+    input.now,
+  );
+
+  if (!row) {
+    throw new Error("Account was not created.");
+  }
+
+  return toSqliteAccountRecord(row);
+}
+
+function insertSqliteOpeningBalance(
+  client: SqliteClient,
+  input: {
+    readonly account: AccountRecord;
+    readonly amountMinor: bigint;
+    readonly createdBy: SyncedId | null;
+    readonly createId: () => SyncedId;
+    readonly now: string;
+    readonly openingBalanceDate: string;
+  },
+): { readonly groupId: SyncedId; readonly journalId: SyncedId } {
+  const helperAccount = findOrCreateSqliteOpeningBalanceAccount(client, input);
+  const groupId = input.createId();
+  const journalId = input.createId();
+  const helperPostingId = input.createId();
+  const accountPostingId = input.createId();
+
+  client
+    .prepare(
+      `
+        INSERT INTO transaction_groups (
+          id, workspace_id, ledger_id, title, type, source, created_by, updated_by, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, 'opening_balance', 'system', ?, ?, ?, ?)
+      `,
+    )
+    .run(
+      groupId,
+      input.account.workspaceId,
+      input.account.ledgerId,
+      `Opening balance for ${input.account.name}`,
+      input.createdBy,
+      input.createdBy,
+      input.now,
+      input.now,
+    );
+
+  client
+    .prepare(
+      `
+        INSERT INTO transaction_journals (
+          id, workspace_id, ledger_id, group_id, type, occurred_at, description, status, source,
+          created_by, updated_by, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, 'opening_balance', ?, ?, 'cleared', 'system', ?, ?, ?, ?)
+      `,
+    )
+    .run(
+      journalId,
+      input.account.workspaceId,
+      input.account.ledgerId,
+      groupId,
+      openingBalanceOccurredAt(input.openingBalanceDate),
+      `Opening balance for ${input.account.name}`,
+      input.createdBy,
+      input.createdBy,
+      input.now,
+      input.now,
+    );
+
+  insertSqlitePosting(client, {
+    accountId: helperAccount.id,
+    amountMinor: -input.amountMinor,
+    createdAt: input.now,
+    currencyCode: input.account.currencyCode,
+    id: helperPostingId,
+    journalId,
+    ledgerId: input.account.ledgerId,
+    reportingAmountMinor: -input.amountMinor,
+    reportingCurrencyCode: input.account.currencyCode,
+    workspaceId: input.account.workspaceId,
+  });
+  insertSqlitePosting(client, {
+    accountId: input.account.id,
+    amountMinor: input.amountMinor,
+    createdAt: input.now,
+    currencyCode: input.account.currencyCode,
+    id: accountPostingId,
+    journalId,
+    ledgerId: input.account.ledgerId,
+    reportingAmountMinor: input.amountMinor,
+    reportingCurrencyCode: input.account.currencyCode,
+    workspaceId: input.account.workspaceId,
+  });
+
+  return { groupId, journalId };
+}
+
+function findOrCreateSqliteOpeningBalanceAccount(
+  client: SqliteClient,
+  input: {
+    readonly account: AccountRecord;
+    readonly createId: () => SyncedId;
+    readonly now: string;
+  },
+): AccountRecord {
+  const existing = prepareSqliteMoneyStatement<SqliteAccountRow>(
+    client,
+    `
+      SELECT *
+      FROM accounts
+      WHERE workspace_id = ?
+        AND ledger_id = ?
+        AND kind = 'equity'
+        AND subtype = 'opening_helper'
+        AND currency_code = ?
+        AND archived_at IS NULL
+      ORDER BY created_at, id
+      LIMIT 1
+    `,
+  ).get(input.account.workspaceId, input.account.ledgerId, input.account.currencyCode);
+
+  if (existing) {
+    return toSqliteAccountRecord(existing);
+  }
+
+  return insertSqliteAccount(client, {
+    currencyCode: input.account.currencyCode,
+    id: input.createId(),
+    kind: "equity",
+    ledgerId: input.account.ledgerId,
+    name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
+    now: input.now,
+    openingBalanceDate: null,
+    openingBalanceMinor: null,
+    subtype: "opening_helper",
+    workspaceId: input.account.workspaceId,
+  });
+}
+
+function insertSqlitePosting(
+  client: SqliteClient,
+  input: {
+    readonly id: SyncedId;
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+    readonly journalId: SyncedId;
+    readonly accountId: SyncedId;
+    readonly amountMinor: bigint;
+    readonly currencyCode: string;
+    readonly reportingAmountMinor: bigint;
+    readonly reportingCurrencyCode: string;
+    readonly createdAt: string;
+  },
+): void {
+  prepareSqliteMoneyStatement(
+    client,
+    `
+      INSERT INTO transaction_postings (
+        id, workspace_id, ledger_id, journal_id, account_id, amount_minor, currency_code,
+        reporting_amount_minor, reporting_currency_code, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+  ).run(
+    input.id,
+    input.workspaceId,
+    input.ledgerId,
+    input.journalId,
+    input.accountId,
+    bindSqliteMoneyMinor(input.amountMinor, "amount_minor"),
+    input.currencyCode,
+    bindSqliteMoneyMinor(input.reportingAmountMinor, "reporting_amount_minor"),
+    input.reportingCurrencyCode,
+    input.createdAt,
+  );
+}
+
+async function insertPostgresOpeningBalance(
+  db: PostgresExecutor,
+  input: {
+    readonly account: AccountRecord;
+    readonly amountMinor: bigint;
+    readonly createdBy: SyncedId | null;
+    readonly createId: () => SyncedId;
+    readonly now: Date;
+    readonly openingBalanceDate: string;
+  },
+): Promise<{ readonly groupId: SyncedId; readonly journalId: SyncedId }> {
+  const helperAccount = await findOrCreatePostgresOpeningBalanceAccount(db, input);
+  const groupId = input.createId();
+  const journalId = input.createId();
+
+  await db.insert(pgTransactionGroups).values({
+    id: groupId,
+    workspaceId: input.account.workspaceId,
+    ledgerId: input.account.ledgerId,
+    title: `Opening balance for ${input.account.name}`,
+    type: "opening_balance",
+    source: "system",
+    createdBy: input.createdBy,
+    updatedBy: input.createdBy,
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+  await db.insert(pgTransactionJournals).values({
+    id: journalId,
+    workspaceId: input.account.workspaceId,
+    ledgerId: input.account.ledgerId,
+    groupId,
+    type: "opening_balance",
+    occurredAt: new Date(openingBalanceOccurredAt(input.openingBalanceDate)),
+    description: `Opening balance for ${input.account.name}`,
+    status: "cleared",
+    source: "system",
+    createdBy: input.createdBy,
+    updatedBy: input.createdBy,
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+  await db.insert(pgTransactionPostings).values([
+    {
+      id: input.createId(),
+      workspaceId: input.account.workspaceId,
+      ledgerId: input.account.ledgerId,
+      journalId,
+      accountId: helperAccount.id,
+      amountMinor: -input.amountMinor,
+      currencyCode: input.account.currencyCode,
+      reportingAmountMinor: -input.amountMinor,
+      reportingCurrencyCode: input.account.currencyCode,
+      createdAt: input.now,
+    },
+    {
+      id: input.createId(),
+      workspaceId: input.account.workspaceId,
+      ledgerId: input.account.ledgerId,
+      journalId,
+      accountId: input.account.id,
+      amountMinor: input.amountMinor,
+      currencyCode: input.account.currencyCode,
+      reportingAmountMinor: input.amountMinor,
+      reportingCurrencyCode: input.account.currencyCode,
+      createdAt: input.now,
+    },
+  ]);
+
+  return { groupId, journalId };
+}
+
+async function findOrCreatePostgresOpeningBalanceAccount(
+  db: PostgresExecutor,
+  input: {
+    readonly account: AccountRecord;
+    readonly createId: () => SyncedId;
+    readonly now: Date;
+  },
+): Promise<AccountRecord> {
+  const existing = await db
+    .select()
+    .from(pgAccounts)
+    .where(
+      and(
+        eq(pgAccounts.workspaceId, input.account.workspaceId),
+        eq(pgAccounts.ledgerId, input.account.ledgerId),
+        eq(pgAccounts.kind, "equity"),
+        eq(pgAccounts.subtype, "opening_helper"),
+        eq(pgAccounts.currencyCode, input.account.currencyCode),
+        isNull(pgAccounts.archivedAt),
+      ),
+    )
+    .orderBy(asc(pgAccounts.createdAt), asc(pgAccounts.id))
+    .limit(1);
+
+  if (existing[0]) {
+    return toPostgresAccountRecord(existing[0]);
+  }
+
+  const row = assertCreated(
+    await db
+      .insert(pgAccounts)
+      .values({
+        id: input.createId(),
+        workspaceId: input.account.workspaceId,
+        ledgerId: input.account.ledgerId,
+        name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
+        kind: "equity",
+        subtype: "opening_helper",
+        currencyCode: input.account.currencyCode,
+        isActive: true,
+        createdAt: input.now,
+        updatedAt: input.now,
+      })
+      .returning(),
+    "Opening balance helper account",
+  );
+
+  return toPostgresAccountRecord(row);
+}
+
+function toSqliteAccountRecord(row: SqliteAccountRow): AccountRecord {
+  return {
+    archivedAt: row.archived_at,
+    createdAt: row.created_at,
+    currencyCode: row.currency_code,
+    id: parseSyncedId(row.id),
+    isActive: readSqliteBoolean(row.is_active, "is_active"),
+    kind: AccountKindSchema.parse(row.kind),
+    ledgerId: parseSyncedId(row.ledger_id),
+    name: row.name,
+    openingBalanceDate: row.opening_balance_date,
+    openingBalanceMinor: readSqliteMoneyMinor(row.opening_balance_minor, "opening_balance_minor"),
+    subtype: AccountSubtypeSchema.parse(row.subtype),
+    updatedAt: row.updated_at,
+    workspaceId: parseSyncedId(row.workspace_id),
+  };
+}
+
+function toPostgresAccountRecord(row: typeof pgAccounts.$inferSelect): AccountRecord {
+  return {
+    archivedAt: toNullableIsoString(row.archivedAt),
+    createdAt: toRequiredIsoString(row.createdAt),
+    currencyCode: row.currencyCode,
+    id: parseSyncedId(row.id),
+    isActive: row.isActive,
+    kind: AccountKindSchema.parse(row.kind),
+    ledgerId: parseSyncedId(row.ledgerId),
+    name: row.name,
+    openingBalanceDate: row.openingBalanceDate,
+    openingBalanceMinor: row.openingBalanceMinor,
+    subtype: AccountSubtypeSchema.parse(row.subtype),
+    updatedAt: toRequiredIsoString(row.updatedAt),
+    workspaceId: parseSyncedId(row.workspaceId),
+  };
+}
+
+function toSqliteBalanceRecord(row: SqliteBalanceRow): AccountBalanceRecord {
+  return {
+    accountId: parseSyncedId(row.account_id),
+    balanceMinor: readRequiredSqliteMoneyMinor(row.balance_minor, "amount_minor"),
+    currencyCode: row.currency_code,
+    reportingBalanceMinor: readRequiredSqliteMoneyMinor(
+      row.reporting_balance_minor,
+      "reporting_amount_minor",
+    ),
+    reportingCurrencyCode: row.reporting_currency_code ?? row.currency_code,
+  };
+}
+
+function readSqliteBoolean(value: bigint | boolean | number | string, columnName: string): boolean {
+  if (value === true || value === 1 || value === 1n || value === "1") {
+    return true;
+  }
+  if (value === false || value === 0 || value === 0n || value === "0") {
+    return false;
+  }
+
+  throw new TypeError(`SQLite ${columnName} value must be boolean-compatible.`);
+}
+
+function readPostgresMoneyMinor(value: unknown): bigint {
+  if (typeof value === "bigint") {
+    return value;
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value)) {
+    return BigInt(value);
+  }
+  if (typeof value === "string" && /^-?(0|[1-9][0-9]*)$/.test(value)) {
+    return BigInt(value);
+  }
+
+  throw new TypeError("PostgreSQL money value must be an integer.");
+}
+
+function toNullableIsoString(value: Date | string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function toRequiredIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function extractRows(result: unknown): readonly unknown[] {
+  if (Array.isArray(result)) {
+    return result;
+  }
+  if (result && typeof result === "object" && "rows" in result) {
+    const rows = (result as { readonly rows?: unknown }).rows;
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  return [];
+}
