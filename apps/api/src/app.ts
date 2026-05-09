@@ -1,7 +1,7 @@
 import { defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7 } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
-import type { IdentityRepository } from "@fastifly/db";
+import type { IdentityRepository, LedgerFinanceMutationService } from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
 import fastifySwagger from "@fastify/swagger";
@@ -17,10 +17,12 @@ import { simpleWebAuthnAdapter, type WebAuthnAdapter } from "./auth/webauthn.js"
 import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
 import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";
+import { registerFinanceRoutes } from "./routes/finance.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 
 export type BuildApiAppOptions = {
   readonly config?: Partial<ApiConfig>;
+  readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
   readonly webAuthnAdapter?: WebAuthnAdapter;
@@ -110,6 +112,12 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       config,
       identityRepository: options.identityRepository,
       webAuthnAdapter: options.webAuthnAdapter ?? simpleWebAuthnAdapter,
+    });
+  }
+
+  if (options.financeMutationService) {
+    await registerFinanceRoutes(app, {
+      financeMutationService: options.financeMutationService,
     });
   }
 

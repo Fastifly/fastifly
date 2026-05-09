@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { makeValidationError } from "../api/errors.js";
+import { CreateTransactionRequestSchema } from "../api/finance.js";
 import {
   IDEMPOTENCY_KEY_HEADER,
   IDEMPOTENCY_REPLAYED_HEADER,
@@ -52,6 +53,43 @@ describe("API contract schemas", () => {
     expect(parseOptionalIdempotencyKey(["retry_456"])).toBe("retry_456");
     expect(parseOptionalIdempotencyKey(undefined)).toBeNull();
     expect(IdempotencyKeySchema.safeParse("contains space").success).toBe(false);
+  });
+
+  it("keeps finance write contracts strict about money and split rows", () => {
+    const validSplit = CreateTransactionRequestSchema.parse({
+      currencyCode: "INR",
+      description: "Grocery shopping",
+      occurredAt: "2026-05-09T08:00:00.000Z",
+      sourceAccountId: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+      transactions: [
+        {
+          amountMinor: "80000",
+          destinationAccountId: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+        },
+        {
+          amountMinor: "40000",
+          destinationAccountId: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
+        },
+      ],
+      type: "expense",
+    });
+
+    expect(validSplit.transactions).toHaveLength(2);
+    expect(CreateTransactionRequestSchema.safeParse({ ...validSplit, extra: true }).success).toBe(
+      false,
+    );
+    expect(
+      CreateTransactionRequestSchema.safeParse({
+        ...validSplit,
+        transactions: [{ ...validSplit.transactions[0], amountMinor: 12_000 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateTransactionRequestSchema.safeParse({
+        ...validSplit,
+        transactions: [{ ...validSplit.transactions[0], amountMinor: "12.00" }],
+      }).success,
+    ).toBe(false);
   });
 
   it("creates strict paginated response schemas", () => {

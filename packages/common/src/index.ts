@@ -7,6 +7,19 @@ export {
   makeValidationError,
   ValidationErrorSchema,
 } from "./api/errors.js";
+export type { CreateAccountRequest, CreateTransactionRequest } from "./api/finance.js";
+export {
+  AccountResponseSchema,
+  ArchiveAccountResponseSchema,
+  CreateAccountRequestSchema,
+  CreateAccountResponseSchema,
+  CreateTransactionRequestSchema,
+  CreateTransactionResponseSchema,
+  TransactionGroupResponseSchema,
+  TransactionJournalResponseSchema,
+  TransactionLineRequestSchema,
+  TransactionPostingResponseSchema,
+} from "./api/finance.js";
 export type { IdempotencyKey } from "./api/idempotency.js";
 export {
   IDEMPOTENCY_KEY_HEADER,
