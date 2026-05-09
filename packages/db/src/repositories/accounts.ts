@@ -4,11 +4,13 @@ import {
   type AccountSubtype,
   AccountSubtypeSchema,
   createUuidV7,
+  encodeFinanceCursor,
   type LedgerScope,
+  parseFinanceCursor,
   parseSyncedId,
   type SyncedId,
 } from "@fastifly/common";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -24,7 +26,7 @@ import {
   readRequiredSqliteMoneyMinor,
   readSqliteMoneyMinor,
 } from "../sqlite/money.js";
-import type { RepositoryClock } from "./base.js";
+import type { RepositoryClock, RepositoryListPage } from "./base.js";
 import { assertLedgerScope, makeTimestamp, systemClock } from "./base.js";
 
 const OPENING_BALANCE_ACCOUNT_NAME_PREFIX = "Opening Balances";
@@ -82,11 +84,18 @@ export type FindAccountInput = LedgerScope & {
   readonly accountId: SyncedId;
 };
 
+export type ListAccountsInput = LedgerScope & {
+  readonly cursor?: string | null;
+  readonly limit?: number | null;
+};
+
 export type AccountRepository = {
   readonly createAccount: (input: CreateAccountInput) => MaybePromise<CreateAccountResult>;
   readonly archiveAccount: (input: ArchiveAccountInput) => MaybePromise<AccountRecord | null>;
   readonly findAccount: (input: FindAccountInput) => MaybePromise<AccountRecord | null>;
-  readonly listAccounts: (scope: LedgerScope) => MaybePromise<readonly AccountRecord[]>;
+  readonly listAccounts: (
+    input: ListAccountsInput,
+  ) => MaybePromise<RepositoryListPage<AccountRecord>>;
   readonly getAccountBalance: (
     input: FindAccountInput,
   ) => MaybePromise<AccountBalanceRecord | null>;
@@ -218,6 +227,14 @@ export function createSqliteAccountRepository(
 
     listAccounts(scopeInput) {
       const scope = assertLedgerScope(scopeInput);
+      const limit = normalizeAccountQueryLimit(scopeInput.limit);
+      const cursor = scopeInput.cursor
+        ? parseFinanceCursor(scopeInput.cursor, "account.name.asc")
+        : null;
+      const cursorClause = cursor ? "AND (name > ? OR (name = ? AND id > ?))" : "";
+      const params = cursor
+        ? [scope.workspaceId, scope.ledgerId, cursor.sortKey, cursor.sortKey, cursor.id, limit + 1]
+        : [scope.workspaceId, scope.ledgerId, limit + 1];
       const rows = prepareSqliteMoneyStatement<SqliteAccountRow>(
         client,
         `
@@ -225,11 +242,13 @@ export function createSqliteAccountRepository(
           FROM accounts
           WHERE workspace_id = ?
             AND ledger_id = ?
+            ${cursorClause}
           ORDER BY name, id
+          LIMIT ?
         `,
-      ).all(scope.workspaceId, scope.ledgerId);
+      ).all(...params);
 
-      return rows.map(toSqliteAccountRecord);
+      return makeAccountListPage(rows.map(toSqliteAccountRecord), limit);
     },
 
     getAccountBalance(input) {
@@ -369,6 +388,10 @@ export function createPostgresAccountRepository(
 
     async listAccounts(scopeInput) {
       const scope = assertLedgerScope(scopeInput);
+      const limit = normalizeAccountQueryLimit(scopeInput.limit);
+      const cursor = scopeInput.cursor
+        ? parseFinanceCursor(scopeInput.cursor, "account.name.asc")
+        : null;
       const rows = await db
         .select()
         .from(pgAccounts)
@@ -376,11 +399,18 @@ export function createPostgresAccountRepository(
           and(
             eq(pgAccounts.workspaceId, scope.workspaceId),
             eq(pgAccounts.ledgerId, scope.ledgerId),
+            cursor
+              ? or(
+                  gt(pgAccounts.name, cursor.sortKey),
+                  and(eq(pgAccounts.name, cursor.sortKey), gt(pgAccounts.id, cursor.id)),
+                )
+              : undefined,
           ),
         )
-        .orderBy(asc(pgAccounts.name), asc(pgAccounts.id));
+        .orderBy(asc(pgAccounts.name), asc(pgAccounts.id))
+        .limit(limit + 1);
 
-      return rows.map(toPostgresAccountRecord);
+      return makeAccountListPage(rows.map(toPostgresAccountRecord), limit);
     },
 
     async getAccountBalance(input) {
@@ -453,6 +483,39 @@ function normalizeCreateAccountInput(input: CreateAccountInput) {
     openingBalanceDate,
     openingBalanceMinor,
     subtype: AccountSubtypeSchema.parse(input.subtype),
+  };
+}
+
+function normalizeAccountQueryLimit(limit: number | null | undefined): number {
+  if (limit === null || limit === undefined) {
+    return 50;
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error("Account query limit must be an integer from 1 to 100.");
+  }
+
+  return limit;
+}
+
+function makeAccountListPage(
+  rows: readonly AccountRecord[],
+  limit: number,
+): RepositoryListPage<AccountRecord> {
+  const items = rows.slice(0, limit);
+  const lastItem = items.at(-1);
+
+  return {
+    hasNextPage: rows.length > limit,
+    items,
+    nextCursor:
+      rows.length > limit && lastItem
+        ? encodeFinanceCursor({
+            id: lastItem.id,
+            kind: "account.name.asc",
+            sortKey: lastItem.name,
+            v: 1,
+          })
+        : null,
   };
 }
 

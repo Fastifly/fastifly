@@ -26,11 +26,20 @@ export {
   TransactionLineRequestSchema,
   TransactionPostingResponseSchema,
 } from "../api/finance.js";
-export type { CursorPaginationQuery, PageInfo } from "../api/pagination.js";
+export type {
+  CursorPaginationQuery,
+  FinanceCursorKind,
+  FinanceCursorPayload,
+  PageInfo,
+} from "../api/pagination.js";
 export {
   CursorPaginationQuerySchema,
+  encodeFinanceCursor,
+  FinanceCursorKindSchema,
+  FinanceCursorPayloadSchema,
   PageInfoSchema,
   paginatedResponseSchema,
+  parseFinanceCursor,
 } from "../api/pagination.js";
 export type { SyncedId } from "../ids.js";
 export { SyncedIdSchema } from "../ids.js";

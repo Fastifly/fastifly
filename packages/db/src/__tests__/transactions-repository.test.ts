@@ -402,8 +402,11 @@ describe("transaction write repository", () => {
             workspaceId: workspaceState.workspace.id,
           });
 
-          expect(groups.map((group) => group.title)).toEqual(["Latest split", "Early groceries"]);
-          expect(groups[0]).toMatchObject({
+          expect(groups.items.map((group) => group.title)).toEqual([
+            "Latest split",
+            "Early groceries",
+          ]);
+          expect(groups.items[0]).toMatchObject({
             id: latest.id,
             type: "split",
             journals: [
@@ -411,6 +414,73 @@ describe("transaction write repository", () => {
               { postings: [{ amountMinor: -4_000n }, { amountMinor: 4_000n }] },
             ],
           });
+        },
+      );
+    });
+
+    it(`paginates tied transaction timestamps by group id on ${factory.name}`, async () => {
+      await factory.run(
+        async ({
+          accountRepository,
+          identityRepository,
+          transactionQueryService,
+          transactionRepository,
+        }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          const first = await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Tie one",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 1_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          const second = await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Tie two",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 2_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          const third = await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Tie three",
+            ledgerId: workspaceState.ledger.id,
+            lines: [{ amountMinor: 3_000n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-09T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const firstPage = await transactionQueryService.listTransactionGroups({
+            ledgerId: workspaceState.ledger.id,
+            limit: 2,
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          expect(firstPage.items.map((group) => group.id)).toEqual([third.id, second.id]);
+          expect(firstPage.hasNextPage).toBe(true);
+          expect(firstPage.nextCursor).not.toBeNull();
+
+          const secondPage = await transactionQueryService.listTransactionGroups({
+            cursor: firstPage.nextCursor,
+            ledgerId: workspaceState.ledger.id,
+            limit: 2,
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          expect(secondPage.items.map((group) => group.id)).toEqual([first.id]);
+          expect(secondPage.hasNextPage).toBe(false);
+          expect(secondPage.nextCursor).toBeNull();
         },
       );
     });
@@ -459,8 +529,8 @@ describe("transaction write repository", () => {
             workspaceId: workspaceState.workspace.id,
           });
 
-          expect(filtered.map((group) => group.title)).toEqual(["Groceries"]);
-          expect(filtered[0]?.journals[0]?.postings).toHaveLength(2);
+          expect(filtered.items.map((group) => group.title)).toEqual(["Groceries"]);
+          expect(filtered.items[0]?.journals[0]?.postings).toHaveLength(2);
         },
       );
     });

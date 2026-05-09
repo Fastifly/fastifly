@@ -1,12 +1,14 @@
 import {
   createUuidV7,
+  encodeFinanceCursor,
   inferTransactionType,
   type LedgerScope,
+  parseFinanceCursor,
   parseSyncedId,
   type SyncedId,
   type UserFacingTransactionType,
 } from "@fastifly/common";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -22,7 +24,7 @@ import {
   prepareSqliteMoneyStatement,
   readRequiredSqliteMoneyMinor,
 } from "../sqlite/money.js";
-import type { RepositoryClock } from "./base.js";
+import type { RepositoryClock, RepositoryListPage } from "./base.js";
 import { assertLedgerScope, makeTimestamp, systemClock } from "./base.js";
 
 const TRANSACTION_WRITE_REASON = "transaction.created";
@@ -98,6 +100,7 @@ export type TransactionQueryStatusFilter = "pending" | "cleared" | "reconciled" 
 
 export type ListTransactionsInput = LedgerScope & {
   readonly accountId?: SyncedId | null;
+  readonly cursor?: string | null;
   readonly fromOccurredAt?: string | null;
   readonly toOccurredAt?: string | null;
   readonly type?: TransactionQueryTypeFilter | null;
@@ -112,7 +115,7 @@ export type GetTransactionGroupInput = LedgerScope & {
 export type TransactionQueryService = {
   readonly listTransactionGroups: (
     input: ListTransactionsInput,
-  ) => Promise<readonly TransactionGroupRecord[]>;
+  ) => Promise<RepositoryListPage<TransactionGroupRecord>>;
   readonly getTransactionGroup: (
     input: GetTransactionGroupInput,
   ) => Promise<TransactionGroupRecord | null>;
@@ -168,6 +171,12 @@ type SqliteAccountLookupRow = {
 
 type SqliteTransactionGroupIdRow = {
   readonly id: string;
+  readonly last_occurred_at: string;
+};
+
+type TransactionGroupCursorRow = {
+  readonly id: SyncedId;
+  readonly lastOccurredAt: string;
 };
 
 type SqliteTransactionFlatRow = {
@@ -348,8 +357,17 @@ export function createSqliteTransactionQueryService(client: SqliteClient): Trans
   return {
     async listTransactionGroups(input) {
       const scope = assertLedgerScope(input);
-      const groupIds = listSqliteTransactionGroupIds(client, input, scope);
-      return readSqliteTransactionGroupsByIds(client, scope, groupIds);
+      const groupCursorRows = listSqliteTransactionGroupIds(client, input, scope);
+      const groups = readSqliteTransactionGroupsByIds(
+        client,
+        scope,
+        groupCursorRows.map((row) => row.id),
+      );
+      return makeTransactionGroupListPage(
+        groups,
+        groupCursorRows,
+        normalizeTransactionQueryLimit(input.limit),
+      );
     },
 
     async getTransactionGroup(input) {
@@ -366,8 +384,17 @@ export function createPostgresTransactionQueryService(
   return {
     async listTransactionGroups(input) {
       const scope = assertLedgerScope(input);
-      const groupIds = await listPostgresTransactionGroupIds(db, input, scope);
-      return readPostgresTransactionGroupsByIds(db, scope, groupIds);
+      const groupCursorRows = await listPostgresTransactionGroupIds(db, input, scope);
+      const groups = await readPostgresTransactionGroupsByIds(
+        db,
+        scope,
+        groupCursorRows.map((row) => row.id),
+      );
+      return makeTransactionGroupListPage(
+        groups,
+        groupCursorRows,
+        normalizeTransactionQueryLimit(input.limit),
+      );
     },
 
     async getTransactionGroup(input) {
@@ -413,6 +440,33 @@ function normalizeTransactionQueryLimit(limit: number | null | undefined): numbe
   }
 
   return limit;
+}
+
+function makeTransactionGroupListPage(
+  groups: readonly TransactionGroupRecord[],
+  cursorRows: readonly TransactionGroupCursorRow[],
+  limit: number,
+): RepositoryListPage<TransactionGroupRecord> {
+  const visibleCursorRows = cursorRows.slice(0, limit);
+  const groupsById = new Map(groups.map((group) => [group.id, group]));
+  const items = visibleCursorRows
+    .map((row) => groupsById.get(row.id))
+    .filter((group): group is TransactionGroupRecord => Boolean(group));
+  const lastCursorRow = visibleCursorRows.at(-1);
+
+  return {
+    hasNextPage: cursorRows.length > limit,
+    items,
+    nextCursor:
+      cursorRows.length > limit && lastCursorRow
+        ? encodeFinanceCursor({
+            id: lastCursorRow.id,
+            kind: "transaction.lastOccurredAt.desc",
+            sortKey: lastCursorRow.lastOccurredAt,
+            v: 1,
+          })
+        : null,
+  };
 }
 
 function normalizeTransactionLine(
@@ -522,7 +576,7 @@ function listSqliteTransactionGroupIds(
   client: SqliteClient,
   input: ListTransactionsInput,
   scope: LedgerScope,
-): readonly SyncedId[] {
+): readonly TransactionGroupCursorRow[] {
   const params: unknown[] = [scope.workspaceId, scope.ledgerId];
   const conditions = [
     "transaction_groups.workspace_id = ?",
@@ -532,12 +586,23 @@ function listSqliteTransactionGroupIds(
   ];
 
   appendSqliteQueryFilters(conditions, params, input);
-  params.push(normalizeTransactionQueryLimit(input.limit));
+  const cursor = input.cursor
+    ? parseFinanceCursor(input.cursor, "transaction.lastOccurredAt.desc")
+    : null;
+  const cursorClause = cursor
+    ? "HAVING MAX(transaction_journals.occurred_at) < ? OR (MAX(transaction_journals.occurred_at) = ? AND transaction_groups.id < ?)"
+    : "";
+  if (cursor) {
+    params.push(cursor.sortKey, cursor.sortKey, cursor.id);
+  }
+  params.push(normalizeTransactionQueryLimit(input.limit) + 1);
 
   const rows = client
     .prepare<unknown[], SqliteTransactionGroupIdRow>(
       `
-        SELECT transaction_groups.id
+        SELECT
+          transaction_groups.id,
+          MAX(transaction_journals.occurred_at) AS last_occurred_at
         FROM transaction_groups
         JOIN transaction_journals
           ON transaction_journals.group_id = transaction_groups.id
@@ -545,13 +610,17 @@ function listSqliteTransactionGroupIds(
           ON transaction_postings.journal_id = transaction_journals.id
         WHERE ${conditions.join(" AND ")}
         GROUP BY transaction_groups.id
+        ${cursorClause}
         ORDER BY MAX(transaction_journals.occurred_at) DESC, transaction_groups.id DESC
         LIMIT ?
       `,
     )
     .all(...params);
 
-  return rows.map((row) => parseSyncedId(row.id));
+  return rows.map((row) => ({
+    id: parseSyncedId(row.id),
+    lastOccurredAt: normalizeTimestamp(row.last_occurred_at, "Transaction cursor occurredAt"),
+  }));
 }
 
 function appendSqliteQueryFilters(
@@ -894,7 +963,7 @@ async function listPostgresTransactionGroupIds(
   db: PostgresDatabase,
   input: ListTransactionsInput,
   scope: LedgerScope,
-): Promise<readonly SyncedId[]> {
+): Promise<readonly TransactionGroupCursorRow[]> {
   const conditions = [
     eq(pgTransactionGroups.workspaceId, scope.workspaceId),
     eq(pgTransactionGroups.ledgerId, scope.ledgerId),
@@ -928,6 +997,9 @@ async function listPostgresTransactionGroupIds(
   }
 
   const maxOccurredAt = sql<Date>`MAX(${pgTransactionJournals.occurredAt})`;
+  const cursor = input.cursor
+    ? parseFinanceCursor(input.cursor, "transaction.lastOccurredAt.desc")
+    : null;
   const rows = await db
     .select({ id: pgTransactionGroups.id, lastOccurredAt: maxOccurredAt })
     .from(pgTransactionGroups)
@@ -935,10 +1007,24 @@ async function listPostgresTransactionGroupIds(
     .innerJoin(pgTransactionPostings, eq(pgTransactionPostings.journalId, pgTransactionJournals.id))
     .where(and(...conditions))
     .groupBy(pgTransactionGroups.id)
+    .having(
+      cursor
+        ? or(
+            lt(maxOccurredAt, new Date(cursor.sortKey)),
+            and(eq(maxOccurredAt, new Date(cursor.sortKey)), lt(pgTransactionGroups.id, cursor.id)),
+          )
+        : undefined,
+    )
     .orderBy(desc(maxOccurredAt), desc(pgTransactionGroups.id))
-    .limit(normalizeTransactionQueryLimit(input.limit));
+    .limit(normalizeTransactionQueryLimit(input.limit) + 1);
 
-  return rows.map((row) => parseSyncedId(row.id));
+  return rows.map((row) => ({
+    id: parseSyncedId(row.id),
+    lastOccurredAt: normalizeTimestamp(
+      row.lastOccurredAt instanceof Date ? row.lastOccurredAt.toISOString() : row.lastOccurredAt,
+      "Transaction cursor occurredAt",
+    ),
+  }));
 }
 
 async function readPostgresTransactionGroupsByIds(

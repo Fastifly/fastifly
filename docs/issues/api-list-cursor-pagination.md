@@ -1,6 +1,6 @@
 # API List Cursor Pagination
 
-Status: open
+Status: resolved
 Phase: 6
 Severity: blocking before public API beta
 
@@ -31,3 +31,14 @@ This matters because large ledgers need repeatable pagination that does not skip
 ## Blocking Milestone
 
 Must be fixed before Fastifly documents the API as stable for third-party clients or before large-ledger import/list workflows are shipped.
+
+## Resolution
+
+Implemented on 2026-05-10.
+
+- `packages/common` now owns the `ffcur_v1:` finance cursor format with list kind, sort key, and row id.
+- Account and transaction list repositories now accept cursors, fetch `limit + 1`, and return `hasNextPage` plus `nextCursor`.
+- Account lists cursor on `(name ASC, id ASC)`.
+- Transaction lists cursor on `(latest occurredAt DESC, transaction_group.id DESC)`.
+- API routes now pass cursor input into the repositories/query service and return real `pageInfo`.
+- SQLite and PostgreSQL repository tests cover stable account cursor order and tied transaction timestamps.

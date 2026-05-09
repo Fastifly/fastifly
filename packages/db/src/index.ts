@@ -58,6 +58,7 @@ export type {
   CreateAccountInput,
   CreateAccountResult,
   FindAccountInput,
+  ListAccountsInput,
 } from "./repositories/accounts.js";
 export {
   createPostgresAccountRepository,
@@ -67,6 +68,7 @@ export type {
   LedgerRepositoryContext,
   RepositoryClock,
   RepositoryContext,
+  RepositoryListPage,
   WorkspaceRepositoryContext,
 } from "./repositories/base.js";
 export {

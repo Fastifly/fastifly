@@ -3,7 +3,7 @@ import { z } from "zod";
 import { SyncedIdSchema } from "../ids.js";
 import { AmountMinorStringSchema, CurrencyCodeSchema, MoneyAmountSchema } from "../money.js";
 import { AccountKindSchema, AccountSubtypeSchema } from "../product-rules/accounts.js";
-import { paginatedResponseSchema } from "./pagination.js";
+import { CursorPaginationQuerySchema, paginatedResponseSchema } from "./pagination.js";
 
 export const AccountResponseSchema = z.strictObject({
   archivedAt: z.string().nullable(),
@@ -120,10 +120,9 @@ export const CreateTransactionResponseSchema = z.strictObject({
   }),
 });
 
-export const ListTransactionsQuerySchema = z.strictObject({
+export const ListTransactionsQuerySchema = CursorPaginationQuerySchema.extend({
   accountId: SyncedIdSchema.optional(),
   fromOccurredAt: z.string().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
   status: z.enum(["pending", "cleared", "reconciled", "void"]).optional(),
   toOccurredAt: z.string().min(1).optional(),
   type: z.enum(["expense", "income", "transfer"]).optional(),

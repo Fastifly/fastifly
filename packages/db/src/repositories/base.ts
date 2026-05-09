@@ -17,6 +17,12 @@ export type RepositoryContext = {
 export type WorkspaceRepositoryContext = RepositoryContext & WorkspaceScope;
 export type LedgerRepositoryContext = RepositoryContext & LedgerScope;
 
+export type RepositoryListPage<T> = {
+  readonly hasNextPage: boolean;
+  readonly items: readonly T[];
+  readonly nextCursor: string | null;
+};
+
 export function makeTimestamp(clock: RepositoryClock = systemClock): string {
   return clock.now().toISOString();
 }

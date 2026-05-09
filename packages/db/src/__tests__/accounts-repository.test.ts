@@ -176,10 +176,62 @@ describe("account repository", () => {
           ledgerId: workspaceState.ledger.id,
           workspaceId: workspaceState.workspace.id,
         });
-        expect(accounts.map((account) => account.name).sort()).toEqual([
+        expect(accounts.items.map((account) => account.name).sort()).toEqual([
           "Checking",
           "Opening Balances (INR)",
         ]);
+      });
+    });
+
+    it(`paginates accounts by stable name and id cursor order on ${factory.name}`, async () => {
+      await factory.run(async ({ accountRepository, identityRepository }) => {
+        const { workspaceState } = await createBaseState(identityRepository);
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "Cash A",
+          subtype: "cash",
+          workspaceId: workspaceState.workspace.id,
+        });
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "Cash B",
+          subtype: "wallet",
+          workspaceId: workspaceState.workspace.id,
+        });
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "Cash C",
+          subtype: "bank",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        const firstPage = await accountRepository.listAccounts({
+          ledgerId: workspaceState.ledger.id,
+          limit: 2,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        expect(firstPage.items).toHaveLength(2);
+        expect(firstPage.items.map((account) => account.name)).toEqual(["Cash A", "Cash B"]);
+        expect(firstPage.hasNextPage).toBe(true);
+        expect(firstPage.nextCursor).not.toBeNull();
+
+        const secondPage = await accountRepository.listAccounts({
+          cursor: firstPage.nextCursor,
+          ledgerId: workspaceState.ledger.id,
+          limit: 2,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        expect(secondPage.items.map((account) => account.name)).toEqual(["Cash C"]);
+        expect(secondPage.hasNextPage).toBe(false);
+        expect(secondPage.nextCursor).toBeNull();
       });
     });
 

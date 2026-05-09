@@ -4,6 +4,8 @@ import {
   CreateAccountResponseSchema,
   CreateTransactionRequestSchema,
   CreateTransactionResponseSchema,
+  CursorPaginationQuerySchema,
+  type FinanceCursorKind,
   formatAmountMinor,
   GetAccountResponseSchema,
   GetTransactionResponseSchema,
@@ -11,11 +13,15 @@ import {
   ListTransactionsQuerySchema,
   ListTransactionsResponseSchema,
   makeMoneyAmount,
+  makeValidationError,
+  type PageInfo,
   parseAmountMinor,
+  parseFinanceCursor,
   parseSyncedId,
   type TransactionGroupResponseSchema,
   type TransactionJournalResponseSchema,
   type TransactionPostingResponseSchema,
+  type ValidationError,
 } from "@fastifly/common";
 import type {
   AccountBalanceRecord,
@@ -67,24 +73,38 @@ export async function registerFinanceRoutes(
       {
         schema: {
           params: LedgerParamsSchema,
+          querystring: CursorPaginationQuerySchema,
           response: {
             200: ListAccountsResponseSchema,
             ...ErrorResponseSchemas,
           },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         requireAuthenticatedUser(request);
         const params = LedgerParamsSchema.parse(request.params);
         requireActiveWorkspace(request, params.workspaceId);
         requireAbility(request, "read", "Account");
+        const query = CursorPaginationQuerySchema.parse(request.query);
+        const cursorError = validateFinanceCursorKind(
+          query.cursor,
+          "account.name.asc",
+          String(request.id),
+        );
+        if (cursorError) {
+          return reply.status(400).send(cursorError);
+        }
         const scope = {
           ledgerId: parseSyncedId(params.ledgerId),
           workspaceId: parseSyncedId(params.workspaceId),
         };
-        const accounts = await accountRepository.listAccounts(scope);
+        const accountPage = await accountRepository.listAccounts({
+          ...scope,
+          cursor: query.cursor ?? null,
+          limit: query.limit,
+        });
         const accountsWithBalances = await Promise.all(
-          accounts.map(async (account) =>
+          accountPage.items.map(async (account) =>
             toAccountWithBalanceResponse(
               account,
               await accountRepository.getAccountBalance({ ...scope, accountId: account.id }),
@@ -94,7 +114,7 @@ export async function registerFinanceRoutes(
 
         return {
           data: accountsWithBalances,
-          pageInfo: emptyPageInfo(),
+          pageInfo: toPageInfo(accountPage, query.cursor),
         };
       },
     );
@@ -298,27 +318,36 @@ export async function registerFinanceRoutes(
           },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         requireAuthenticatedUser(request);
         const params = LedgerParamsSchema.parse(request.params);
         requireActiveWorkspace(request, params.workspaceId);
         requireAbility(request, "read", "TransactionGroup");
         const query = ListTransactionsQuerySchema.parse(request.query);
+        const cursorError = validateFinanceCursorKind(
+          query.cursor,
+          "transaction.lastOccurredAt.desc",
+          String(request.id),
+        );
+        if (cursorError) {
+          return reply.status(400).send(cursorError);
+        }
+
+        const transactionPage = await transactionQueryService.listTransactionGroups({
+          accountId: query.accountId ? parseSyncedId(query.accountId) : null,
+          cursor: query.cursor ?? null,
+          fromOccurredAt: query.fromOccurredAt ?? null,
+          ledgerId: parseSyncedId(params.ledgerId),
+          limit: query.limit,
+          status: query.status ?? null,
+          toOccurredAt: query.toOccurredAt ?? null,
+          type: query.type ?? null,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
 
         return {
-          data: (
-            await transactionQueryService.listTransactionGroups({
-              accountId: query.accountId ? parseSyncedId(query.accountId) : null,
-              fromOccurredAt: query.fromOccurredAt ?? null,
-              ledgerId: parseSyncedId(params.ledgerId),
-              limit: query.limit,
-              status: query.status ?? null,
-              toOccurredAt: query.toOccurredAt ?? null,
-              type: query.type ?? null,
-              workspaceId: parseSyncedId(params.workspaceId),
-            })
-          ).map(toTransactionGroupResponse),
-          pageInfo: emptyPageInfo(),
+          data: transactionPage.items.map(toTransactionGroupResponse),
+          pageInfo: toPageInfo(transactionPage, query.cursor),
         };
       },
     );
@@ -464,13 +493,37 @@ function toTransactionPostingResponse(
   };
 }
 
-function emptyPageInfo(): z.infer<typeof ListAccountsResponseSchema>["pageInfo"] {
+function toPageInfo(
+  page: { readonly hasNextPage: boolean; readonly nextCursor: string | null },
+  requestCursor: string | undefined,
+): PageInfo {
   return {
-    hasNextPage: false,
-    hasPreviousPage: false,
-    nextCursor: null,
+    hasNextPage: page.hasNextPage,
+    hasPreviousPage: Boolean(requestCursor),
+    nextCursor: page.nextCursor,
     previousCursor: null,
   };
+}
+
+function validateFinanceCursorKind(
+  cursor: string | undefined,
+  expectedKind: FinanceCursorKind,
+  requestId: string,
+): ValidationError | null {
+  if (!cursor) {
+    return null;
+  }
+  try {
+    parseFinanceCursor(cursor, expectedKind);
+    return null;
+  } catch {
+    return makeValidationError({
+      fields: {
+        cursor: ["Cursor is invalid for this list endpoint."],
+      },
+      requestId,
+    });
+  }
 }
 
 function makeHttpError(statusCode: number, message: string): Error & { statusCode: number } {

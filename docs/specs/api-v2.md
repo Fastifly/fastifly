@@ -219,10 +219,11 @@ Required list response:
 ```json
 {
   "data": [],
-  "pagination": {
-    "limit": 50,
+  "pageInfo": {
     "nextCursor": "cursor_abc",
-    "previousCursor": null
+    "previousCursor": null,
+    "hasNextPage": true,
+    "hasPreviousPage": false
   }
 }
 ```
@@ -242,9 +243,14 @@ Maximum limit:
 Rules:
 
 - stable sort required
-- cursor must encode enough state for stable pagination
+- finance list cursors use the shared `ffcur_v1:` format
+- cursor payloads must include API cursor version, list kind, stable sort key, and row id
+- account lists sort by `name ASC, id ASC` and cursor on `(name, id)`
+- transaction lists sort by latest journal occurred time `DESC, transaction_group.id DESC`
 - mobile clients should be able to request small pages
 - exports can use streaming or job-based export later
+- repository/query services must fetch `limit + 1` rows and derive `hasNextPage` plus `nextCursor`
+- `previousCursor` is `null` until reverse pagination is explicitly specified
 
 ---
 

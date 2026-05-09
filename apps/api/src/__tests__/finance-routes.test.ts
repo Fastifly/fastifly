@@ -1,4 +1,9 @@
-import { createUuidV7, IDEMPOTENCY_REPLAYED_HEADER, type SyncedId } from "@fastifly/common";
+import {
+  createUuidV7,
+  encodeFinanceCursor,
+  IDEMPOTENCY_REPLAYED_HEADER,
+  type SyncedId,
+} from "@fastifly/common";
 import type {
   AccountRepository,
   IdentityRepository,
@@ -254,6 +259,12 @@ afterEach(async () => {
 describe("finance routes", () => {
   it("lists accounts with derived balances for viewers", async () => {
     const accountId = createId();
+    const nextCursor = encodeFinanceCursor({
+      id: accountId,
+      kind: "account.name.asc",
+      sortKey: "Bank",
+      v: 1,
+    });
     const { accountRepository, app, state } = await makeApp("viewer", ({ context }) => {
       const account = {
         archivedAt: null,
@@ -283,7 +294,11 @@ describe("finance routes", () => {
             reportingBalanceMinor: 25_000n,
             reportingCurrencyCode: "INR",
           })),
-          listAccounts: vi.fn(async () => [account]),
+          listAccounts: vi.fn(async () => ({
+            hasNextPage: true,
+            items: [account],
+            nextCursor,
+          })),
         } as AccountRepository,
       };
     });
@@ -304,16 +319,44 @@ describe("finance routes", () => {
         },
       ],
       pageInfo: {
-        hasNextPage: false,
+        hasNextPage: true,
         hasPreviousPage: false,
-        nextCursor: null,
+        nextCursor,
         previousCursor: null,
       },
     });
     expect(accountRepository?.listAccounts).toHaveBeenCalledWith({
+      cursor: null,
       ledgerId: state.context.activeLedger.id,
+      limit: 50,
       workspaceId: state.context.activeWorkspace.id,
     });
+  });
+
+  it("rejects account list cursors from another finance list", async () => {
+    const accountRepository = {
+      archiveAccount: vi.fn(),
+      createAccount: vi.fn(),
+      findAccount: vi.fn(),
+      getAccountBalance: vi.fn(),
+      listAccounts: vi.fn(),
+    } as AccountRepository;
+    const { app, state } = await makeApp("viewer", () => ({ accountRepository }));
+    const wrongCursor = encodeFinanceCursor({
+      id: createId(),
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09T08:00:00.000Z",
+      v: 1,
+    });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/accounts?cursor=${encodeURIComponent(wrongCursor)}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(accountRepository.listAccounts).not.toHaveBeenCalled();
   });
 
   it("returns account detail with a derived balance", async () => {
@@ -498,44 +541,54 @@ describe("finance routes", () => {
   it("lists transactions through the transaction query service", async () => {
     const accountId = createId();
     const transactionGroupId = createId();
+    const nextCursor = encodeFinanceCursor({
+      id: transactionGroupId,
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09T08:00:00.000Z",
+      v: 1,
+    });
     const { app, state, transactionQueryService } = await makeApp("viewer", ({ context }) => ({
       transactionQueryService: {
         getTransactionGroup: vi.fn(),
-        listTransactionGroups: vi.fn(async () => [
-          {
-            id: transactionGroupId,
-            journals: [
-              {
-                description: "Groceries",
-                id: createId(),
-                occurredAt: "2026-05-09T08:00:00.000Z",
-                postings: [
-                  {
-                    accountId,
-                    amountMinor: -12_000n,
-                    currencyCode: "INR",
-                    id: createId(),
-                    reportingAmountMinor: -12_000n,
-                    reportingCurrencyCode: "INR",
-                  },
-                  {
-                    accountId: createId(),
-                    amountMinor: 12_000n,
-                    currencyCode: "INR",
-                    id: createId(),
-                    reportingAmountMinor: 12_000n,
-                    reportingCurrencyCode: "INR",
-                  },
-                ],
-                type: "expense",
-              },
-            ],
-            ledgerId: context.activeLedger.id,
-            title: "Groceries",
-            type: "expense",
-            workspaceId: context.activeWorkspace.id,
-          },
-        ]),
+        listTransactionGroups: vi.fn(async () => ({
+          hasNextPage: true,
+          items: [
+            {
+              id: transactionGroupId,
+              journals: [
+                {
+                  description: "Groceries",
+                  id: createId(),
+                  occurredAt: "2026-05-09T08:00:00.000Z",
+                  postings: [
+                    {
+                      accountId,
+                      amountMinor: -12_000n,
+                      currencyCode: "INR",
+                      id: createId(),
+                      reportingAmountMinor: -12_000n,
+                      reportingCurrencyCode: "INR",
+                    },
+                    {
+                      accountId: createId(),
+                      amountMinor: 12_000n,
+                      currencyCode: "INR",
+                      id: createId(),
+                      reportingAmountMinor: 12_000n,
+                      reportingCurrencyCode: "INR",
+                    },
+                  ],
+                  type: "expense",
+                },
+              ],
+              ledgerId: context.activeLedger.id,
+              title: "Groceries",
+              type: "expense",
+              workspaceId: context.activeWorkspace.id,
+            },
+          ],
+          nextCursor,
+        })),
       } as TransactionQueryService,
     }));
 
@@ -560,16 +613,40 @@ describe("finance routes", () => {
           ],
         },
       ],
+      pageInfo: {
+        hasNextPage: true,
+        hasPreviousPage: false,
+        nextCursor,
+        previousCursor: null,
+      },
     });
     expect(transactionQueryService?.listTransactionGroups).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId,
+        cursor: null,
         ledgerId: state.context.activeLedger.id,
         limit: 25,
         type: "expense",
         workspaceId: state.context.activeWorkspace.id,
       }),
     );
+  });
+
+  it("rejects malformed transaction list cursors before querying", async () => {
+    const transactionQueryService = {
+      getTransactionGroup: vi.fn(),
+      listTransactionGroups: vi.fn(),
+    } as TransactionQueryService;
+    const { app, state } = await makeApp("viewer", () => ({ transactionQueryService }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?cursor=not-a-cursor`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(transactionQueryService.listTransactionGroups).not.toHaveBeenCalled();
   });
 
   it("returns transaction group detail through the transaction query service", async () => {

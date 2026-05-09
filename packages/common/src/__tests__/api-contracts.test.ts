@@ -13,11 +13,18 @@ import {
   IdempotencyKeySchema,
   parseOptionalIdempotencyKey,
 } from "../api/idempotency.js";
-import { CursorPaginationQuerySchema, paginatedResponseSchema } from "../api/pagination.js";
 import {
+  CursorPaginationQuerySchema,
+  encodeFinanceCursor,
+  paginatedResponseSchema,
+  parseFinanceCursor,
+} from "../api/pagination.js";
+import {
+  accountListFixture,
   emptyPaginatedMoneyFixture,
   forbiddenErrorFixture,
   moneyAmountFixture,
+  transactionListFixture,
   validationErrorFixture,
 } from "../fixtures/api.js";
 
@@ -48,6 +55,25 @@ describe("API contract schemas", () => {
     expect(CursorPaginationQuerySchema.parse({ limit: "25" })).toEqual({ limit: 25 });
     expect(CursorPaginationQuerySchema.parse({})).toEqual({ limit: 50 });
     expect(CursorPaginationQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
+  });
+
+  it("encodes finance cursors with sort key and row id", () => {
+    const cursor = encodeFinanceCursor({
+      id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09T08:00:00.000Z",
+      v: 1,
+    });
+
+    expect(parseFinanceCursor(cursor, "transaction.lastOccurredAt.desc")).toEqual({
+      id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09T08:00:00.000Z",
+      v: 1,
+    });
+    expect(() => parseFinanceCursor(cursor, "account.name.asc")).toThrow(
+      "does not match this list endpoint",
+    );
   });
 
   it("keeps idempotency headers and keys strict", () => {
@@ -197,5 +223,7 @@ describe("API contract schemas", () => {
     expect(validationErrorFixture.error.code).toBe("VALIDATION_ERROR");
     expect(forbiddenErrorFixture.error.code).toBe("FORBIDDEN");
     expect(emptyPaginatedMoneyFixture.data).toEqual([]);
+    expect(accountListFixture.pageInfo.nextCursor).toContain("ffcur_v1:");
+    expect(transactionListFixture.pageInfo.nextCursor).toContain("ffcur_v1:");
   });
 });
