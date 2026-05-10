@@ -3,6 +3,8 @@ import {
   ApiErrorSchema,
   type AuthResponse,
   AuthResponseSchema,
+  type CreateTransactionRequest,
+  CreateTransactionResponseSchema,
   CsrfTokenResponseSchema,
   type ListAccountsResponse,
   ListAccountsResponseSchema,
@@ -29,6 +31,7 @@ export class FastiflyApiError extends Error {
 }
 
 export type ApiClient = {
+  readonly createTransaction: (input: LedgerPathInput & CreateTransactionRequest) => Promise<void>;
   readonly getHealth: () => Promise<{ readonly status: string }>;
   readonly getMeContext: () => Promise<MeContextResponse>;
   readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
@@ -51,6 +54,31 @@ const openApiClient = createClient<paths>({
 let csrfTokenPromise: Promise<string> | null = null;
 
 export const apiClient: ApiClient = {
+  async createTransaction(input) {
+    const { ledgerId, workspaceId, ...body } = input;
+    await withCsrf(async (csrfToken) => {
+      CreateTransactionResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/transactions",
+            {
+              body: makeCreateTransactionBody(body),
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+    });
+  },
   async getMeContext() {
     return MeContextResponseSchema.parse(
       await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/context")),
@@ -211,4 +239,55 @@ function notifyIfSessionExpired(error: ApiError): void {
   if (error.error.code === "UNAUTHENTICATED") {
     notifySessionExpired();
   }
+}
+
+function makeIdempotencyKey(): string {
+  return `web-${crypto.randomUUID()}`;
+}
+
+function makeCreateTransactionBody(input: CreateTransactionRequest) {
+  return {
+    currencyCode: input.currencyCode,
+    description: input.description,
+    occurredAt: input.occurredAt,
+    sourceAccountId: input.sourceAccountId,
+    transactions: input.transactions.map((line) => ({
+      amountMinor: line.amountMinor,
+      destinationAccountId: line.destinationAccountId,
+      ...(line.budgetId !== undefined ? { budgetId: line.budgetId } : {}),
+      ...(line.categoryId !== undefined ? { categoryId: line.categoryId } : {}),
+      ...(line.description !== undefined ? { description: line.description } : {}),
+      ...(line.reportingAmountMinor !== undefined
+        ? { reportingAmountMinor: line.reportingAmountMinor }
+        : {}),
+      ...(line.reportingCurrencyCode !== undefined
+        ? { reportingCurrencyCode: line.reportingCurrencyCode }
+        : {}),
+    })),
+    type: input.type,
+    ...(input.options !== undefined
+      ? {
+          options: {
+            ...(input.options.applyRules !== undefined
+              ? { applyRules: input.options.applyRules }
+              : {}),
+            ...(input.options.batchSubmission !== undefined
+              ? { batchSubmission: input.options.batchSubmission }
+              : {}),
+            ...(input.options.fireWebhooks !== undefined
+              ? { fireWebhooks: input.options.fireWebhooks }
+              : {}),
+            ...(input.options.recalculateBalances !== undefined
+              ? { recalculateBalances: input.options.recalculateBalances }
+              : {}),
+            ...(input.options.skipNotifications !== undefined
+              ? { skipNotifications: input.options.skipNotifications }
+              : {}),
+          },
+        }
+      : {}),
+    ...(input.source !== undefined ? { source: input.source } : {}),
+    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(input.title !== undefined ? { title: input.title } : {}),
+  };
 }

@@ -8,6 +8,7 @@ import {
   MoneyAmountSchema,
   makeMoneyAmount,
   parseAmountMinor,
+  parseDecimalMoneyToMinor,
 } from "../money.js";
 
 describe("money contracts", () => {
@@ -20,6 +21,18 @@ describe("money contracts", () => {
   it("rejects unsafe amount strings", () => {
     for (const value of ["", "01", "-0", "1.25", "1e3", "1,000", " 10"]) {
       expect(() => parseAmountMinor(value)).toThrow();
+    }
+  });
+
+  it("converts user-entered decimal money to integer minor units without floats", () => {
+    expect(parseDecimalMoneyToMinor("125")).toBe("12500");
+    expect(parseDecimalMoneyToMinor("125.5")).toBe("12550");
+    expect(parseDecimalMoneyToMinor("125.50")).toBe("12550");
+    expect(parseDecimalMoneyToMinor("0.99")).toBe("99");
+    expect(parseDecimalMoneyToMinor(" 10.01 ")).toBe("1001");
+
+    for (const value of ["", "-1", "01", "1.234", "1,000", "1e3"]) {
+      expect(() => parseDecimalMoneyToMinor(value)).toThrow();
     }
   });
 

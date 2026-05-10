@@ -140,6 +140,7 @@ export {
   makeMoneyAmount,
   parseAmountMinor,
   parseCurrencyCode,
+  parseDecimalMoneyToMinor,
 } from "./money.js";
 export type {
   AccountCompatibilityRule,

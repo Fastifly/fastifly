@@ -79,13 +79,15 @@ body,
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 button,
 a,
-input {
+input,
+select {
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -96,7 +98,8 @@ a {
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--ff-accent);
   outline-offset: 3px;
 }
@@ -340,7 +343,8 @@ input:focus-visible {
   background: var(--ff-surface-strong);
 }
 
-.ff-auth-input {
+.ff-auth-input,
+.ff-form-input {
   appearance: none;
   display: block;
   width: 100%;
@@ -358,10 +362,91 @@ input:focus-visible {
   color: var(--ff-text-soft);
 }
 
-.ff-auth-input:focus {
+.ff-auth-input:focus,
+.ff-form-input:focus {
   border-color: var(--ff-accent);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ff-accent) 18%, transparent);
   outline: none;
+}
+
+.ff-form-grid {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.ff-field {
+  display: block;
+  min-width: 0;
+}
+
+.ff-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--ff-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ff-form-input {
+  margin-top: 0;
+}
+
+select.ff-form-input {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ff-text-muted) 50%),
+    linear-gradient(135deg, var(--ff-text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-repeat: no-repeat;
+  background-size:
+    5px 5px,
+    5px 5px;
+  padding-right: 2.25rem;
+}
+
+.ff-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid var(--ff-border);
+  border-radius: 10px;
+  background: var(--ff-surface-muted);
+  padding: 0.25rem;
+}
+
+.ff-segmented-button {
+  min-height: 2.4rem;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ff-text-muted);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.ff-segmented-button[aria-pressed="true"] {
+  background: var(--ff-surface-strong);
+  color: var(--ff-text);
+  box-shadow: var(--ff-shadow-soft);
+}
+
+.ff-form-error,
+.ff-form-success {
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.ff-form-error {
+  border: 1px solid color-mix(in oklab, #ef4444 28%, var(--ff-border));
+  background: color-mix(in oklab, #ef4444 10%, var(--ff-surface-muted));
+  color: var(--ff-danger);
+}
+
+.ff-form-success {
+  border: 1px solid color-mix(in oklab, #10b981 28%, var(--ff-border));
+  background: color-mix(in oklab, #10b981 10%, var(--ff-surface-muted));
+  color: var(--ff-accent);
 }
 
 .ff-auth-input::-webkit-contacts-auto-fill-button,
@@ -682,6 +767,10 @@ input:focus-visible {
 }
 
 @media (min-width: 768px) {
+  .ff-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .ff-hero-glass {
     padding: 1.25rem;
   }

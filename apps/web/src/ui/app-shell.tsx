@@ -44,6 +44,7 @@ import {
   navigationItems,
 } from "./navigation";
 import { SessionExpiredDialog } from "./session-expired-dialog";
+import { TransactionCreatePanel } from "./transaction-create-panel";
 
 type Theme = "light" | "dark";
 type Tone = "danger" | "neutral" | "success" | "warning";
@@ -260,6 +261,7 @@ export function AppShell({ children }: PropsWithChildren) {
           cashflow={cashflow}
           income={income}
           isOnline={isOnline}
+          ledgerContext={ledgerContext}
           liabilities={liabilities}
           moneySummaryValue={moneySummaryValue}
           pageSlug={currentNavigationItem.slug}
@@ -380,6 +382,7 @@ function PageBody({
   cashflow,
   income,
   isOnline,
+  ledgerContext,
   liabilities,
   moneySummaryValue,
   pageSlug,
@@ -398,6 +401,10 @@ function PageBody({
   readonly cashflow: string;
   readonly income: string;
   readonly isOnline: boolean;
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
   readonly liabilities: string;
   readonly moneySummaryValue: string;
   readonly pageSlug: string;
@@ -409,7 +416,13 @@ function PageBody({
   readonly transferCount: number;
 }) {
   if (pageSlug === "transactions") {
-    return <TransactionsPage transactions={transactions} />;
+    return (
+      <TransactionsPage
+        accounts={accounts}
+        ledgerContext={ledgerContext}
+        transactions={transactions}
+      />
+    );
   }
   if (pageSlug === "accounts") {
     return <AccountsPage accounts={accounts} accountsLoading={accountsLoading} />;
@@ -541,12 +554,20 @@ function DashboardPage({
 }
 
 function TransactionsPage({
+  accounts,
+  ledgerContext,
   transactions,
 }: {
+  readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
   readonly transactions: readonly TransactionGroupResponse[];
 }) {
   return (
-    <section className="ff-single-page">
+    <section className="ff-single-page space-y-4">
+      <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
       <TransactionsPanel
         description={en.shell.transactionsBody}
         title={en.shell.allTransactions}
