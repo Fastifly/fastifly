@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
 import { AppShell } from "./ui/app-shell";
 import { AuthPage } from "./ui/auth-page";
+import { testIds } from "./testing/testid-registry";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -13,43 +14,48 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.dashboardRoute} />,
 });
 
 const accountsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/accounts",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.accountsRoute} />,
 });
 
 const transactionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/transactions",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.transactionsRoute} />,
 });
 
 const budgetsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/budgets",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.budgetsRoute} />,
 });
 
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reports",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.reportsRoute} />,
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
-  component: ShellRoute,
+  component: () => <RouteMarker data-testid={testIds.routes.settingsRoute} />,
 });
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: AuthPage,
+  component: () => (
+    <>
+      <AuthPage />
+      <div className="sr-only" data-testid={testIds.routes.loginRoute} />
+    </>
+  ),
 });
 
 const routeTree = rootRoute.addChildren([
@@ -70,6 +76,12 @@ declare module "@tanstack/react-router" {
   }
 }
 
-function ShellRoute() {
-  return null;
+function RouteMarker({
+  className = "sr-only",
+  "data-testid": testId,
+}: {
+  className?: string;
+  "data-testid": string;
+}) {
+  return <div className={className} data-testid={testId} aria-hidden="true" />;
 }

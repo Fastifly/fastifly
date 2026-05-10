@@ -30,6 +30,15 @@ export const testIds = {
     authGate: "auth-gate-screen",
     authGateMessage: "auth-gate-message",
   },
+  routes: {
+    dashboardRoute: "route-dashboard",
+    accountsRoute: "route-accounts",
+    transactionsRoute: "route-transactions",
+    budgetsRoute: "route-budgets",
+    reportsRoute: "route-reports",
+    settingsRoute: "route-settings",
+    loginRoute: "route-login",
+  },
   icon: {
     brand: "fastifly-brand-icon",
   },
