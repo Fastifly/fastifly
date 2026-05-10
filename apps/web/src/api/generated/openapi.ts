@@ -350,6 +350,25 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @enum {string} */
+              status: "ready" | "not_ready";
+              checks: {
+                /** @enum {string} */
+                config: "ok";
+                /** @enum {string} */
+                migrations: "unknown" | "ok";
+              };
+              requestId: string;
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -4516,6 +4535,7 @@ export interface paths {
                 id: string;
                 deviceKey: string;
                 name: string;
+                /** Format: date-time */
                 createdAt: string;
                 lastSeenAt: string | null;
                 revokedAt: string | null;
@@ -4690,6 +4710,7 @@ export interface paths {
                   id: string;
                   deviceKey: string;
                   name: string;
+                  /** Format: date-time */
                   createdAt: string;
                   lastSeenAt: string | null;
                   revokedAt: string | null;
@@ -4874,6 +4895,7 @@ export interface paths {
                   id: string;
                   deviceKey: string;
                   name: string;
+                  /** Format: date-time */
                   createdAt: string;
                   lastSeenAt: string | null;
                   revokedAt: string | null;
@@ -5056,6 +5078,7 @@ export interface paths {
             "application/json": {
               data: {
                 archivedAt: string | null;
+                /** Format: date-time */
                 createdAt: string;
                 currencyCode: string;
                 /** Format: uuid */
@@ -5081,6 +5104,7 @@ export interface paths {
                   | "external"
                   | "opening_helper"
                   | "reconciliation_helper";
+                /** Format: date-time */
                 updatedAt: string;
                 /** Format: uuid */
                 workspaceId: string;
@@ -5286,6 +5310,7 @@ export interface paths {
               data: {
                 account: {
                   archivedAt: string | null;
+                  /** Format: date-time */
                   createdAt: string;
                   currencyCode: string;
                   /** Format: uuid */
@@ -5311,6 +5336,7 @@ export interface paths {
                     | "external"
                     | "opening_helper"
                     | "reconciliation_helper";
+                  /** Format: date-time */
                   updatedAt: string;
                   /** Format: uuid */
                   workspaceId: string;
@@ -5494,6 +5520,7 @@ export interface paths {
               data: {
                 account: {
                   archivedAt: string | null;
+                  /** Format: date-time */
                   createdAt: string;
                   currencyCode: string;
                   /** Format: uuid */
@@ -5519,6 +5546,7 @@ export interface paths {
                     | "external"
                     | "opening_helper"
                     | "reconciliation_helper";
+                  /** Format: date-time */
                   updatedAt: string;
                   /** Format: uuid */
                   workspaceId: string;
@@ -5697,6 +5725,7 @@ export interface paths {
               data: {
                 account: {
                   archivedAt: string | null;
+                  /** Format: date-time */
                   createdAt: string;
                   currencyCode: string;
                   /** Format: uuid */
@@ -5722,6 +5751,7 @@ export interface paths {
                     | "external"
                     | "opening_helper"
                     | "reconciliation_helper";
+                  /** Format: date-time */
                   updatedAt: string;
                   /** Format: uuid */
                   workspaceId: string;
@@ -5904,6 +5934,7 @@ export interface paths {
             "application/json": {
               data: {
                 archivedAt: string | null;
+                /** Format: date-time */
                 createdAt: string;
                 currencyCode: string;
                 /** Format: uuid */
@@ -5933,6 +5964,7 @@ export interface paths {
                   amountMinor: string;
                   currencyCode: string;
                 };
+                /** Format: date-time */
                 updatedAt: string;
                 /** Format: uuid */
                 workspaceId: string;
@@ -6132,6 +6164,7 @@ export interface paths {
                   description: string;
                   /** Format: uuid */
                   id: string;
+                  /** Format: date-time */
                   occurredAt: string;
                   postings: {
                     /** Format: uuid */
@@ -6316,6 +6349,7 @@ export interface paths {
           "application/json": {
             currencyCode: string;
             description: string;
+            /** Format: date-time */
             occurredAt: string;
             options?: {
               applyRules?: boolean;
@@ -6362,6 +6396,7 @@ export interface paths {
                     description: string;
                     /** Format: uuid */
                     id: string;
+                    /** Format: date-time */
                     occurredAt: string;
                     postings: {
                       /** Format: uuid */
@@ -6566,6 +6601,7 @@ export interface paths {
                     description: string;
                     /** Format: uuid */
                     id: string;
+                    /** Format: date-time */
                     occurredAt: string;
                     postings: {
                       /** Format: uuid */
@@ -7022,6 +7058,7 @@ export interface paths {
                   payload: {
                     [key: string]: unknown;
                   };
+                  /** Format: date-time */
                   createdAt: string;
                 }[];
               };
@@ -7409,6 +7446,7 @@ export interface paths {
                   };
                   /** @enum {string} */
                   status: "open" | "resolved" | "dismissed";
+                  /** Format: date-time */
                   createdAt: string;
                 }[];
               };
@@ -7603,6 +7641,7 @@ export interface paths {
                 conflictId: string;
                 /** @enum {string} */
                 status: "dismissed";
+                /** Format: date-time */
                 resolvedAt: string;
               };
             };

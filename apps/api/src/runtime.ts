@@ -50,6 +50,24 @@ type PostgresTransaction = Parameters<ProductionPostgresDatabase["transaction"]>
   ? T
   : never;
 
+const REQUIRED_CORE_TABLES = [
+  "users",
+  "sessions",
+  "passkeys",
+  "recovery_codes",
+  "workspaces",
+  "workspace_members",
+  "workspace_invitations",
+  "ledgers",
+  "devices",
+  "idempotency_receipts",
+  "job_queue",
+  "audit_log",
+] as const;
+
+const DRIZZLE_MIGRATIONS_SCHEMA = "drizzle";
+const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
+
 export async function buildProductionApiApp(config: ApiConfig): Promise<FastifyInstance> {
   const runtime = await createRuntimeDependencies(config);
   const app = await buildApiApp({
@@ -220,7 +238,27 @@ export function createRuntimeAuthorization(
 
 function assertSqliteSchemaReady(client: SqliteClient): void {
   try {
-    client.prepare("SELECT 1 FROM users LIMIT 1").get();
+    const missingTables = REQUIRED_CORE_TABLES.filter((table) => !sqliteTableExists(client, table));
+    const migrationsTableExists = sqliteTableExists(client, DRIZZLE_MIGRATIONS_TABLE);
+
+    if (missingTables.length > 0 || !migrationsTableExists) {
+      throw new Error(
+        `Missing required SQLite tables: ${[
+          ...missingTables,
+          ...(migrationsTableExists ? [] : [`${DRIZZLE_MIGRATIONS_TABLE}`]),
+        ].join(", ")}`,
+      );
+    }
+
+    const migrationCount = client
+      .prepare<unknown[], { readonly total: number }>(
+        `SELECT COUNT(*) AS total FROM ${DRIZZLE_MIGRATIONS_TABLE}`,
+      )
+      .get()?.total;
+
+    if (!migrationCount || migrationCount < 1) {
+      throw new Error("SQLite migration log is empty.");
+    }
   } catch (error) {
     throw new Error(
       "SQLite schema is not ready. Run `pnpm db:migrate:sqlite` before starting the API.",
@@ -231,11 +269,46 @@ function assertSqliteSchemaReady(client: SqliteClient): void {
 
 async function assertPostgresSchemaReady(client: PostgresClient): Promise<void> {
   try {
-    await client.unsafe("SELECT 1 FROM users LIMIT 1");
+    const missingTables: string[] = [];
+
+    for (const table of REQUIRED_CORE_TABLES) {
+      const result = await client.unsafe(`SELECT to_regclass('public.${table}') AS table_name`);
+      const tableName =
+        (result as unknown as ReadonlyArray<{ readonly table_name: string | null }>)[0]
+          ?.table_name ?? null;
+
+      if (!tableName) {
+        missingTables.push(table);
+      }
+    }
+
+    if (missingTables.length > 0) {
+      throw new Error(`Missing required PostgreSQL tables: ${missingTables.join(", ")}`);
+    }
+
+    const migrationResult = await client.unsafe(
+      `SELECT COUNT(*)::int AS total FROM ${DRIZZLE_MIGRATIONS_SCHEMA}.${DRIZZLE_MIGRATIONS_TABLE}`,
+    );
+    const migrationCount =
+      (migrationResult as unknown as ReadonlyArray<{ readonly total: number }>)[0]?.total ?? 0;
+
+    if (migrationCount < 1) {
+      throw new Error("PostgreSQL migration log is empty.");
+    }
   } catch (error) {
     throw new Error(
       "PostgreSQL schema is not ready. Run `pnpm db:migrate:postgres` before starting the API.",
       { cause: error },
     );
   }
+}
+
+function sqliteTableExists(client: SqliteClient, tableName: string): boolean {
+  const row = client
+    .prepare<unknown[], { readonly present: number }>(
+      "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    )
+    .get(tableName);
+
+  return Boolean(row?.present);
 }

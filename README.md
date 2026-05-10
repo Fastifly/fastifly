@@ -352,6 +352,7 @@ pnpm typecheck
 pnpm typecheck:tsc
 pnpm typecheck:refs
 pnpm test
+pnpm ci:check
 
 pnpm db:generate:sqlite
 pnpm db:generate:postgres
@@ -374,6 +375,7 @@ PostgreSQL test lanes:
 - `pnpm test:postgres:pglite`: fast PostgreSQL-compat migration lane on PGlite.
 - `pnpm test:postgres:runtime`: real postgres.js runtime lane (requires `FASTIFLY_TEST_POSTGRES_URL` or `TEST_POSTGRES_DATABASE_URL`).
 - `pnpm test:postgres`: full PostgreSQL gate (`pglite` + `runtime`).
+- `pnpm ci:check`: local CI-equivalent gate; defaults runtime PostgreSQL URL to `postgres://fastifly:fastifly@127.0.0.1:55432/fastifly` unless overridden.
 
 ---
 

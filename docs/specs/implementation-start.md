@@ -336,6 +336,7 @@ Stop condition:
 - `pnpm typecheck:tsc`
 - `pnpm typecheck:refs`
 - `pnpm test`
+- `pnpm ci:check`
 - `pnpm test:postgres:runtime`
 - `pnpm test:postgres`
 
@@ -441,7 +442,7 @@ static serving placeholder
 Stop condition:
 
 - `/health` works
-- `/ready` reflects migration/config state
+- `/ready` reflects migration/config state (`200 ready`, `503 not_ready`)
 - `/api/openapi.json` works
 - `pnpm api:generate` updates the generated web OpenAPI types
 - `pnpm api:check` catches stale generated OpenAPI types

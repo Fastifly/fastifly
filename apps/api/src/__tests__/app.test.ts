@@ -49,6 +49,24 @@ describe("Fastifly API app", () => {
     });
   });
 
+  it("returns 503 when readiness checks are incomplete", async () => {
+    const app = await buildApiApp({
+      config: { logLevel: "silent", nodeEnv: "test" },
+      readiness: { migrations: "unknown" },
+    });
+    apps.push(app);
+
+    const ready = await app.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({
+      status: "not_ready",
+      checks: {
+        config: "ok",
+        migrations: "unknown",
+      },
+    });
+  });
+
   it("exposes an OpenAPI document generated from registered routes", async () => {
     const app = await makeApp();
     await app.ready();

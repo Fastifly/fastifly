@@ -37,17 +37,22 @@ export async function registerSystemRoutes(
     schema: {
       response: {
         200: ReadyResponseSchema,
+        503: ReadyResponseSchema,
         ...ErrorResponseSchemas,
       },
     },
-    handler: (request) => ({
-      status: "ready" as const,
-      checks: {
-        config: "ok" as const,
-        migrations: readiness.migrations,
-      },
-      requestId: String(request.id),
-    }),
+    handler: (request, reply) => {
+      const isReady = readiness.migrations === "ok";
+
+      return reply.status(isReady ? 200 : 503).send({
+        status: isReady ? "ready" : "not_ready",
+        checks: {
+          config: "ok" as const,
+          migrations: readiness.migrations,
+        },
+        requestId: String(request.id),
+      });
+    },
   });
 
   app.route({
