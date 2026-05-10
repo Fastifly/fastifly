@@ -1,17 +1,17 @@
 # Ledger Mutation Runner Authorization Hook
 
-Status: partially resolved
+Status: resolved
 Phase: 6
 Severity: blocking before new ledger write routes
 
 ## Why It Matters
 
-Current API routes perform permission checks before calling finance services, and the production
-runtime now adds a service-level workspace membership check before ledger mutations run.
+API routes perform permission checks before calling finance services, and the production runtime
+adds service-level workspace membership checks before ledger mutations run.
 
-The remaining gap is granular service-level action authorization. Future jobs, imports, sync replay,
-or maintenance commands must pass an explicit action context so the runner can enforce the same
-permission policy without relying on route handlers.
+The resolved gap was granular service-level action authorization. Future jobs, imports, sync replay,
+or maintenance commands must pass an explicit action/subject context so the runner can enforce the
+same permission policy without relying on route handlers.
 
 ## Affected Docs/Code
 
@@ -21,14 +21,19 @@ permission policy without relying on route handlers.
 - `apps/api/src/routes/finance.ts`
 - future import, sync, recurring, and job services
 
-## Suggested Fix
+## Resolution
 
-- Extend the `LedgerMutationEnvelope` with the requested action/resource context.
-- Add an authz-backed `LedgerMutationRunner` authorization adapter.
-- Keep route-level permission checks, but make the runner the final granular enforcement boundary.
-- Add tests proving direct service calls fail without permission context.
+- `LedgerMutationEnvelope` now requires an `authorization` action/subject context.
+- `LedgerMutationRunner` fails closed before handler execution when that context is missing.
+- The production runtime authorizer now derives CASL ability from the current workspace membership
+  and enforces the envelope action/subject.
+- Finance services reject mismatched authorization context before calling the runner.
+- Route-level permission checks remain as fast user-facing guards, while the runner is the final
+  service boundary.
+- Tests cover missing authorization context, mismatched finance-service context, and runtime
+  role-based denial.
 
 ## Blocking Milestone
 
-Required before adding more ledger-affecting write paths beyond the current account and transaction
-routes.
+Resolved for current Phase 6 account and transaction writes. New ledger-affecting write paths still
+must provide explicit envelope authorization context.

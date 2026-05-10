@@ -49,12 +49,19 @@ actorUserId
 deviceId nullable
 workspaceId
 ledgerId
+authorization:
+  action
+  subject
 idempotencyKey nullable
 baseRevision nullable
 source: rest | sync | import | rule | recurring | maintenance
 dryRun
 sideEffectFlags
 ```
+
+`authorization` is required even when a route already checked permissions. The runner is the final
+boundary for jobs, imports, sync replay, recurring generation, and future maintenance services that
+will not naturally pass through the same Fastify route handler.
 
 Side-effect flags:
 
@@ -71,7 +78,7 @@ recalculateBalances
 The runner performs the same sequence for every write:
 
 1. Authorize the actor against the current envelope.
-2. Hash the envelope-relevant request payload for idempotency comparison.
+2. Hash the authorization context, envelope-relevant scope fields, and request payload for idempotency comparison.
 3. Acquire the per-ledger write boundary.
 4. Open one database transaction.
 5. Check idempotency receipt replay or conflict.
@@ -246,6 +253,8 @@ Current tests verify:
 - idempotency key reuse with different request content fails
 - expired idempotency receipts do not replay and are replaced safely
 - authorization failure fails before handler execution
+- missing authorization context fails before handler execution
+- finance services reject authorization context that does not match the requested operation
 - read-only, maintenance, archived, restore-preview, pending-restore, broken, and archived workspace states reject normal writes
 - maintenance-source writes can run against maintenance state
 - domain events dispatch only after committed mutations

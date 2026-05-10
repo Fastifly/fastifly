@@ -196,6 +196,7 @@ describe("finance mutation service", () => {
         const { user, workspaceState } = await createBaseState(identityRepository);
         const envelope = createEnvelope({
           actorUserId: user.id,
+          authorization: { action: "create", subject: "Account" },
           idempotencyKey: "idem_create_account",
           ledgerId: workspaceState.ledger.id,
           workspaceId: workspaceState.workspace.id,
@@ -302,6 +303,34 @@ describe("finance mutation service", () => {
       );
     });
 
+    it(`rejects mismatched service authorization context before writing on ${factory.name}`, async () => {
+      await factory.run(async ({ dialect, identityRepository, rawDb, service }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+
+        await expect(
+          Promise.resolve().then(() =>
+            service.createAccount({
+              account: {
+                currencyCode: "INR",
+                kind: "asset",
+                name: "Wrong context",
+                subtype: "bank",
+              },
+              envelope: createEnvelope({
+                actorUserId: user.id,
+                authorization: { action: "create", subject: "TransactionGroup" },
+                idempotencyKey: "idem_wrong_service_auth",
+                ledgerId: workspaceState.ledger.id,
+                workspaceId: workspaceState.workspace.id,
+              }),
+            }),
+          ),
+        ).rejects.toMatchObject({ code: "MUTATION_FORBIDDEN" });
+        await expect(countRows(dialect, rawDb, "accounts")).resolves.toBe(0);
+        await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(0);
+      });
+    });
+
     it(`archives accounts through the ledger mutation runner on ${factory.name}`, async () => {
       await factory.run(
         async ({ accountRepository, dialect, events, identityRepository, rawDb, service }) => {
@@ -311,6 +340,7 @@ describe("finance mutation service", () => {
           );
           const envelope = createEnvelope({
             actorUserId: user.id,
+            authorization: { action: "archive", subject: "Account" },
             idempotencyKey: "idem_archive_account",
             ledgerId: workspaceState.ledger.id,
             workspaceId: workspaceState.workspace.id,
@@ -371,6 +401,7 @@ describe("finance mutation service", () => {
             },
             envelope: createEnvelope({
               actorUserId: user.id,
+              authorization: { action: "archive", subject: "Account" },
               idempotencyKey: "idem_missing_archive",
               ledgerId: workspaceState.ledger.id,
               workspaceId: workspaceState.workspace.id,
@@ -429,6 +460,7 @@ describe("finance mutation service", () => {
           },
           envelope: createEnvelope({
             actorUserId: user.id,
+            authorization: { action: "create", subject: "Account" },
             dryRun: true,
             idempotencyKey: "idem_dry_run_account",
             ledgerId: workspaceState.ledger.id,
@@ -505,10 +537,15 @@ function createEnvelope(input: {
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
   readonly idempotencyKey: string;
+  readonly authorization?: LedgerMutationEnvelope["authorization"];
   readonly dryRun?: boolean;
 }): LedgerMutationEnvelope {
   return {
     actorUserId: input.actorUserId,
+    authorization: input.authorization ?? {
+      action: "create",
+      subject: "TransactionGroup",
+    },
     baseRevision: null,
     deviceId: null,
     dryRun: input.dryRun ?? false,

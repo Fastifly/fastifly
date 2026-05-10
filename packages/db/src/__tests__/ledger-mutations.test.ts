@@ -302,6 +302,40 @@ describe("ledger mutation runner", () => {
       });
     });
 
+    it(`requires explicit authorization context before handler execution on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        let calls = 0;
+        const envelopeWithoutAuthorization: Partial<LedgerMutationEnvelope> = {
+          ...createEnvelope({
+            actorUserId: user.id,
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        };
+        delete envelopeWithoutAuthorization.authorization;
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+
+        await expect(
+          runner.run({
+            envelope: envelopeWithoutAuthorization as LedgerMutationEnvelope,
+            requestPayload: { ok: true },
+            handler: () => {
+              calls += 1;
+              return { body: { ok: true }, status: 201 };
+            },
+          }),
+        ).rejects.toMatchObject({
+          code: "MUTATION_FORBIDDEN",
+        } satisfies Partial<LedgerMutationError>);
+        expect(calls).toBe(0);
+      });
+    });
+
     it(`rejects read-only ledger state on ${factory.name}`, async () => {
       await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);
@@ -690,6 +724,10 @@ function createEnvelope(input: {
 }): LedgerMutationEnvelope {
   return {
     actorUserId: input.actorUserId,
+    authorization: {
+      action: "create",
+      subject: "TransactionGroup",
+    },
     baseRevision: null,
     deviceId: null,
     dryRun: input.dryRun ?? false,

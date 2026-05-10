@@ -192,6 +192,10 @@ export async function registerFinanceRoutes(
             },
             envelope: {
               actorUserId,
+              authorization: {
+                action: "create",
+                subject: "Account",
+              },
               baseRevision: null,
               deviceId: null,
               dryRun: false,
@@ -233,6 +237,10 @@ export async function registerFinanceRoutes(
             },
             envelope: {
               actorUserId,
+              authorization: {
+                action: "archive",
+                subject: "Account",
+              },
               baseRevision: null,
               deviceId: null,
               dryRun: false,
@@ -278,6 +286,10 @@ export async function registerFinanceRoutes(
           await create({
             envelope: {
               actorUserId,
+              authorization: {
+                action: "create",
+                subject: "TransactionGroup",
+              },
               baseRevision: null,
               deviceId: null,
               dryRun: false,

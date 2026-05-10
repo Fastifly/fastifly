@@ -846,7 +846,7 @@ All ledger-affecting writes, including sync pushes, go through one runner.
 Responsibilities:
 
 - authenticate actor and device
-- authorize workspace/ledger access
+- authorize workspace/ledger access and the envelope `authorization.action`/`authorization.subject`
 - acquire per-ledger write boundary
 - check idempotency and operation replay
 - validate base revision where required

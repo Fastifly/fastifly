@@ -1,8 +1,10 @@
 import type {
+  LedgerMutationAuthorizationContext,
   LedgerMutationEnvelope,
   LedgerMutationRunner,
   LedgerMutationRunResult,
 } from "../ledger-mutations.js";
+import { LedgerMutationError } from "../ledger-mutations.js";
 import type {
   AccountRecord,
   AccountRepository,
@@ -97,6 +99,10 @@ export function createLedgerFinanceMutationService(
 ): LedgerFinanceMutationService {
   return {
     createAccount(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "create",
+        subject: "Account",
+      });
       const requestPayload = serializeCreateAccountPayload(input.account);
 
       return options.runner.run({
@@ -157,6 +163,10 @@ export function createLedgerFinanceMutationService(
     },
 
     archiveAccount(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "archive",
+        subject: "Account",
+      });
       const requestPayload = serializeArchiveAccountPayload(input.account);
 
       return options.runner.run({
@@ -258,6 +268,10 @@ function createTransactionMutation(
   options: LedgerFinanceMutationServiceOptions,
   input: CreateTransactionMutationInput,
 ): Promise<LedgerMutationRunResult> {
+  assertExpectedAuthorization(input.envelope, {
+    action: "create",
+    subject: "TransactionGroup",
+  });
   const requestPayload = serializeCreateTransactionPayload(input.transaction);
 
   return options.runner.run({
@@ -320,6 +334,21 @@ function createTransactionMutation(
 }
 
 type MaybePromise<T> = T | Promise<T>;
+
+function assertExpectedAuthorization(
+  envelope: LedgerMutationEnvelope,
+  expected: LedgerMutationAuthorizationContext,
+): void {
+  if (
+    envelope.authorization.action !== expected.action ||
+    envelope.authorization.subject !== expected.subject
+  ) {
+    throw new LedgerMutationError(
+      "Ledger mutation authorization context does not match the requested operation.",
+      "MUTATION_FORBIDDEN",
+    );
+  }
+}
 
 function mapMaybePromise<TValue, TResult>(
   value: MaybePromise<TValue>,

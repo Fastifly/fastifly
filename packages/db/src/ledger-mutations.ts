@@ -34,12 +34,40 @@ export type LedgerMutationSideEffectFlags = {
   readonly recalculateBalances: boolean;
 };
 
+export type LedgerMutationAuthorizationAction =
+  | "create"
+  | "update"
+  | "delete"
+  | "archive"
+  | "reconcile"
+  | "import"
+  | "sync"
+  | "administer";
+
+export type LedgerMutationAuthorizationSubject =
+  | "Ledger"
+  | "Account"
+  | "Category"
+  | "Budget"
+  | "Tag"
+  | "Payee"
+  | "TransactionGroup"
+  | "Import"
+  | "Sync"
+  | "Settings";
+
+export type LedgerMutationAuthorizationContext = {
+  readonly action: LedgerMutationAuthorizationAction;
+  readonly subject: LedgerMutationAuthorizationSubject;
+};
+
 export type LedgerMutationEnvelope = {
   readonly requestId: string;
   readonly actorUserId: SyncedId;
   readonly deviceId?: SyncedId | null;
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
+  readonly authorization: LedgerMutationAuthorizationContext;
   readonly idempotencyKey?: string | null;
   readonly baseRevision?: number | null;
   readonly source: LedgerMutationSource;
@@ -245,11 +273,13 @@ export class LedgerMutationRunner<TTransaction> {
   }
 
   async run(input: LedgerMutationRunInput<TTransaction>): Promise<LedgerMutationRunResult> {
+    assertAuthorizationContext(input.envelope);
     await this.#options.authorize(input.envelope);
     assertSyncOperationContext(input.envelope);
 
     const requestHash = await hashJson({
       envelope: {
+        authorization: input.envelope.authorization,
         baseRevision: input.envelope.baseRevision ?? null,
         source: input.envelope.source,
         workspaceId: input.envelope.workspaceId,
@@ -768,6 +798,17 @@ function assertSyncOperationContext(envelope: LedgerMutationEnvelope): void {
     throw new LedgerMutationError(
       "Only sync mutations can include operation metadata.",
       "INVALID_SYNC_OPERATION",
+    );
+  }
+}
+
+function assertAuthorizationContext(envelope: LedgerMutationEnvelope): void {
+  const authorization = envelope.authorization;
+
+  if (!authorization?.action || !authorization.subject) {
+    throw new LedgerMutationError(
+      "Ledger mutation authorization context is required.",
+      "MUTATION_FORBIDDEN",
     );
   }
 }

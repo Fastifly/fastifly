@@ -233,7 +233,7 @@ LedgerMutationRunner
 mutation envelope
 idempotency receipt handling
 workspace/ledger lifecycle check
-permission check
+permission check with explicit action/subject authorization context
 per-ledger write boundary
 domain event collection
 post-commit side-effect dispatch

@@ -1,3 +1,4 @@
+import { assertCan, defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7 } from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
 import {
@@ -156,7 +157,9 @@ async function createPostgresRuntimeDependencies(
   }
 }
 
-function createRuntimeAuthorization(identityRepository: IdentityRepository): RuntimeAuthorization {
+export function createRuntimeAuthorization(
+  identityRepository: IdentityRepository,
+): RuntimeAuthorization {
   return async (envelope) => {
     const member = await identityRepository.findWorkspaceMember(
       envelope.workspaceId,
@@ -166,6 +169,19 @@ function createRuntimeAuthorization(identityRepository: IdentityRepository): Run
     if (!member) {
       throw new LedgerMutationError(
         "Actor is not a member of this workspace.",
+        "MUTATION_FORBIDDEN",
+      );
+    }
+
+    try {
+      assertCan(
+        defineWorkspaceAbility({ role: member.role }),
+        envelope.authorization.action,
+        envelope.authorization.subject,
+      );
+    } catch {
+      throw new LedgerMutationError(
+        "Actor is not allowed to perform this ledger mutation.",
         "MUTATION_FORBIDDEN",
       );
     }
