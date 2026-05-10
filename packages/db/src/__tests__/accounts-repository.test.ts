@@ -284,6 +284,20 @@ describe("account repository", () => {
           id: result.account.id,
           isActive: false,
         });
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "Bank",
+          subtype: "bank",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        const visibleAccounts = await accountRepository.listAccounts({
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+        expect(visibleAccounts.items.map((account) => account.name)).toEqual(["Bank"]);
       });
     });
   }

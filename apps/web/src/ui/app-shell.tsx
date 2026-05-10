@@ -6,6 +6,17 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@ui/alert-dialog";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
@@ -13,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@ui/sheet";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
+  Archive,
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
@@ -289,7 +301,6 @@ export function AppShell({ children }: PropsWithChildren) {
           transactions={transactions}
           transferCount={transferCount}
         />
-        {children}
       </main>
 
       <nav
@@ -650,24 +661,95 @@ function AccountsPage({
     readonly workspaceId: string;
   } | null;
 }) {
+  const queryClient = useQueryClient();
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveSuccess, setArchiveSuccess] = useState<string | null>(null);
+  const archiveMutation = useMutation({
+    mutationFn: async (account: AccountWithBalanceResponse) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+
+      await apiClient.archiveAccount({
+        accountId: account.id,
+        ledgerId: ledgerContext.ledgerId,
+        workspaceId: ledgerContext.workspaceId,
+      });
+    },
+    onSuccess: async (_data, account) => {
+      setArchiveSuccess(formatAccountArchiveSuccess(account.name));
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "finance",
+            "transactions",
+            ledgerContext?.workspaceId,
+            ledgerContext?.ledgerId,
+          ],
+        }),
+      ]);
+    },
+  });
+  const archiveAccount = async (account: AccountWithBalanceResponse) => {
+    setArchiveError(null);
+    setArchiveSuccess(null);
+
+    try {
+      await archiveMutation.mutateAsync(account);
+    } catch (error) {
+      setArchiveError(getAccountArchiveError(error));
+    }
+  };
+
   return (
     <section className="ff-single-page space-y-4" data-testid={testIds.accounts.page}>
       <AccountCreatePanel ledgerContext={ledgerContext} />
       <GlassSection title={en.shell.allAccounts} description={en.shell.accountsBody}>
-        <div
-          className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"
-          data-testid={testIds.accounts.list}
-        >
-          {accounts.length > 0 ? (
-            accounts.map((account) => <AccountCard key={account.id} account={account} />)
-          ) : (
-            <p
-              className="text-[14px] text-slate-600 dark:text-white/62"
-              data-testid={testIds.accounts.emptyState}
+        <div className="flex flex-col gap-3">
+          {archiveError ? (
+            <Alert data-testid={testIds.accounts.archive.errorAlert} variant="destructive">
+              <AlertDescription data-testid={testIds.accounts.archive.errorMessage}>
+                {archiveError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {archiveSuccess ? (
+            <Alert
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              data-testid={testIds.accounts.archive.successAlert}
             >
-              {accountsLoading ? en.shell.loadingData : en.shell.noAccountsBody}
-            </p>
-          )}
+              <AlertDescription data-testid={testIds.accounts.archive.successMessage}>
+                {archiveSuccess}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <div
+            className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"
+            data-testid={testIds.accounts.list}
+          >
+            {accounts.length > 0 ? (
+              accounts.map((account) => (
+                <AccountCard
+                  account={account}
+                  isArchiving={
+                    archiveMutation.isPending && archiveMutation.variables?.id === account.id
+                  }
+                  key={account.id}
+                  onArchive={archiveAccount}
+                />
+              ))
+            ) : (
+              <p
+                className="text-[14px] text-slate-600 dark:text-white/62"
+                data-testid={testIds.accounts.emptyState}
+              >
+                {accountsLoading ? en.shell.loadingData : en.shell.noAccountsBody}
+              </p>
+            )}
+          </div>
         </div>
       </GlassSection>
     </section>
@@ -1143,7 +1225,15 @@ function TransactionRow({ transaction }: { readonly transaction: TransactionGrou
   );
 }
 
-function AccountCard({ account }: { readonly account: AccountWithBalanceResponse }) {
+function AccountCard({
+  account,
+  isArchiving,
+  onArchive,
+}: {
+  readonly account: AccountWithBalanceResponse;
+  readonly isArchiving: boolean;
+  readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
+}) {
   return (
     <Card
       className="min-w-0 rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow-soft)] backdrop-blur-[18px]"
@@ -1174,14 +1264,69 @@ function AccountCard({ account }: { readonly account: AccountWithBalanceResponse
             {account.currencyCode}
           </Badge>
         </div>
-        <p
-          className="mt-6 break-words font-semibold text-[24px]"
-          data-testid={testIds.accounts.cardBalance(account.id)}
-        >
-          {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
-        </p>
+        <div className="mt-6 flex items-end justify-between gap-3">
+          <p
+            className="min-w-0 break-words font-semibold text-[24px] leading-tight"
+            data-testid={testIds.accounts.cardBalance(account.id)}
+          >
+            {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
+          </p>
+          <AccountArchiveAction account={account} disabled={isArchiving} onArchive={onArchive} />
+        </div>
       </CardContent>
     </Card>
+  );
+}
+
+function AccountArchiveAction({
+  account,
+  disabled,
+  onArchive,
+}: {
+  readonly account: AccountWithBalanceResponse;
+  readonly disabled: boolean;
+  readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          data-testid={testIds.accounts.archive.button(account.id)}
+          disabled={disabled}
+          size="sm"
+          type="button"
+          variant="destructive"
+        >
+          <Archive aria-hidden="true" data-icon="inline-start" />
+          {disabled ? en.accounts.archiving : en.accounts.archive}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent data-testid={testIds.accounts.archive.dialog(account.id)}>
+        <AlertDialogHeader>
+          <AlertDialogTitle data-testid={testIds.accounts.archive.title(account.id)}>
+            {formatAccountArchiveTitle(account.name)}
+          </AlertDialogTitle>
+          <AlertDialogDescription data-testid={testIds.accounts.archive.description(account.id)}>
+            {en.accounts.archiveDescription}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid={testIds.accounts.archive.cancelButton(account.id)}>
+            {en.accounts.archiveCancel}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            data-testid={testIds.accounts.archive.confirmButton(account.id)}
+            disabled={disabled}
+            onClick={() => {
+              void onArchive(account);
+            }}
+            variant="destructive"
+          >
+            {disabled ? en.accounts.archiving : en.accounts.archiveConfirm}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -1464,6 +1609,22 @@ function formatPendingSyncMessage(count: number): string {
   return count === 1
     ? en.shell.pendingSyncOne
     : en.shell.pendingSyncMany.replace("{count}", count.toString());
+}
+
+function formatAccountArchiveTitle(accountName: string): string {
+  return en.accounts.archiveTitle.replace("{name}", accountName);
+}
+
+function formatAccountArchiveSuccess(accountName: string): string {
+  return en.accounts.archiveSuccess.replace("{name}", accountName);
+}
+
+function getAccountArchiveError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return en.accounts.archiveFailed;
 }
 
 function sumTransactionAmounts(

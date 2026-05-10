@@ -242,6 +242,8 @@ export function createSqliteAccountRepository(
           FROM accounts
           WHERE workspace_id = ?
             AND ledger_id = ?
+            AND is_active = 1
+            AND archived_at IS NULL
             AND NOT (kind = 'equity' AND subtype IN ('opening_helper', 'reconciliation_helper'))
             ${cursorClause}
           ORDER BY name, id
@@ -400,6 +402,8 @@ export function createPostgresAccountRepository(
           and(
             eq(pgAccounts.workspaceId, scope.workspaceId),
             eq(pgAccounts.ledgerId, scope.ledgerId),
+            eq(pgAccounts.isActive, true),
+            isNull(pgAccounts.archivedAt),
             sql`NOT (${pgAccounts.kind} = 'equity' AND ${pgAccounts.subtype} IN ('opening_helper', 'reconciliation_helper'))`,
             cursor
               ? or(

@@ -1,6 +1,7 @@
 import {
   type ApiError,
   ApiErrorSchema,
+  ArchiveAccountResponseSchema,
   type AuthResponse,
   AuthResponseSchema,
   type CreateAccountRequest,
@@ -33,6 +34,9 @@ export class FastiflyApiError extends Error {
 }
 
 export type ApiClient = {
+  readonly archiveAccount: (
+    input: LedgerPathInput & { readonly accountId: string },
+  ) => Promise<void>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
   readonly createTransaction: (input: LedgerPathInput & CreateTransactionRequest) => Promise<void>;
   readonly getHealth: () => Promise<{ readonly status: string }>;
@@ -57,6 +61,31 @@ const openApiClient = createClient<paths>({
 let csrfTokenPromise: Promise<string> | null = null;
 
 export const apiClient: ApiClient = {
+  async archiveAccount(input) {
+    const { accountId, ledgerId, workspaceId } = input;
+    await withCsrf(async (csrfToken) => {
+      ArchiveAccountResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.DELETE(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/accounts/{accountId}",
+            {
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  accountId,
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+    });
+  },
   async createAccount(input) {
     const { ledgerId, workspaceId, ...body } = input;
     await withCsrf(async (csrfToken) => {
