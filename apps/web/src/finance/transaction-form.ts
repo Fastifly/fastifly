@@ -109,8 +109,8 @@ export function buildCreateTransactionRequest(
 
 export function makeTransactionFormDefaults(
   accounts: readonly AccountWithBalanceResponse[],
+  type: SimpleTransactionType = "expense",
 ): TransactionFormValues {
-  const type: SimpleTransactionType = "expense";
   const sourceAccount = getSourceAccountsForTransaction(accounts, type)[0];
   const destinationAccount = sourceAccount
     ? getDestinationAccountsForTransaction(accounts, sourceAccount.id, type)[0]

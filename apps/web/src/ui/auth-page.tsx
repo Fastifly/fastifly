@@ -5,10 +5,12 @@ import {
 } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@ui/button";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { apiClient, FastiflyApiError } from "../api/client";
 import { en } from "../i18n/en";
+import { testIds } from "../testing/testid-registry";
 import {
   AuthBrandHeader,
   type AuthCredentials,
@@ -55,7 +57,10 @@ export function AuthPage() {
   };
 
   return (
-    <main className="ff-liquid-bg flex min-h-screen items-center justify-center px-4 py-8 text-white">
+    <main
+      className="ff-liquid-bg flex min-h-screen items-center justify-center px-4 py-8 text-white"
+      data-testid={testIds.auth.page}
+    >
       <AuthPanel className="w-full max-w-[27rem]">
         <AuthBrandHeader icon={ShieldCheck} title={title} />
 
@@ -70,17 +75,19 @@ export function AuthPage() {
           submitLabel={submitLabel}
         />
 
-        <button
-          className="ff-auth-secondary mt-4"
+        <Button
+          className="mt-4 w-full"
+          data-testid={testIds.auth.modeSwitchButton}
           onClick={() => {
             mutation.reset();
             setCredentialsPreset(undefined);
             setMode(mode === "login" ? "register" : "login");
           }}
           type="button"
+          variant="outline"
         >
           {modeSwitchLabel}
-        </button>
+        </Button>
 
         {mode === "login" ? <DemoLoginCard onUseDemoLogin={fillDemoLogin} /> : null}
       </AuthPanel>

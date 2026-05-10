@@ -1,8 +1,23 @@
 import type { AccountWithBalanceResponse, CreateTransactionRequest } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PlusCircle } from "lucide-react";
-import { useState } from "react";
+import { Alert, AlertDescription } from "@ui/alert";
+import { Button } from "@ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui/dialog";
+import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
+import { Input } from "@ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui/select";
+import type { LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, PlusCircle, RefreshCcw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { apiClient, FastiflyApiError } from "../api/client";
 import {
   buildCreateTransactionRequest,
@@ -12,6 +27,7 @@ import {
   type SimpleTransactionType,
 } from "../finance/transaction-form";
 import { en } from "../i18n/en";
+import { testIds } from "../testing/testid-registry";
 
 type TransactionCreatePanelProps = {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -23,7 +39,9 @@ type TransactionCreatePanelProps = {
 
 export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionCreatePanelProps) {
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<SimpleTransactionType>("expense");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: async (request: CreateTransactionRequest) => {
@@ -55,235 +73,376 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
     },
   });
   const form = useForm({
-    defaultValues: makeTransactionFormDefaults(accounts),
+    defaultValues: makeTransactionFormDefaults(accounts, selectedType),
     onSubmit: async ({ value }) => {
       setFormError(null);
       setSuccessMessage(null);
       try {
         await mutation.mutateAsync(buildCreateTransactionRequest(value, accounts));
-        form.reset(makeTransactionFormDefaults(accounts));
+        form.reset(makeTransactionFormDefaults(accounts, selectedType));
+        setDialogOpen(false);
       } catch (error) {
         setFormError(getTransactionFormError(error));
       }
     },
   });
   const canCreate = Boolean(ledgerContext) && accounts.length > 0;
+  const canCreateExpense = canCreateTransactionType(accounts, "expense");
+  const canCreateIncome = canCreateTransactionType(accounts, "income");
+  const canCreateTransfer = canCreateTransactionType(accounts, "transfer");
+  const dialogTitle = `Add ${en.transactions.types[selectedType].toLowerCase()}`;
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      return;
+    }
+
+    form.reset(makeTransactionFormDefaults(accounts, selectedType));
+    setFormError(null);
+  }, [accounts, dialogOpen, form, selectedType]);
+
+  const openDialogForType = (type: SimpleTransactionType) => {
+    setSelectedType(type);
+    setSuccessMessage(null);
+    setDialogOpen(true);
+  };
 
   return (
-    <section className="ff-glass-panel p-4 md:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold text-[17px]">{en.transactions.addTransaction}</h2>
-          <p className="mt-1 max-w-2xl text-[14px] text-slate-600 dark:text-white/62">
-            {en.transactions.addTransactionBody}
-          </p>
-        </div>
-        <div className="ff-metric-icon text-emerald-700 dark:text-emerald-200">
-          <PlusCircle className="size-4" aria-hidden="true" />
-        </div>
-      </div>
+    <>
+      <Card className="gap-2 py-0" data-testid={testIds.transactionCreate.panel}>
+        <CardHeader className="gap-1 px-4 pt-3 pb-1">
+          <div>
+            <CardTitle className="text-[1rem]" data-testid={testIds.transactionCreate.title}>
+              {en.transactions.addTransaction}
+            </CardTitle>
+            <CardDescription
+              className="text-[0.8125rem] leading-snug"
+              data-testid={testIds.transactionCreate.description}
+            >
+              {en.transactions.addTransactionBody}
+            </CardDescription>
+          </div>
+          <CardAction>
+            <div className="inline-flex size-7 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)] text-emerald-700 dark:text-emerald-200">
+              <PlusCircle aria-hidden="true" />
+            </div>
+          </CardAction>
+        </CardHeader>
 
-      <form
-        className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void form.handleSubmit();
-        }}
-      >
-        <form.Field name="type">
-          {(field) => (
-            <fieldset>
-              <legend className="ff-field-label">{en.transactions.type}</legend>
-              <div className="ff-segmented">
-                {(["expense", "income", "transfer"] as const).map((type) => (
-                  <button
-                    aria-pressed={field.state.value === type}
-                    className="ff-segmented-button"
-                    key={type}
-                    onClick={() => {
-                      const sourceAccount = getSourceAccountsForTransaction(accounts, type)[0];
-                      const destinationAccount = sourceAccount
-                        ? getDestinationAccountsForTransaction(accounts, sourceAccount.id, type)[0]
-                        : undefined;
-                      field.handleChange(type);
-                      form.setFieldValue("sourceAccountId", sourceAccount?.id ?? "");
-                      form.setFieldValue("destinationAccountId", destinationAccount?.id ?? "");
-                    }}
-                    type="button"
-                  >
-                    {en.transactions.types[type]}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
-        </form.Field>
+        <CardContent className="flex flex-col gap-2 px-4 pb-3">
+          <div className="grid grid-cols-3 gap-2" data-testid={testIds.transactionCreate.actions}>
+            <QuickTransactionButton
+              disabled={!canCreate || !canCreateExpense}
+              icon={ArrowUpRight}
+              label={en.transactions.types.expense}
+              onClick={() => openDialogForType("expense")}
+              type="expense"
+            />
+            <QuickTransactionButton
+              disabled={!canCreate || !canCreateIncome}
+              icon={ArrowDownLeft}
+              label={en.transactions.types.income}
+              onClick={() => openDialogForType("income")}
+              type="income"
+            />
+            <QuickTransactionButton
+              disabled={!canCreate || !canCreateTransfer}
+              icon={RefreshCcw}
+              label={en.transactions.types.transfer}
+              onClick={() => openDialogForType("transfer")}
+              type="transfer"
+            />
+          </div>
+          {!canCreate ? (
+            <Alert data-testid={testIds.transactionCreate.unavailableAlert}>
+              <AlertDescription>
+                {ledgerContext ? en.shell.noAccountsBody : en.transactions.ledgerRequired}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {successMessage ? (
+            <Alert
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              data-testid={testIds.transactionCreate.successAlert}
+            >
+              <AlertDescription data-testid={testIds.transactionCreate.successMessage}>
+                {successMessage}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </CardContent>
+      </Card>
 
-        <form.Subscribe selector={(state) => state.values}>
-          {(values) => {
-            const sourceAccounts = getSourceAccountsForTransaction(accounts, values.type);
-            const destinationAccounts = getDestinationAccountsForTransaction(
-              accounts,
-              values.sourceAccountId,
-              values.type,
-            );
-
-            return (
-              <div className="ff-form-grid">
-                <form.Field
-                  name="amount"
-                  validators={{
-                    onChange: ({ value }) =>
-                      value.trim() ? undefined : en.transactions.amountRequired,
-                  }}
-                >
-                  {(field) => (
-                    <label className="ff-field">
-                      <span className="ff-field-label">{en.transactions.amount}</span>
-                      <input
-                        className="ff-form-input"
-                        inputMode="decimal"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        placeholder="1250.00"
-                        value={field.state.value}
-                      />
-                      <FieldError errors={field.state.meta.errors} />
-                    </label>
-                  )}
-                </form.Field>
-
-                <form.Field
-                  name="occurredOn"
-                  validators={{
-                    onChange: ({ value }) =>
-                      value.trim() ? undefined : en.transactions.dateRequired,
-                  }}
-                >
-                  {(field) => (
-                    <label className="ff-field">
-                      <span className="ff-field-label">{en.transactions.date}</span>
-                      <input
-                        className="ff-form-input"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        type="date"
-                        value={field.state.value}
-                      />
-                      <FieldError errors={field.state.meta.errors} />
-                    </label>
-                  )}
-                </form.Field>
-
-                <form.Field
-                  name="sourceAccountId"
-                  validators={{
-                    onChange: ({ value }) =>
-                      value ? undefined : en.transactions.sourceAccountRequired,
-                  }}
-                >
-                  {(field) => (
-                    <label className="ff-field">
-                      <span className="ff-field-label">{sourceLabel(values.type)}</span>
-                      <select
-                        className="ff-form-input"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => {
-                          const sourceAccountId = event.target.value;
-                          const destinationAccount = getDestinationAccountsForTransaction(
-                            accounts,
-                            sourceAccountId,
-                            values.type,
-                          )[0];
-                          field.handleChange(sourceAccountId);
-                          form.setFieldValue("destinationAccountId", destinationAccount?.id ?? "");
-                        }}
-                        value={field.state.value}
-                      >
-                        <option value="">{en.transactions.chooseAccount}</option>
-                        {sourceAccounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.name}
-                          </option>
-                        ))}
-                      </select>
-                      <FieldError errors={field.state.meta.errors} />
-                    </label>
-                  )}
-                </form.Field>
-
-                <form.Field
-                  name="destinationAccountId"
-                  validators={{
-                    onChange: ({ value }) =>
-                      value ? undefined : en.transactions.destinationAccountRequired,
-                  }}
-                >
-                  {(field) => (
-                    <label className="ff-field">
-                      <span className="ff-field-label">{destinationLabel(values.type)}</span>
-                      <select
-                        className="ff-form-input"
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        value={field.state.value}
-                      >
-                        <option value="">{en.transactions.chooseAccount}</option>
-                        {destinationAccounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.name}
-                          </option>
-                        ))}
-                      </select>
-                      <FieldError errors={field.state.meta.errors} />
-                    </label>
-                  )}
-                </form.Field>
-              </div>
-            );
-          }}
-        </form.Subscribe>
-
-        <form.Field
-          name="description"
-          validators={{
-            onChange: ({ value }) =>
-              value.trim() ? undefined : en.transactions.descriptionRequired,
-          }}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[36rem]"
+          data-testid={testIds.transactionCreate.dialog}
         >
-          {(field) => (
-            <label className="ff-field">
-              <span className="ff-field-label">{en.transactions.description}</span>
-              <input
-                className="ff-form-input"
-                name={field.name}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-                placeholder={en.transactions.descriptionPlaceholder}
-                value={field.state.value}
-              />
-              <FieldError errors={field.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
+          <DialogHeader>
+            <DialogTitle data-testid={testIds.transactionCreate.dialogTitle}>
+              {dialogTitle}
+            </DialogTitle>
+            <DialogDescription data-testid={testIds.transactionCreate.dialogDescription}>
+              {en.transactions.addTransactionBody}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="flex flex-col gap-4"
+            data-testid={testIds.transactionCreate.form}
+            onSubmit={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void form.handleSubmit();
+            }}
+          >
+            <form.Subscribe selector={(state) => state.values}>
+              {(values) => {
+                const sourceAccounts = getSourceAccountsForTransaction(accounts, values.type);
+                const destinationAccounts = getDestinationAccountsForTransaction(
+                  accounts,
+                  values.sourceAccountId,
+                  values.type,
+                );
 
-        {formError ? <p className="ff-form-error">{formError}</p> : null}
-        {successMessage ? <p className="ff-form-success">{successMessage}</p> : null}
+                return (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <form.Field
+                      name="amount"
+                      validators={{
+                        onChange: ({ value }) =>
+                          value.trim() ? undefined : en.transactions.amountRequired,
+                      }}
+                    >
+                      {(field) => (
+                        <FormField
+                          errors={field.state.meta.errors}
+                          errorTestId={testIds.transactionCreate.amountError}
+                          inputId={field.name}
+                          label={en.transactions.amount}
+                        >
+                          <Input
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            data-testid={testIds.transactionCreate.amountInput}
+                            id={field.name}
+                            inputMode="decimal"
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                            placeholder="1250.00"
+                            value={field.state.value}
+                          />
+                        </FormField>
+                      )}
+                    </form.Field>
 
-        <button
-          className="ff-auth-primary"
-          disabled={!canCreate || mutation.isPending}
-          type="submit"
-        >
-          {mutation.isPending ? en.transactions.saving : en.transactions.save}
-        </button>
-      </form>
-    </section>
+                    <form.Field
+                      name="occurredOn"
+                      validators={{
+                        onChange: ({ value }) =>
+                          value.trim() ? undefined : en.transactions.dateRequired,
+                      }}
+                    >
+                      {(field) => (
+                        <FormField
+                          errors={field.state.meta.errors}
+                          errorTestId={testIds.transactionCreate.dateError}
+                          inputId={field.name}
+                          label={en.transactions.date}
+                        >
+                          <Input
+                            aria-invalid={field.state.meta.errors.length > 0}
+                            data-testid={testIds.transactionCreate.dateInput}
+                            id={field.name}
+                            name={field.name}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                            type="date"
+                            value={field.state.value}
+                          />
+                        </FormField>
+                      )}
+                    </form.Field>
+
+                    <form.Field
+                      name="sourceAccountId"
+                      validators={{
+                        onChange: ({ value }) =>
+                          value ? undefined : en.transactions.sourceAccountRequired,
+                      }}
+                    >
+                      {(field) => (
+                        <FormField
+                          errors={field.state.meta.errors}
+                          errorTestId={testIds.transactionCreate.sourceAccountError}
+                          inputId={field.name}
+                          label={sourceLabel(values.type)}
+                        >
+                          <Select
+                            {...(field.state.value ? { value: field.state.value } : {})}
+                            onValueChange={(sourceAccountId) => {
+                              const destinationAccount = getDestinationAccountsForTransaction(
+                                accounts,
+                                sourceAccountId,
+                                values.type,
+                              )[0];
+                              field.handleChange(sourceAccountId);
+                              form.setFieldValue(
+                                "destinationAccountId",
+                                destinationAccount?.id ?? "",
+                              );
+                            }}
+                          >
+                            <SelectTrigger
+                              aria-invalid={field.state.meta.errors.length > 0}
+                              className="w-full"
+                              data-testid={testIds.transactionCreate.sourceAccountSelect}
+                              id={field.name}
+                            >
+                              <SelectValue placeholder={en.transactions.chooseAccount} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {sourceAccounts.map((account) => (
+                                  <SelectItem key={account.id} value={account.id}>
+                                    {account.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      )}
+                    </form.Field>
+
+                    <form.Field
+                      name="destinationAccountId"
+                      validators={{
+                        onChange: ({ value }) =>
+                          value ? undefined : en.transactions.destinationAccountRequired,
+                      }}
+                    >
+                      {(field) => (
+                        <FormField
+                          label={destinationLabel(values.type)}
+                          errors={field.state.meta.errors}
+                          errorTestId={testIds.transactionCreate.destinationAccountError}
+                          inputId={field.name}
+                        >
+                          <Select
+                            {...(field.state.value ? { value: field.state.value } : {})}
+                            onValueChange={(value) => field.handleChange(value)}
+                          >
+                            <SelectTrigger
+                              aria-invalid={field.state.meta.errors.length > 0}
+                              className="w-full"
+                              data-testid={testIds.transactionCreate.destinationAccountSelect}
+                              id={field.name}
+                            >
+                              <SelectValue placeholder={en.transactions.chooseAccount} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {destinationAccounts.map((account) => (
+                                  <SelectItem key={account.id} value={account.id}>
+                                    {account.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      )}
+                    </form.Field>
+                  </div>
+                );
+              }}
+            </form.Subscribe>
+
+            <form.Field
+              name="description"
+              validators={{
+                onChange: ({ value }) =>
+                  value.trim() ? undefined : en.transactions.descriptionRequired,
+              }}
+            >
+              {(field) => (
+                <FormField
+                  errors={field.state.meta.errors}
+                  errorTestId={testIds.transactionCreate.descriptionError}
+                  inputId={field.name}
+                  label={en.transactions.description}
+                >
+                  <Input
+                    aria-invalid={field.state.meta.errors.length > 0}
+                    data-testid={testIds.transactionCreate.descriptionInput}
+                    id={field.name}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    placeholder={en.transactions.descriptionPlaceholder}
+                    value={field.state.value}
+                  />
+                </FormField>
+              )}
+            </form.Field>
+
+            {formError ? (
+              <Alert data-testid={testIds.transactionCreate.errorAlert} variant="destructive">
+                <AlertDescription data-testid={testIds.transactionCreate.errorMessage}>
+                  {formError}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {successMessage ? (
+              <Alert
+                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+                data-testid={testIds.transactionCreate.successAlert}
+              >
+                <AlertDescription data-testid={testIds.transactionCreate.successMessage}>
+                  {successMessage}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            <Button
+              data-testid={testIds.transactionCreate.saveButton}
+              disabled={!canCreate || mutation.isPending}
+              type="submit"
+            >
+              {mutation.isPending ? en.transactions.saving : en.transactions.save}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function QuickTransactionButton({
+  disabled,
+  icon: Icon,
+  label,
+  onClick,
+  type,
+}: {
+  readonly disabled: boolean;
+  readonly icon: LucideIcon;
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly type: SimpleTransactionType;
+}) {
+  return (
+    <Button
+      className="h-9 min-w-0 gap-1.5 px-2 text-[0.8125rem]"
+      data-testid={testIds.transactionCreate.quickButton(type)}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+      variant="outline"
+    >
+      <Icon aria-hidden="true" data-icon="inline-start" />
+      {label}
+    </Button>
   );
 }
 
@@ -303,6 +462,19 @@ function destinationLabel(type: SimpleTransactionType): string {
   return en.transactions.toAccount;
 }
 
+function canCreateTransactionType(
+  accounts: readonly AccountWithBalanceResponse[],
+  type: SimpleTransactionType,
+): boolean {
+  const sourceAccount = getSourceAccountsForTransaction(accounts, type)[0];
+
+  if (!sourceAccount) {
+    return false;
+  }
+
+  return getDestinationAccountsForTransaction(accounts, sourceAccount.id, type).length > 0;
+}
+
 function getTransactionFormError(error: unknown): string {
   if (error instanceof FastiflyApiError) {
     return error.response.error.message;
@@ -314,14 +486,42 @@ function getTransactionFormError(error: unknown): string {
   return en.transactions.createFailed;
 }
 
-function FieldError({ errors }: { readonly errors: readonly unknown[] }) {
+function FormField({
+  children,
+  errors,
+  errorTestId,
+  inputId,
+  label,
+}: {
+  readonly children: React.ReactNode;
+  readonly errors: readonly unknown[];
+  readonly errorTestId?: string | undefined;
+  readonly inputId: string;
+  readonly label: string;
+}) {
+  const hasError = errors.length > 0;
+
+  return (
+    <Field data-invalid={hasError}>
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
+      {children}
+      <FieldError errors={errors} testId={errorTestId} />
+    </Field>
+  );
+}
+
+function FieldError({
+  errors,
+  testId,
+}: {
+  readonly errors: readonly unknown[];
+  readonly testId?: string | undefined;
+}) {
   const firstError = errors[0];
 
   if (!firstError) {
     return null;
   }
 
-  return (
-    <span className="mt-1 block text-red-700 text-xs dark:text-red-300">{String(firstError)}</span>
-  );
+  return <ShadcnFieldError data-testid={testId}>{String(firstError)}</ShadcnFieldError>;
 }

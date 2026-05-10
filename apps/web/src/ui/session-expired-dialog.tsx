@@ -1,10 +1,12 @@
 import { LoginCredentialsSchema } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui/dialog";
 import { LockKeyhole } from "lucide-react";
-import { useEffect } from "react";
 import { apiClient, FastiflyApiError } from "../api/client";
 import { en } from "../i18n/en";
-import { AuthCredentialsForm, AuthDialogHeader, AuthPanel } from "./auth-components";
+import { testIds } from "../testing/testid-registry";
+import { AuthCredentialsForm } from "./auth-components";
 
 type SessionExpiredDialogProps = {
   readonly onLoginSuccess: () => void;
@@ -37,38 +39,31 @@ export function SessionExpiredDialog({
       : mutation.error.message
     : undefined;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div className="ff-auth-modal-backdrop" role="presentation">
-      <AuthPanel
-        ariaDescribedBy="session-expired-description"
-        className="ff-auth-modal"
-        role="dialog"
+    <Dialog open={open}>
+      <DialogContent
+        className="w-[calc(100%-2rem)] max-w-[27rem]"
+        data-testid={testIds.auth.sessionExpired.dialog}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        showCloseButton={false}
       >
-        <AuthDialogHeader
-          description={en.auth.sessionExpiredDescription}
-          descriptionId="session-expired-description"
-          icon={LockKeyhole}
-          title={en.auth.sessionExpired}
-        />
+        <DialogHeader className="flex flex-row items-start gap-3 text-left">
+          <div className="ff-auth-dialog-icon">
+            <LockKeyhole aria-hidden="true" />
+          </div>
+          <div>
+            <DialogTitle className="text-[1.45rem]" data-testid={testIds.auth.sessionExpired.title}>
+              {en.auth.sessionExpired}
+            </DialogTitle>
+            <DialogDescription
+              data-testid={testIds.auth.sessionExpired.description}
+              id={testIds.auth.sessionExpired.description}
+            >
+              {en.auth.sessionExpiredDescription}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         <AuthCredentialsForm
           errorMessage={errorMessage}
@@ -79,12 +74,28 @@ export function SessionExpiredDialog({
             await mutation.mutateAsync(credentials);
           }}
           submitLabel={en.auth.loginAgain}
+          testIds={{
+            errorAlert: testIds.auth.sessionExpired.errorAlert,
+            errorMessage: testIds.auth.sessionExpired.errorMessage,
+            form: testIds.auth.sessionExpired.form,
+            lockedUsername: testIds.auth.sessionExpired.lockedUsername,
+            passwordError: testIds.auth.sessionExpired.passwordError,
+            passwordInput: testIds.auth.sessionExpired.passwordInput,
+            submitButton: testIds.auth.sessionExpired.submitButton,
+            usernameInput: testIds.auth.sessionExpired.usernameInput,
+          }}
         />
 
-        <button className="ff-auth-secondary mt-3" onClick={onSwitchAccount} type="button">
+        <Button
+          className="mt-3 w-full"
+          data-testid={testIds.auth.sessionExpired.switchAccountButton}
+          onClick={onSwitchAccount}
+          type="button"
+          variant="outline"
+        >
           {en.auth.switchAccount}
-        </button>
-      </AuthPanel>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }

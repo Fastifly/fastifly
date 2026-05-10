@@ -1,9 +1,18 @@
 import { DEFAULT_DEMO_LOGIN } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
+import { Alert, AlertDescription } from "@ui/alert";
+import { Badge } from "@ui/badge";
+import { Button } from "@ui/button";
+import { Card } from "@ui/card";
+import { Field, FieldGroup, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
+import { Input } from "@ui/input";
 import type { LucideIcon } from "lucide-react";
-import { CircleDollarSign, Copy, LogIn, UserRound } from "lucide-react";
+import { Copy, LogIn, UserRound } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { en } from "../i18n/en";
+import { testIds } from "../testing/testid-registry";
+import { FastiflyIcon } from "./fastifly-icon";
 
 export type AuthMode = "login" | "register";
 
@@ -24,13 +33,6 @@ type AuthBrandHeaderProps = {
   readonly title: string;
 };
 
-type AuthDialogHeaderProps = {
-  readonly description: string;
-  readonly descriptionId: string;
-  readonly icon: LucideIcon;
-  readonly title: string;
-};
-
 type AuthCredentialsFormProps = {
   readonly errorMessage?: string | undefined;
   readonly initialCredentials?: AuthCredentials | undefined;
@@ -39,19 +41,33 @@ type AuthCredentialsFormProps = {
   readonly mode: AuthMode;
   readonly onSubmit: (credentials: AuthCredentials) => Promise<void>;
   readonly submitLabel: string;
+  readonly testIds?: AuthCredentialsFormTestIds | undefined;
+};
+
+type AuthCredentialsFormTestIds = {
+  readonly errorAlert?: string | undefined;
+  readonly errorMessage?: string | undefined;
+  readonly form?: string | undefined;
+  readonly lockedUsername?: string | undefined;
+  readonly passwordError?: string | undefined;
+  readonly passwordInput?: string | undefined;
+  readonly submitButton?: string | undefined;
+  readonly usernameError?: string | undefined;
+  readonly usernameInput?: string | undefined;
 };
 
 export function AuthPanel({ ariaDescribedBy, children, className = "", role }: AuthPanelProps) {
   const dialogProps = role === "dialog" ? { "aria-modal": true, role } : {};
 
   return (
-    <div
+    <Card
       aria-describedby={ariaDescribedBy}
-      className={`ff-auth-panel p-5 ${className}`}
+      className={cn("ff-auth-panel p-5", className)}
+      data-testid={testIds.auth.panel}
       {...dialogProps}
     >
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -59,37 +75,21 @@ export function AuthBrandHeader({ icon: Icon, title }: AuthBrandHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className="ff-brand-mark">
-          <CircleDollarSign className="size-5" aria-hidden="true" />
+        <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[var(--ff-shadow-soft)] dark:bg-emerald-400 dark:text-black">
+          <FastiflyIcon className="size-7" />
         </div>
         <div>
           <p className="font-semibold text-[15px]">{en.appName}</p>
-          <h1 className="mt-1 font-semibold text-[32px] leading-none">{title}</h1>
+          <h1
+            className="mt-1 font-semibold text-[32px] leading-none"
+            data-testid={testIds.auth.title}
+          >
+            {title}
+          </h1>
         </div>
       </div>
-      <div className="ff-metric-icon text-cyan-100">
-        <Icon className="size-4" aria-hidden="true" />
-      </div>
-    </div>
-  );
-}
-
-export function AuthDialogHeader({
-  description,
-  descriptionId,
-  icon: Icon,
-  title,
-}: AuthDialogHeaderProps) {
-  return (
-    <div className="ff-auth-dialog-header">
-      <div className="ff-auth-dialog-icon">
-        <Icon className="size-4" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <h2 className="ff-auth-dialog-title">{title}</h2>
-        <p className="ff-auth-dialog-description" id={descriptionId}>
-          {description}
-        </p>
+      <div className="inline-flex size-8 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)] text-cyan-100">
+        <Icon aria-hidden="true" />
       </div>
     </div>
   );
@@ -103,7 +103,20 @@ export function AuthCredentialsForm({
   mode,
   onSubmit,
   submitLabel,
+  testIds: formTestIds,
 }: AuthCredentialsFormProps) {
+  const resolvedTestIds = {
+    errorAlert: testIds.auth.errorAlert,
+    errorMessage: testIds.auth.errorMessage,
+    form: testIds.auth.form,
+    lockedUsername: testIds.auth.lockedUsername,
+    passwordError: testIds.auth.passwordError,
+    passwordInput: testIds.auth.passwordInput,
+    submitButton: testIds.auth.submitButton,
+    usernameError: testIds.auth.usernameError,
+    usernameInput: testIds.auth.usernameInput,
+    ...formTestIds,
+  };
   const form = useForm({
     defaultValues: {
       password: initialCredentials?.password ?? "",
@@ -129,119 +142,164 @@ export function AuthCredentialsForm({
 
   return (
     <form
-      className="mt-6 space-y-4"
+      className="mt-6 flex flex-col gap-4"
+      data-testid={resolvedTestIds.form}
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
         void form.handleSubmit();
       }}
     >
-      {hasLockedUsername ? (
-        <>
-          <input
-            aria-label={en.auth.username}
-            autoComplete="username"
-            className="sr-only"
+      <FieldGroup>
+        {hasLockedUsername ? (
+          <>
+            <Input
+              aria-label={en.auth.username}
+              autoComplete="username"
+              className="sr-only"
+              data-testid={resolvedTestIds.usernameInput}
+              name="username"
+              readOnly
+              tabIndex={-1}
+              value={lockedUsername}
+            />
+            <Badge
+              className="flex min-h-11 w-full justify-between rounded-lg px-3 py-2 text-sm"
+              data-testid={resolvedTestIds.lockedUsername}
+              variant="outline"
+            >
+              <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                <UserRound aria-hidden="true" />
+                <span>{en.auth.username}</span>
+              </span>
+              <span className="min-w-0 truncate text-foreground">{lockedUsername}</span>
+            </Badge>
+          </>
+        ) : (
+          <form.Field
             name="username"
-            readOnly
-            tabIndex={-1}
-            value={lockedUsername}
-          />
-          <div className="ff-auth-user-chip">
-            <UserRound className="size-4" aria-hidden="true" />
-            <span>{lockedUsername}</span>
-          </div>
-        </>
-      ) : (
+            validators={{
+              onChange: ({ value }) => (value.trim() ? undefined : en.auth.usernameRequired),
+            }}
+          >
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <FieldLabel htmlFor={field.name}>{en.auth.username}</FieldLabel>
+                <Input
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  autoComplete="username"
+                  data-testid={resolvedTestIds.usernameInput}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder={
+                    mode === "login" ? DEFAULT_DEMO_LOGIN.username : en.auth.usernamePlaceholder
+                  }
+                  value={field.state.value}
+                />
+                <AuthFieldError
+                  errors={field.state.meta.errors}
+                  testId={resolvedTestIds.usernameError}
+                />
+              </Field>
+            )}
+          </form.Field>
+        )}
+
         <form.Field
-          name="username"
+          name="password"
           validators={{
-            onChange: ({ value }) => (value.trim() ? undefined : en.auth.usernameRequired),
+            onChange: ({ value }) => {
+              if (mode === "login") {
+                return value.length > 0 ? undefined : en.auth.passwordRequired;
+              }
+
+              return value.length >= 8 ? undefined : en.auth.passwordPolicy;
+            },
           }}
         >
           {(field) => (
-            <label className="block text-sm">
-              <span className="font-semibold">{en.auth.username}</span>
-              <input
-                autoComplete="username"
-                className="ff-auth-input"
+            <Field data-invalid={field.state.meta.errors.length > 0}>
+              <FieldLabel htmlFor={field.name}>{en.auth.password}</FieldLabel>
+              <Input
+                aria-invalid={field.state.meta.errors.length > 0}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                data-testid={resolvedTestIds.passwordInput}
+                id={field.name}
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
-                placeholder={
-                  mode === "login" ? DEFAULT_DEMO_LOGIN.username : en.auth.usernamePlaceholder
-                }
+                placeholder={en.auth.passwordPlaceholder}
+                type="password"
                 value={field.state.value}
               />
-              <FieldError errors={field.state.meta.errors} />
-            </label>
+              <AuthFieldError
+                errors={field.state.meta.errors}
+                testId={resolvedTestIds.passwordError}
+              />
+            </Field>
           )}
         </form.Field>
-      )}
-
-      <form.Field
-        name="password"
-        validators={{
-          onChange: ({ value }) => {
-            if (mode === "login") {
-              return value.length > 0 ? undefined : en.auth.passwordRequired;
-            }
-
-            return value.length >= 8 ? undefined : en.auth.passwordPolicy;
-          },
-        }}
-      >
-        {(field) => (
-          <label className="block text-sm">
-            <span className="font-semibold">{en.auth.password}</span>
-            <input
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              className="ff-auth-input"
-              name={field.name}
-              onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.target.value)}
-              placeholder={en.auth.passwordPlaceholder}
-              type="password"
-              value={field.state.value}
-            />
-            <FieldError errors={field.state.meta.errors} />
-          </label>
-        )}
-      </form.Field>
+      </FieldGroup>
 
       {errorMessage ? (
-        <p className="rounded-[10px] border border-red-400/25 bg-red-500/10 p-3 text-red-100 text-sm">
-          {errorMessage}
-        </p>
+        <Alert data-testid={resolvedTestIds.errorAlert} variant="destructive">
+          <AlertDescription data-testid={resolvedTestIds.errorMessage}>
+            {errorMessage}
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      <button className="ff-auth-primary" disabled={isPending} type="submit">
+      <Button
+        className="w-full"
+        data-testid={resolvedTestIds.submitButton}
+        disabled={isPending}
+        size="lg"
+        type="submit"
+      >
         {isPending ? en.auth.loading : submitLabel}
-      </button>
+      </Button>
     </form>
   );
 }
 
 export function DemoLoginCard({ onUseDemoLogin }: { readonly onUseDemoLogin: () => void }) {
   return (
-    <section className="ff-demo-login-card mt-4" aria-label={en.auth.demoLoginHelper}>
+    <section
+      className="mt-4 rounded-lg border bg-muted/45 p-3 text-card-foreground"
+      aria-label={en.auth.demoLoginHelper}
+      data-testid={testIds.auth.demoLoginCard}
+    >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-[14px]">{en.auth.demoLoginHelper}</h2>
-        <button className="ff-demo-use-button" onClick={onUseDemoLogin} type="button">
-          <LogIn className="size-4" aria-hidden="true" />
+        <h2 className="font-semibold text-[14px]" data-testid={testIds.auth.demoLoginTitle}>
+          {en.auth.demoLoginHelper}
+        </h2>
+        <Button
+          data-testid={testIds.auth.useDemoLoginButton}
+          onClick={onUseDemoLogin}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <LogIn aria-hidden="true" data-icon="inline-start" />
           <span>{en.auth.useDemoLogin}</span>
-        </button>
+        </Button>
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 flex flex-col gap-2">
         <CredentialRow
+          copyButtonTestId={testIds.auth.copyDemoUsernameButton}
           copyLabel={en.auth.copyUsername}
           label={en.auth.demoUsername}
+          valueTestId={testIds.auth.demoUsernameValue}
           value={DEFAULT_DEMO_LOGIN.username}
         />
         <CredentialRow
+          copyButtonTestId={testIds.auth.copyDemoPasswordButton}
           copyLabel={en.auth.copyPassword}
           label={en.auth.demoPassword}
+          valueTestId={testIds.auth.demoPasswordValue}
           value={DEFAULT_DEMO_LOGIN.password}
         />
       </div>
@@ -250,28 +308,39 @@ export function DemoLoginCard({ onUseDemoLogin }: { readonly onUseDemoLogin: () 
 }
 
 function CredentialRow({
+  copyButtonTestId,
   copyLabel,
   label,
+  valueTestId,
   value,
 }: {
+  readonly copyButtonTestId: string;
   readonly copyLabel: string;
   readonly label: string;
+  readonly valueTestId: string;
   readonly value: string;
 }) {
   return (
-    <div className="ff-demo-credential-row">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-card p-2">
       <div className="min-w-0">
-        <span>{label}</span>
-        <strong>{value}</strong>
+        <span className="block font-semibold text-muted-foreground text-xs">{label}</span>
+        <strong
+          className="block font-semibold text-sm [overflow-wrap:anywhere]"
+          data-testid={valueTestId}
+        >
+          {value}
+        </strong>
       </div>
-      <button
+      <Button
         aria-label={copyLabel}
-        className="ff-demo-copy-button"
+        data-testid={copyButtonTestId}
         onClick={() => copyText(value)}
+        size="icon-sm"
         type="button"
+        variant="outline"
       >
-        <Copy className="size-4" aria-hidden="true" />
-      </button>
+        <Copy aria-hidden="true" />
+      </Button>
     </div>
   );
 }
@@ -284,14 +353,18 @@ function copyText(value: string) {
   void navigator.clipboard.writeText(value).catch(() => undefined);
 }
 
-function FieldError({ errors }: { readonly errors: readonly unknown[] }) {
+function AuthFieldError({
+  errors,
+  testId,
+}: {
+  readonly errors: readonly unknown[];
+  readonly testId?: string | undefined;
+}) {
   const firstError = errors[0];
 
   if (!firstError) {
     return null;
   }
 
-  return (
-    <span className="mt-1 block text-red-700 text-xs dark:text-red-300">{String(firstError)}</span>
-  );
+  return <ShadcnFieldError data-testid={testId}>{String(firstError)}</ShadcnFieldError>;
 }

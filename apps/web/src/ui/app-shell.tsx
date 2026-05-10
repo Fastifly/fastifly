@@ -5,13 +5,17 @@ import {
 } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Alert, AlertDescription } from "@ui/alert";
+import { Badge } from "@ui/badge";
+import { Button } from "@ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@ui/sheet";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   ArrowDownLeft,
   ArrowUpRight,
   CheckCircle2,
-  CircleDollarSign,
   Landmark,
   LogOut,
   Menu,
@@ -25,6 +29,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { type PropsWithChildren, type ReactNode, useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { apiClient } from "../api/client";
 import {
   useAccountsQuery,
@@ -37,6 +42,8 @@ import { SESSION_EXPIRED_EVENT, shouldShowSessionExpiredDialog } from "../auth/s
 import { en } from "../i18n/en";
 import { registerServiceWorker } from "../pwa";
 import { readPendingOutboxCount } from "../sync/outbox";
+import { testIds } from "../testing/testid-registry";
+import { FastiflyIcon } from "./fastifly-icon";
 import {
   getCurrentNavigationItem,
   getMobilePrimaryNavigation,
@@ -48,6 +55,7 @@ import { TransactionCreatePanel } from "./transaction-create-panel";
 
 type Theme = "light" | "dark";
 type Tone = "danger" | "neutral" | "success" | "warning";
+type NavigationTestIdSlug = Parameters<typeof testIds.navigation.mobileNav>[0];
 
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
@@ -233,23 +241,31 @@ export function AppShell({ children }: PropsWithChildren) {
   const authenticatedUsername = meContext.data.data.user.username;
 
   return (
-    <div className="ff-liquid-bg min-h-screen overflow-x-hidden text-white">
-      <main className="relative mx-auto min-h-screen w-full max-w-[1500px] px-3 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-5 xl:px-8 xl:pb-10">
+    <div
+      className="ff-liquid-bg min-h-screen overflow-x-hidden text-white"
+      data-testid={testIds.shell.app}
+    >
+      <main
+        className="relative mx-auto min-h-screen w-full max-w-[1500px] px-3 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-5 xl:px-8 xl:pb-10"
+        data-testid={testIds.shell.main}
+      >
         <TopBar
           accountsCount={accounts.length}
           currentNavigationItem={currentNavigationItem}
           isOnline={isOnline}
-          onMore={() => setIsMoreOpen(true)}
           onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
           theme={theme}
           transactionsCount={transactions.length}
         />
 
         {pendingOutboxCount > 0 ? (
-          <div className="ff-warning-bar mt-3">
+          <Alert
+            className="mt-3 border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
+            data-testid={testIds.shell.pendingSyncAlert}
+          >
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-            <p>{formatPendingSyncMessage(pendingOutboxCount)}</p>
-          </div>
+            <AlertDescription>{formatPendingSyncMessage(pendingOutboxCount)}</AlertDescription>
+          </Alert>
         ) : null}
 
         <PageBody
@@ -269,20 +285,29 @@ export function AppShell({ children }: PropsWithChildren) {
           spending={spending}
           spendingRate={spendingRate}
           transactions={transactions}
-          transactionsError={meContext.isError}
           transferCount={transferCount}
         />
         {children}
       </main>
 
-      <nav className="ff-mobile-tabbar xl:hidden" aria-label={en.shell.navigation}>
+      <nav
+        className="ff-mobile-tabbar xl:hidden"
+        aria-label={en.shell.navigation}
+        data-testid={testIds.navigation.mobileTabbar}
+      >
         {mobileTabs.map((item) => (
           <MobileNavLink key={item.label} item={item} onClick={() => setIsMoreOpen(false)} />
         ))}
-        <button type="button" className="ff-mobile-tab" onClick={() => setIsMoreOpen(true)}>
-          <Menu className="size-5" aria-hidden="true" />
+        <Button
+          type="button"
+          variant="ghost"
+          className="ff-mobile-tab"
+          data-testid={testIds.navigation.mobileMoreButton}
+          onClick={() => setIsMoreOpen(true)}
+        >
+          <Menu aria-hidden="true" />
           <span>{en.nav.more}</span>
-        </button>
+        </Button>
       </nav>
 
       <MobileMoreDrawer
@@ -316,7 +341,6 @@ function TopBar({
   accountsCount,
   currentNavigationItem,
   isOnline,
-  onMore,
   onToggleTheme,
   theme,
   transactionsCount,
@@ -324,55 +348,158 @@ function TopBar({
   readonly accountsCount: number;
   readonly currentNavigationItem: NavigationItem;
   readonly isOnline: boolean;
-  readonly onMore: () => void;
   readonly onToggleTheme: () => void;
   readonly theme: Theme;
   readonly transactionsCount: number;
 }) {
   return (
-    <header className="ff-topbar">
-      <div className="min-w-0">
+    <header className="ff-topbar" data-testid={testIds.shell.topBar}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[var(--ff-shadow-soft)] dark:bg-emerald-400 dark:text-black">
+          <FastiflyIcon className="size-7" />
+        </span>
         <h1 className="truncate font-semibold text-[28px] leading-tight md:text-[34px]">
-          {currentNavigationItem.label}
+          <span data-testid={testIds.shell.topBarTitle}>{currentNavigationItem.label}</span>
         </h1>
-        <p className="mt-1 max-w-[30rem] text-[14px] text-slate-600 dark:text-white/62">
-          {en.shell.subtitle}
-        </p>
       </div>
-      <div className="hidden min-w-0 flex-wrap justify-end gap-2 md:flex">
+      <div
+        className="hidden min-w-0 flex-wrap justify-end gap-2 md:flex"
+        data-testid={testIds.shell.topBarStatus}
+      >
         <StatusCapsule
           icon={isOnline ? CheckCircle2 : XCircle}
           label={isOnline ? en.status.browserOnline : en.status.browserOffline}
+          testId={testIds.shell.topBarInternetStatus}
           tone={isOnline ? "success" : "danger"}
         />
         <StatusCapsule
           icon={Landmark}
           label={`${en.shell.accounts}: ${accountsCount}`}
+          testId={testIds.shell.topBarAccountsStatus}
           tone="neutral"
         />
         <StatusCapsule
           icon={ReceiptText}
           label={`${en.shell.transactions}: ${transactionsCount}`}
+          testId={testIds.shell.topBarTransactionsStatus}
           tone="neutral"
         />
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
+        <Button
           type="button"
-          className="ff-icon-button"
+          variant="outline"
+          size="icon"
+          data-testid={testIds.shell.themeToggleButton}
           onClick={onToggleTheme}
           aria-label={en.shell.toggleTheme}
         >
-          {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
-        <button type="button" className="ff-icon-button" onClick={onMore} aria-label={en.nav.more}>
-          <Menu className="size-4" aria-hidden="true" />
-        </button>
+          {theme === "dark" ? <Sun /> : <Moon />}
+        </Button>
       </div>
     </header>
   );
 }
 
+function DashboardPage({
+  accounts,
+  accountPreview,
+  accountsLoading,
+  cashAndBank,
+  income,
+  ledgerContext,
+  liabilities,
+  moneySummaryValue,
+  spending,
+}: {
+  readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly accountPreview: readonly AccountWithBalanceResponse[];
+  readonly accountsLoading: boolean;
+  readonly cashAndBank: string;
+  readonly income: string;
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
+  readonly liabilities: string;
+  readonly moneySummaryValue: string;
+  readonly spending: string;
+}) {
+  return (
+    <section className="ff-page-grid" data-testid={testIds.dashboard.page}>
+      <div className="flex flex-col gap-4">
+        <Card
+          className="rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow)] backdrop-blur-[18px]"
+          data-testid={testIds.dashboard.netWorthCard}
+        >
+          <CardContent className="p-5 max-[380px]:p-4">
+            <p
+              className="font-bold text-[0.8125rem] text-[var(--ff-text-muted)]"
+              data-testid={testIds.dashboard.netWorthLabel}
+            >
+              {en.shell.netWorth}
+            </p>
+            <p
+              className="mt-2 break-words font-[750] text-[2.55rem] leading-none tracking-normal text-[var(--ff-text)] max-[380px]:text-[2.15rem]"
+              data-testid={testIds.dashboard.netWorthValue}
+            >
+              {moneySummaryValue}
+            </p>
+            <p
+              className="mt-3.5 max-w-xl text-[0.875rem] text-[var(--ff-text-muted)] leading-[1.45]"
+              data-testid={testIds.dashboard.netWorthDescription}
+            >
+              {en.shell.derivedBalances}
+            </p>
+            <div
+              className="mt-5 grid grid-cols-2 gap-2.5 max-[380px]:gap-2"
+              data-testid={testIds.dashboard.summaryMetrics}
+            >
+              <MetricTile
+                compact
+                icon={WalletCards}
+                label={en.shell.cashAndBank}
+                testId={testIds.dashboard.cashAndBankMetric}
+                value={cashAndBank}
+              />
+              <MetricTile
+                compact
+                icon={RefreshCcw}
+                label={en.shell.liabilities}
+                testId={testIds.dashboard.liabilitiesMetric}
+                tone="rose"
+                value={liabilities}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <section className="grid grid-cols-2 gap-3" data-testid={testIds.dashboard.monthlyMetrics}>
+          <MetricTile
+            dense
+            icon={ArrowDownLeft}
+            label={en.shell.incomeThisMonth}
+            testId={testIds.dashboard.incomeMetric}
+            value={income}
+            tone="green"
+          />
+          <MetricTile
+            dense
+            icon={ArrowUpRight}
+            label={en.shell.spentThisMonth}
+            testId={testIds.dashboard.spendingMetric}
+            value={spending}
+            tone="rose"
+          />
+        </section>
+
+        <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
+      </div>
+
+      <DashboardAside accountPreview={accountPreview} accountsLoading={accountsLoading} />
+    </section>
+  );
+}
 function PageBody({
   accounts,
   accountPreview,
@@ -390,7 +517,6 @@ function PageBody({
   spending,
   spendingRate,
   transactions,
-  transactionsError,
   transferCount,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -412,7 +538,6 @@ function PageBody({
   readonly spending: string;
   readonly spendingRate: string;
   readonly transactions: readonly TransactionGroupResponse[];
-  readonly transactionsError: boolean;
   readonly transferCount: number;
 }) {
   if (pageSlug === "transactions") {
@@ -462,94 +587,16 @@ function PageBody({
 
   return (
     <DashboardPage
+      accounts={accounts}
       accountPreview={accountPreview}
       accountsLoading={accountsLoading}
-      accountsTotal={accounts.length}
       cashAndBank={cashAndBank}
       income={income}
+      ledgerContext={ledgerContext}
       liabilities={liabilities}
       moneySummaryValue={moneySummaryValue}
       spending={spending}
-      transactions={transactions}
-      transactionsError={transactionsError}
     />
-  );
-}
-
-function DashboardPage({
-  accountPreview,
-  accountsLoading,
-  accountsTotal,
-  cashAndBank,
-  income,
-  liabilities,
-  moneySummaryValue,
-  spending,
-  transactions,
-  transactionsError,
-}: {
-  readonly accountPreview: readonly AccountWithBalanceResponse[];
-  readonly accountsLoading: boolean;
-  readonly accountsTotal: number;
-  readonly cashAndBank: string;
-  readonly income: string;
-  readonly liabilities: string;
-  readonly moneySummaryValue: string;
-  readonly spending: string;
-  readonly transactions: readonly TransactionGroupResponse[];
-  readonly transactionsError: boolean;
-}) {
-  return (
-    <section className="ff-page-grid">
-      <div className="space-y-4">
-        <section className="ff-hero-glass">
-          <div>
-            <p className="ff-kicker">{en.shell.netWorth}</p>
-            <p className="mt-2 break-words font-semibold text-[42px] leading-[0.95] sm:text-[64px]">
-              {moneySummaryValue}
-            </p>
-            <p className="mt-4 max-w-[36rem] text-[14px] text-slate-600 dark:text-white/64">
-              {en.shell.derivedBalances}
-            </p>
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-            <MetricTile icon={WalletCards} label={en.shell.cashAndBank} value={cashAndBank} />
-            <MetricTile icon={RefreshCcw} label={en.shell.liabilities} value={liabilities} />
-            <MetricTile
-              icon={Landmark}
-              label={en.shell.accounts}
-              value={accountsTotal.toString()}
-            />
-          </div>
-        </section>
-
-        <section className="grid grid-cols-2 gap-3">
-          <MetricTile
-            icon={ArrowDownLeft}
-            label={en.shell.incomeThisMonth}
-            value={income}
-            tone="green"
-          />
-          <MetricTile
-            icon={ArrowUpRight}
-            label={en.shell.spentThisMonth}
-            value={spending}
-            tone="rose"
-          />
-        </section>
-
-        <TransactionsPanel
-          description={null}
-          limit={8}
-          title={en.shell.recentTransactions}
-          transactions={transactions}
-          transactionsError={transactionsError}
-          withViewAll
-        />
-      </div>
-
-      <DashboardAside accountPreview={accountPreview} accountsLoading={accountsLoading} />
-    </section>
   );
 }
 
@@ -566,11 +613,16 @@ function TransactionsPage({
   readonly transactions: readonly TransactionGroupResponse[];
 }) {
   return (
-    <section className="ff-single-page space-y-4">
+    <section className="ff-single-page space-y-4" data-testid={testIds.transactions.page}>
       <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
       <TransactionsPanel
+        descriptionTestId={testIds.transactions.listDescription}
         description={en.shell.transactionsBody}
+        emptyBodyId={testIds.transactions.emptyBody}
+        emptyStateId={testIds.transactions.emptyState}
+        emptyTitleId={testIds.transactions.emptyTitle}
         title={en.shell.allTransactions}
+        titleTestId={testIds.transactions.listTitle}
         transactions={transactions}
         transactionsError={false}
       />
@@ -586,13 +638,19 @@ function AccountsPage({
   readonly accountsLoading: boolean;
 }) {
   return (
-    <section className="ff-single-page">
+    <section className="ff-single-page" data-testid={testIds.accounts.page}>
       <GlassSection title={en.shell.allAccounts} description={en.shell.accountsBody}>
-        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+        <div
+          className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"
+          data-testid={testIds.accounts.list}
+        >
           {accounts.length > 0 ? (
             accounts.map((account) => <AccountCard key={account.id} account={account} />)
           ) : (
-            <p className="text-[14px] text-slate-600 dark:text-white/62">
+            <p
+              className="text-[14px] text-slate-600 dark:text-white/62"
+              data-testid={testIds.accounts.emptyState}
+            >
               {accountsLoading ? en.shell.loadingData : en.shell.noAccountsBody}
             </p>
           )}
@@ -614,23 +672,38 @@ function BudgetPage({
   readonly spendingRate: string;
 }) {
   return (
-    <section className="ff-single-page">
+    <section className="ff-single-page" data-testid={testIds.budgets.page}>
       <GlassSection title={en.shell.budgetWatch} description={en.shell.budgetWatchBody}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          data-testid={testIds.budgets.summary}
+        >
           <MetricTile
             icon={ArrowDownLeft}
             label={en.shell.incomeThisMonth}
+            testId={testIds.budgets.incomeMetric}
             value={income}
             tone="green"
           />
           <MetricTile
             icon={ArrowUpRight}
             label={en.shell.spentThisMonth}
+            testId={testIds.budgets.spendingMetric}
             value={spending}
             tone="rose"
           />
-          <MetricTile icon={WalletCards} label={en.shell.availableAfterSpending} value={cashflow} />
-          <MetricTile icon={ShieldCheck} label={en.shell.spendingRate} value={spendingRate} />
+          <MetricTile
+            icon={WalletCards}
+            label={en.shell.availableAfterSpending}
+            testId={testIds.budgets.availableMetric}
+            value={cashflow}
+          />
+          <MetricTile
+            icon={ShieldCheck}
+            label={en.shell.spendingRate}
+            testId={testIds.budgets.spendingRateMetric}
+            value={spendingRate}
+          />
         </div>
       </GlassSection>
     </section>
@@ -655,27 +728,56 @@ function ReportsPage({
   readonly transferCount: number;
 }) {
   return (
-    <section className="ff-single-page">
+    <section className="ff-single-page" data-testid={testIds.reports.page}>
       <GlassSection title={en.shell.reportSummary} description={en.shell.reportSummaryBody}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricTile icon={ShieldCheck} label={en.shell.cashflow} value={cashflow} tone="blue" />
-          <MetricTile icon={WalletCards} label={en.shell.cashAndBank} value={cashAndBank} />
+        <div
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          data-testid={testIds.reports.summary}
+        >
+          <MetricTile
+            icon={ShieldCheck}
+            label={en.shell.cashflow}
+            testId={testIds.reports.cashflowMetric}
+            value={cashflow}
+            tone="blue"
+          />
+          <MetricTile
+            icon={WalletCards}
+            label={en.shell.cashAndBank}
+            testId={testIds.reports.cashAndBankMetric}
+            value={cashAndBank}
+          />
           <MetricTile
             icon={RefreshCcw}
             label={en.shell.liabilities}
+            testId={testIds.reports.liabilitiesMetric}
             value={liabilities}
             tone="rose"
           />
           <MetricTile
             icon={Landmark}
             label={en.shell.accounts}
+            testId={testIds.reports.accountsMetric}
             value={accounts.length.toString()}
           />
-          <MetricTile icon={ArrowDownLeft} label={en.shell.income} value={income} tone="green" />
-          <MetricTile icon={ArrowUpRight} label={en.shell.spending} value={spending} tone="rose" />
+          <MetricTile
+            icon={ArrowDownLeft}
+            label={en.shell.income}
+            testId={testIds.reports.incomeMetric}
+            value={income}
+            tone="green"
+          />
+          <MetricTile
+            icon={ArrowUpRight}
+            label={en.shell.spending}
+            testId={testIds.reports.spendingMetric}
+            value={spending}
+            tone="rose"
+          />
           <MetricTile
             icon={RefreshCcw}
             label={en.shell.transferCount}
+            testId={testIds.reports.transferCountMetric}
             value={transferCount.toString()}
             tone="blue"
           />
@@ -695,23 +797,49 @@ function SettingsPage({
   readonly pendingOutboxCount: number;
 }) {
   return (
-    <section className="ff-page-grid">
-      <GlassSection title={en.shell.settingsOverview} description={en.shell.settingsBody}>
+    <section className="ff-page-grid" data-testid={testIds.settings.page}>
+      <GlassSection
+        title={en.shell.settingsOverview}
+        description={en.shell.settingsBody}
+        testId={testIds.settings.overview}
+      >
         <div className="space-y-2">
-          <SystemStatusRow label={en.shell.workspace} value={en.shell.demoWorkspace} />
-          <SystemStatusRow label={en.shell.activeLedger} value={en.shell.demoLedger} />
-          <SystemStatusRow label={en.shell.syncMode} value={en.shell.enabled} />
+          <SystemStatusRow
+            label={en.shell.workspace}
+            labelTestId={testIds.settings.rowLabel("workspace")}
+            rowTestId={testIds.settings.row("workspace")}
+            value={en.shell.demoWorkspace}
+            valueTestId={testIds.settings.rowValue("workspace")}
+          />
+          <SystemStatusRow
+            label={en.shell.activeLedger}
+            labelTestId={testIds.settings.rowLabel("active-ledger")}
+            rowTestId={testIds.settings.row("active-ledger")}
+            value={en.shell.demoLedger}
+            valueTestId={testIds.settings.rowValue("active-ledger")}
+          />
+          <SystemStatusRow
+            label={en.shell.syncMode}
+            labelTestId={testIds.settings.rowLabel("sync-mode")}
+            rowTestId={testIds.settings.row("sync-mode")}
+            value={en.shell.enabled}
+            valueTestId={testIds.settings.rowValue("sync-mode")}
+          />
           <SystemStatusRow
             label={en.shell.themePreference}
+            labelTestId={testIds.settings.rowLabel("theme-preference")}
+            rowTestId={testIds.settings.row("theme-preference")}
             value={readInitialTheme() === "dark" ? en.shell.darkTheme : en.shell.lightTheme}
+            valueTestId={testIds.settings.rowValue("theme-preference")}
           />
         </div>
       </GlassSection>
-      <GlassSection title={en.shell.systemStatus}>
+      <GlassSection title={en.shell.systemStatus} testId={testIds.settings.systemStatus}>
         <RuntimeStatusChips
           apiStatus={apiStatus}
           isOnline={isOnline}
           pendingOutboxCount={pendingOutboxCount}
+          surface="settings"
         />
       </GlassSection>
     </section>
@@ -726,15 +854,21 @@ function DashboardAside({
   readonly accountsLoading: boolean;
 }) {
   return (
-    <aside className="space-y-4">
-      <GlassSection title={en.shell.accountBalances}>
-        <div className="divide-y divide-white/45 dark:divide-white/10">
+    <aside className="flex flex-col gap-4" data-testid={testIds.dashboard.aside}>
+      <GlassSection title={en.shell.accountBalances} testId={testIds.dashboard.accountBalances}>
+        <div
+          className="grid grid-cols-2 gap-2.5"
+          data-testid={testIds.dashboard.accountBalancesList}
+        >
           {accountPreview.length > 0 ? (
             accountPreview.map((account) => (
-              <AccountBalanceRow key={account.id} account={account} />
+              <AccountBalanceCard key={account.id} account={account} />
             ))
           ) : (
-            <p className="py-3 text-[14px] text-slate-600 dark:text-white/62">
+            <p
+              className="py-3 text-[14px] text-slate-600 dark:text-white/62"
+              data-testid={testIds.dashboard.accountBalancesEmpty}
+            >
               {accountsLoading ? en.shell.loadingData : en.shell.noAccountsBody}
             </p>
           )}
@@ -747,38 +881,48 @@ function DashboardAside({
 function GlassSection({
   children,
   description,
+  testId,
   title,
 }: {
   readonly children: ReactNode;
   readonly description?: string;
+  readonly testId?: string;
   readonly title: string;
 }) {
   return (
-    <section className="ff-glass-panel p-4 md:p-5">
-      <div className="mb-4">
-        <h2 className="font-semibold text-[17px]">{title}</h2>
+    <Card className="ff-glass-panel" data-testid={testId}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
         {description ? (
-          <p className="mt-1 max-w-2xl text-[14px] text-slate-600 dark:text-white/62">
-            {description}
-          </p>
+          <CardDescription className="max-w-2xl">{description}</CardDescription>
         ) : null}
-      </div>
-      {children}
-    </section>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
 function TransactionsPanel({
+  descriptionTestId,
   description,
   limit,
+  emptyBodyId,
+  emptyStateId,
+  emptyTitleId,
   title,
+  titleTestId,
   transactions,
   transactionsError,
   withViewAll = false,
 }: {
+  readonly descriptionTestId?: string | undefined;
   readonly description: string | null;
   readonly limit?: number;
+  readonly emptyBodyId?: string | undefined;
+  readonly emptyStateId?: string | undefined;
+  readonly emptyTitleId?: string | undefined;
   readonly title: string;
+  readonly titleTestId?: string | undefined;
   readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionsError: boolean;
   readonly withViewAll?: boolean;
@@ -786,38 +930,53 @@ function TransactionsPanel({
   const visibleTransactions = limit ? transactions.slice(0, limit) : transactions;
 
   return (
-    <section className="ff-glass-panel overflow-hidden">
-      <div className="flex items-start justify-between gap-3 p-4 md:p-5">
+    <Card className="ff-glass-panel overflow-hidden" data-testid={testIds.transactions.listPanel}>
+      <CardHeader>
         <div>
-          <h2 className="font-semibold text-[17px]">{title}</h2>
+          <CardTitle data-testid={titleTestId}>{title}</CardTitle>
           {description ? (
-            <p className="mt-1 text-[14px] text-slate-600 dark:text-white/62">{description}</p>
+            <CardDescription data-testid={descriptionTestId}>{description}</CardDescription>
           ) : null}
         </div>
         {withViewAll ? (
-          <Link to="/transactions" className="ff-liquid-control">
-            <ReceiptText className="size-4" aria-hidden="true" />
-            <span className="hidden sm:inline">{en.shell.viewAll}</span>
-          </Link>
+          <CardAction>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              data-testid={testIds.transactions.viewAllButton}
+            >
+              <Link to="/transactions">
+                <ReceiptText aria-hidden="true" data-icon="inline-start" />
+                <span className="hidden sm:inline">{en.shell.viewAll}</span>
+              </Link>
+            </Button>
+          </CardAction>
         ) : null}
-      </div>
-      <div className="min-w-0 divide-y divide-white/45 dark:divide-white/10">
+      </CardHeader>
+      <div
+        className="min-w-0 divide-y divide-white/45 dark:divide-white/10"
+        data-testid={testIds.transactions.list}
+      >
         {visibleTransactions.length > 0 ? (
           visibleTransactions.map((transaction) => (
             <TransactionRow key={transaction.id} transaction={transaction} />
           ))
         ) : (
-          <div className="p-4">
-            <p className="font-medium text-[14px]">
+          <div className="p-4" data-testid={emptyStateId}>
+            <p className="font-medium text-[14px]" data-testid={emptyTitleId}>
               {transactionsError ? en.shell.signInForDemoData : en.shell.noTransactionsTitle}
             </p>
-            <p className="mt-1 break-words text-[14px] text-slate-600 dark:text-white/62">
+            <p
+              className="mt-1 break-words text-[14px] text-slate-600 dark:text-white/62"
+              data-testid={emptyBodyId}
+            >
               {en.shell.noTransactionsBody}
             </p>
           </div>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -829,23 +988,36 @@ function MobileNavLink({
   readonly onClick: () => void;
 }) {
   return (
-    <Link to={item.to} onClick={onClick} className="ff-mobile-tab">
-      <item.icon className="size-5" aria-hidden="true" />
-      <span>{item.mobileLabel}</span>
-    </Link>
+    <Button
+      asChild
+      className="ff-mobile-tab"
+      data-testid={testIds.navigation.mobileNav(toNavigationTestIdSlug(item.slug))}
+      variant="ghost"
+    >
+      <Link to={item.to} onClick={onClick}>
+        <item.icon aria-hidden="true" />
+        <span>{item.mobileLabel}</span>
+      </Link>
+    </Button>
   );
 }
 
 function MetricTile({
+  className,
   compact = false,
+  dense = false,
   icon: Icon,
   label,
+  testId,
   tone = "neutral",
   value,
 }: {
   readonly compact?: boolean;
+  readonly className?: string;
   readonly icon: LucideIcon;
+  readonly dense?: boolean;
   readonly label: string;
+  readonly testId?: string | undefined;
   readonly tone?: "neutral" | "green" | "rose" | "blue";
   readonly value: string;
 }) {
@@ -859,15 +1031,61 @@ function MetricTile({
           : "text-slate-700 dark:text-white/76";
 
   return (
-    <div className="ff-metric-tile">
-      <div className={`ff-metric-icon ${toneClass}`}>
-        <Icon className="size-4" aria-hidden="true" />
-      </div>
-      <p className="mt-3 text-[12px] font-medium text-slate-500 dark:text-white/52">{label}</p>
-      <p className={`ff-money-value mt-1 font-semibold ${compact ? "ff-money-value-compact" : ""}`}>
-        {value}
-      </p>
-    </div>
+    <Card
+      className={cn(
+        "min-w-0 rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow-soft)] backdrop-blur-[18px]",
+        compact &&
+          "bg-[color-mix(in_oklab,var(--ff-surface-strong)_82%,var(--ff-surface-muted))] shadow-none",
+        className,
+      )}
+      data-testid={testId}
+      size="sm"
+    >
+      <CardContent
+        className={cn(
+          compact
+            ? "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 p-3 text-left max-[380px]:p-2.5"
+            : dense
+              ? "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1.5 p-2.5 text-left"
+              : "p-3.5",
+        )}
+      >
+        <div
+          className={cn(
+            "inline-flex size-8 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)]",
+            compact && "size-7",
+            dense && "size-7",
+            toneClass,
+          )}
+        >
+          <Icon aria-hidden="true" />
+        </div>
+        <p
+          className={cn(
+            "font-medium text-slate-500 dark:text-white/52",
+            compact
+              ? "m-0 text-[0.72rem] leading-tight"
+              : dense
+                ? "m-0 text-[0.75rem] leading-tight"
+                : "mt-3 text-[12px]",
+          )}
+        >
+          {label}
+        </p>
+        <p
+          className={cn(
+            "break-words font-semibold leading-[1.15] text-[var(--ff-text)]",
+            compact
+              ? "col-span-2 mt-0.5 text-base leading-tight max-[380px]:text-[0.875rem]"
+              : dense
+                ? "col-span-2 mt-0 text-[1.0625rem] leading-tight"
+                : "mt-1 text-[clamp(1.05rem,4vw,1.35rem)]",
+          )}
+        >
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -876,7 +1094,10 @@ function TransactionRow({ transaction }: { readonly transaction: TransactionGrou
   const isIncome = transaction.type === "income";
 
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-3.5 md:px-5">
+    <div
+      className="flex min-w-0 items-center justify-between gap-3 px-4 py-3.5 md:px-5"
+      data-testid={testIds.transactions.row(transaction.id)}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <div
           className={`ff-row-icon ${isIncome ? "text-emerald-700 dark:text-emerald-200" : "text-slate-700 dark:text-white/72"}`}
@@ -884,57 +1105,131 @@ function TransactionRow({ transaction }: { readonly transaction: TransactionGrou
           {isIncome ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
         </div>
         <div className="min-w-0">
-          <p className="truncate font-semibold text-[14px]">{transaction.title}</p>
-          <p className="mt-0.5 text-[12px] text-slate-500 capitalize dark:text-white/50">
+          <p
+            className="truncate font-semibold text-[14px]"
+            data-testid={testIds.transactions.rowTitle(transaction.id)}
+          >
+            {transaction.title}
+          </p>
+          <p
+            className="mt-0.5 text-[12px] text-slate-500 capitalize dark:text-white/50"
+            data-testid={testIds.transactions.rowMeta(transaction.id)}
+          >
             {formatDate(transaction.journals[0]?.occurredAt)} · {transaction.type}
           </p>
         </div>
       </div>
-      <p className="shrink-0 text-right font-semibold text-[14px]">{signedAmount}</p>
+      <p
+        className="shrink-0 text-right font-semibold text-[14px]"
+        data-testid={testIds.transactions.rowAmount(transaction.id)}
+      >
+        {signedAmount}
+      </p>
     </div>
   );
 }
 
 function AccountCard({ account }: { readonly account: AccountWithBalanceResponse }) {
   return (
-    <div className="ff-account-card">
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-[15px]">{account.name}</p>
-          <p className="mt-1 text-[12px] text-slate-500 capitalize dark:text-white/50">
-            {account.kind} / {account.subtype}
+    <Card
+      className="min-w-0 rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow-soft)] backdrop-blur-[18px]"
+      data-testid={testIds.accounts.card(account.id)}
+      size="sm"
+    >
+      <CardContent className="p-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p
+              className="truncate font-semibold text-[15px]"
+              data-testid={testIds.accounts.cardName(account.id)}
+            >
+              {account.name}
+            </p>
+            <p
+              className="mt-1 text-[12px] text-slate-500 capitalize dark:text-white/50"
+              data-testid={testIds.accounts.cardType(account.id)}
+            >
+              {account.kind} / {account.subtype}
+            </p>
+          </div>
+          <Badge
+            className="ff-currency-chip"
+            data-testid={testIds.accounts.cardCurrency(account.id)}
+            variant="secondary"
+          >
+            {account.currencyCode}
+          </Badge>
+        </div>
+        <p
+          className="mt-6 break-words font-semibold text-[24px]"
+          data-testid={testIds.accounts.cardBalance(account.id)}
+        >
+          {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AccountBalanceCard({ account }: { readonly account: AccountWithBalanceResponse }) {
+  const toneClass =
+    account.kind === "liability"
+      ? "border-red-500/25 bg-red-500/[0.08]"
+      : account.kind === "asset"
+        ? "border-emerald-500/25 bg-emerald-500/[0.08]"
+        : "bg-[var(--ff-surface-muted)]";
+
+  return (
+    <Card
+      className={cn("min-w-0 p-0 shadow-none", toneClass)}
+      data-testid={testIds.accounts.balanceCard(account.id)}
+      size="sm"
+    >
+      <CardContent className="p-3.5">
+        <div className="grid min-w-0 gap-3">
+          <div className="min-w-0">
+            <p
+              className="truncate font-semibold text-[14px]"
+              data-testid={testIds.accounts.balanceName(account.id)}
+            >
+              {account.name}
+            </p>
+            <p
+              className="mt-0.5 text-[12px] text-muted-foreground capitalize"
+              data-testid={testIds.accounts.balanceKind(account.id)}
+            >
+              {account.kind}
+            </p>
+          </div>
+          <p
+            className="break-words text-left font-bold text-[0.875rem] leading-[1.15]"
+            data-testid={testIds.accounts.balanceAmount(account.id)}
+          >
+            {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
           </p>
         </div>
-        <span className="ff-currency-chip">{account.currencyCode}</span>
-      </div>
-      <p className="mt-6 break-words font-semibold text-[24px]">
-        {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
-      </p>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function AccountBalanceRow({ account }: { readonly account: AccountWithBalanceResponse }) {
+function SystemStatusRow({
+  label,
+  labelTestId,
+  rowTestId,
+  value,
+  valueTestId,
+}: {
+  readonly label: string;
+  readonly labelTestId?: string | undefined;
+  readonly rowTestId?: string | undefined;
+  readonly value: string;
+  readonly valueTestId?: string | undefined;
+}) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 py-3">
-      <div className="min-w-0">
-        <p className="truncate font-semibold text-[14px]">{account.name}</p>
-        <p className="mt-0.5 text-[12px] text-slate-500 capitalize dark:text-white/50">
-          {account.kind}
-        </p>
-      </div>
-      <p className="shrink-0 font-semibold text-[14px]">
-        {formatMoneyMinor(BigInt(account.balance.amountMinor), account.balance.currencyCode)}
-      </p>
-    </div>
-  );
-}
-
-function SystemStatusRow({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div className="ff-status-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="ff-status-row" data-testid={rowTestId}>
+      <span data-testid={labelTestId}>{label}</span>
+      <strong data-testid={valueTestId}>{value}</strong>
     </div>
   );
 }
@@ -943,27 +1238,32 @@ function RuntimeStatusChips({
   apiStatus,
   isOnline,
   pendingOutboxCount,
+  surface,
 }: {
   readonly apiStatus: string;
   readonly isOnline: boolean;
   readonly pendingOutboxCount: number;
+  readonly surface: "drawer" | "settings";
 }) {
   return (
-    <div className="ff-runtime-status-group">
+    <div className="ff-runtime-status-group" data-testid={testIds.runtimeStatus.group(surface)}>
       <div className="ff-runtime-status-chips">
         <StatusCapsule
           icon={isOnline ? CheckCircle2 : XCircle}
           label={en.status.internet}
+          testId={testIds.runtimeStatus.internet(surface)}
           tone={isOnline ? "success" : "danger"}
         />
         <StatusCapsule
           icon={getServerStatusIcon(apiStatus)}
           label={en.status.server}
+          testId={testIds.runtimeStatus.server(surface)}
           tone={getServerStatusTone(apiStatus)}
         />
         <StatusCapsule
           icon={RefreshCcw}
           label={`${en.status.savingChanges}: ${pendingOutboxCount}`}
+          testId={testIds.runtimeStatus.savingChanges(surface)}
           tone={getPendingOutboxTone(pendingOutboxCount)}
         />
       </div>
@@ -988,77 +1288,88 @@ function MobileMoreDrawer({
   readonly open: boolean;
   readonly pendingOutboxCount: number;
 }) {
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 z-30 xl:hidden">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
-        onClick={onClose}
-        aria-label={en.shell.closeNavigation}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
+    <Sheet open={open} onOpenChange={(nextOpen) => (nextOpen ? undefined : onClose())}>
+      <SheetContent
         aria-label={en.shell.navigation}
-        className="ff-more-sheet"
+        className="ff-more-sheet xl:hidden"
+        data-testid={testIds.navigation.mobileMoreDrawer}
+        showCloseButton={false}
+        side="bottom"
       >
         <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-300/80 dark:bg-white/24" />
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-[22px]">{en.shell.navigation}</h2>
-          </div>
-          <button
+        <SheetHeader className="flex-row items-center justify-between gap-3 p-0">
+          <SheetTitle className="text-[22px]">Fastifly</SheetTitle>
+          <Button
             type="button"
-            className="ff-icon-button"
+            variant="outline"
+            size="icon"
+            data-testid={testIds.navigation.mobileMoreDrawerClose}
             onClick={onClose}
             aria-label={en.shell.closeNavigation}
           >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </div>
+            <X aria-hidden="true" />
+          </Button>
+        </SheetHeader>
 
         <RuntimeStatusChips
           apiStatus={apiStatus}
           isOnline={isOnline}
           pendingOutboxCount={pendingOutboxCount}
+          surface="drawer"
         />
 
-        <nav className="mt-5 grid grid-cols-2 gap-2" aria-label={en.shell.navigation}>
+        <nav
+          className="mt-5 grid grid-cols-2 gap-2"
+          aria-label={en.shell.navigation}
+          data-testid={testIds.navigation.mobileMoreDrawerNav}
+        >
           {navigationItems.map((item) => (
-            <Link key={item.label} to={item.to} onClick={onClose} className="ff-more-link">
-              <item.icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{item.label}</span>
-            </Link>
+            <Button
+              asChild
+              key={item.label}
+              className="ff-more-link"
+              data-testid={testIds.navigation.moreNav(toNavigationTestIdSlug(item.slug))}
+              variant="secondary"
+            >
+              <Link to={item.to} onClick={onClose}>
+                <item.icon aria-hidden="true" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            </Button>
           ))}
         </nav>
 
-        <button
-          className="ff-more-action mt-3"
+        <Button
+          className="mt-3 w-full"
           disabled={isLoggingOut}
+          data-testid={testIds.navigation.logoutButton}
           onClick={onLogout}
           type="button"
+          variant="destructive"
         >
-          <LogOut className="size-4 shrink-0" aria-hidden="true" />
+          <LogOut aria-hidden="true" data-icon="inline-start" />
           <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
-        </button>
-      </aside>
-    </div>
+        </Button>
+      </SheetContent>
+    </Sheet>
   );
 }
 
 function AuthGateScreen({ label }: { readonly label: string }) {
   return (
     <main className="ff-liquid-bg flex min-h-screen items-center justify-center px-4 text-slate-950 dark:text-white">
-      <section className="ff-auth-panel w-full max-w-[22rem] p-5 text-center">
-        <div className="ff-brand-mark mx-auto">
-          <CircleDollarSign className="size-5" aria-hidden="true" />
+      <Card
+        className="ff-auth-panel w-full max-w-[22rem] p-5 text-center"
+        data-testid={testIds.shell.authGate}
+      >
+        <div className="mx-auto inline-flex size-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[var(--ff-shadow-soft)] dark:bg-emerald-400 dark:text-black">
+          <FastiflyIcon className="size-7" />
         </div>
-        <p className="mt-4 font-semibold">{label}</p>
-      </section>
+        <p className="mt-4 font-semibold" data-testid={testIds.shell.authGateMessage}>
+          {label}
+        </p>
+      </Card>
     </main>
   );
 }
@@ -1066,10 +1377,12 @@ function AuthGateScreen({ label }: { readonly label: string }) {
 function StatusCapsule({
   icon: Icon,
   label,
+  testId,
   tone,
 }: {
   readonly icon: LucideIcon;
   readonly label: string;
+  readonly testId?: string | undefined;
   readonly tone: Tone;
 }) {
   const toneClass =
@@ -1082,10 +1395,10 @@ function StatusCapsule({
           : "ff-status-capsule-neutral";
 
   return (
-    <span className={`ff-status-capsule ${toneClass}`}>
-      <Icon className="size-3.5" aria-hidden="true" />
+    <Badge className={cn("ff-status-capsule", toneClass)} data-testid={testId} variant="outline">
+      <Icon aria-hidden="true" />
       <span>{label}</span>
-    </span>
+    </Badge>
   );
 }
 
@@ -1103,6 +1416,10 @@ function getPendingOutboxTone(count: number): Tone {
   }
 
   return "danger";
+}
+
+function toNavigationTestIdSlug(slug: NavigationItem["slug"]): NavigationTestIdSlug {
+  return slug as NavigationTestIdSlug;
 }
 
 function getServerStatusIcon(apiStatus: string): LucideIcon {

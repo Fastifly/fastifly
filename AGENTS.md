@@ -797,6 +797,25 @@ user explicitly approves that change. If Playwright MCP is unavailable, report
 the blocker and use only existing repo-local verification commands until the
 MCP server is available.
 
+### Frontend test IDs
+
+Use `data-testid` as the default frontend test selector attribute.
+
+Frontend test IDs must be defined through the central registry:
+
+```text
+apps/web/src/testing/testid-registry.ts
+```
+
+Rules:
+
+- production frontend code must not contain raw literal `data-testid` values
+- components should import IDs from the registry instead of inventing local strings
+- dynamic IDs must be produced through registry builders
+- test IDs must use kebab-case
+- do not add test IDs to decorative icons or purely visual elements
+- prefer user-facing selectors when they are stable, but use registered test IDs when UI text, locale, or layout may change
+
 Required test types:
 
 ```text

@@ -33,7 +33,7 @@ export const en = {
     switchAccount: "Use another account",
   },
   nav: {
-    dashboard: "Dashboard",
+    dashboard: "Fastifly",
     dashboardShort: "Home",
     accounts: "Accounts",
     accountsShort: "Accts",
@@ -56,7 +56,6 @@ export const en = {
     syncReady: "Sync ready",
   },
   shell: {
-    subtitle: "Safe daily finance, ready for offline work.",
     personalFinance: "Personal finance",
     checkingApi: "Checking API",
     moneyTitle: "Household money",
@@ -121,7 +120,7 @@ export const en = {
   },
   transactions: {
     addTransaction: "Add transaction",
-    addTransactionBody: "Save a daily expense, income, or transfer into the current ledger.",
+    addTransactionBody: "Expense, income, or transfer.",
     amount: "Amount",
     amountRequired: "Amount is required.",
     category: "Category",

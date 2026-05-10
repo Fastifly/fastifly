@@ -13,6 +13,7 @@
     "build": "turbo run build",
     "api:generate": "node scripts/generate-openapi.mjs",
     "api:check": "pnpm api:generate && git diff --exit-code -- apps/web/src/api/generated/openapi.ts",
+    "check:testids": "node scripts/check-testid-literals.mjs",
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

@@ -862,6 +862,26 @@ The service worker registers only in production builds. Development builds must 
 
 ## Testing
 
+### Test ID policy
+
+Use `data-testid` as the default test selector attribute for frontend tests.
+Fastifly keeps selectors stable by routing production frontend test IDs through:
+
+```text
+apps/web/src/testing/testid-registry.ts
+```
+
+Production frontend code must not hardcode raw literal `data-testid` values.
+Components must import named IDs from the central registry, and dynamic selector
+values must come from registry builders.
+
+Rules:
+
+- test IDs use kebab-case
+- dynamic IDs are created through explicit builder helpers
+- no test IDs on decorative icons or purely visual elements
+- prefer accessible user-facing selectors when stable, but use registered test IDs when labels, locale, or responsive layout can change
+
 Required frontend tests:
 
 - permission-gated UI
