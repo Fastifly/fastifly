@@ -178,6 +178,26 @@ class FakeSyncRepository implements SyncRepository {
     return this.#currentRevision;
   }
 
+  async listAcceptedOperationsSince(input: {
+    readonly sinceRevision: number;
+    readonly limit: number;
+  }): Promise<readonly SyncOperationRecord[]> {
+    return [...this.operations.values()]
+      .filter(
+        (operation) =>
+          operation.status === "accepted" &&
+          operation.serverRevision !== null &&
+          operation.serverRevision > input.sinceRevision,
+      )
+      .sort((left, right) => (left.serverRevision ?? 0) - (right.serverRevision ?? 0))
+      .slice(0, input.limit);
+  }
+
+  async countOpenConflicts(): Promise<number> {
+    return [...this.operations.values()].filter((operation) => operation.status === "conflict")
+      .length;
+  }
+
   async recordAcceptedOperation(input): Promise<number> {
     this.#currentRevision += 1;
     this.operations.set(input.operation.operationId, {

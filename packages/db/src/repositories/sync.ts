@@ -3,7 +3,7 @@ import {
   type SyncOperationEnvelope,
   SyncOperationTypeSchema,
 } from "@fastifly/common";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -75,6 +75,16 @@ export type SyncRepository = {
   readonly recordAcceptedOperation: (input: RecordSyncOperationInput) => Promise<number>;
   readonly recordRejectedOperation: (input: RecordSyncOperationInput) => Promise<void>;
   readonly recordConflictOperation: (input: RecordSyncConflictInput) => Promise<void>;
+  readonly listAcceptedOperationsSince: (input: {
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+    readonly sinceRevision: number;
+    readonly limit: number;
+  }) => Promise<readonly SyncOperationRecord[]>;
+  readonly countOpenConflicts: (input: {
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+  }) => Promise<number>;
 };
 
 export function createSqliteSyncRepository(client: SqliteClient): SyncRepository {
@@ -107,6 +117,64 @@ export function createSqliteSyncRepository(client: SqliteClient): SyncRepository
 
     async getCurrentRevision(input) {
       return readSqliteCurrentRevision(client, input);
+    },
+
+    async listAcceptedOperationsSince(input) {
+      const rows = client
+        .prepare(
+          `
+          SELECT
+            id,
+            workspace_id,
+            ledger_id,
+            device_id,
+            local_sequence,
+            operation_type,
+            operation_version,
+            base_revision,
+            server_revision,
+            idempotency_key,
+            payload_json,
+            payload_encoding,
+            status,
+            result_json,
+            created_by,
+            created_at,
+            received_at
+          FROM sync_operations
+          WHERE workspace_id = ?
+            AND ledger_id = ?
+            AND status = 'accepted'
+            AND server_revision IS NOT NULL
+            AND server_revision > ?
+          ORDER BY server_revision ASC
+          LIMIT ?
+        `,
+        )
+        .all(
+          input.workspaceId,
+          input.ledgerId,
+          input.sinceRevision,
+          input.limit,
+        ) as SqliteSyncOperationRow[];
+
+      return rows.map(toSyncOperationRecord);
+    },
+
+    async countOpenConflicts(input) {
+      const row = client
+        .prepare(
+          `
+          SELECT COUNT(*) AS count
+          FROM sync_conflicts
+          WHERE workspace_id = ?
+            AND ledger_id = ?
+            AND status = 'open'
+        `,
+        )
+        .get(input.workspaceId, input.ledgerId) as { readonly count: number } | undefined;
+
+      return Number(row?.count ?? 0);
     },
 
     async recordAcceptedOperation(input) {
@@ -210,6 +278,40 @@ export function createPostgresSyncRepository(db: PostgresDatabase): SyncReposito
         .limit(1);
 
       return rows[0]?.currentRevision ?? 0;
+    },
+
+    async listAcceptedOperationsSince(input) {
+      const rows = await db
+        .select()
+        .from(pgSyncOperations)
+        .where(
+          and(
+            eq(pgSyncOperations.workspaceId, input.workspaceId),
+            eq(pgSyncOperations.ledgerId, input.ledgerId),
+            eq(pgSyncOperations.status, "accepted"),
+            isNotNull(pgSyncOperations.serverRevision),
+            gt(pgSyncOperations.serverRevision, input.sinceRevision),
+          ),
+        )
+        .orderBy(asc(pgSyncOperations.serverRevision))
+        .limit(input.limit);
+
+      return rows.map(toSyncOperationRecord);
+    },
+
+    async countOpenConflicts(input) {
+      const rows = await db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(pgSyncConflicts)
+        .where(
+          and(
+            eq(pgSyncConflicts.workspaceId, input.workspaceId),
+            eq(pgSyncConflicts.ledgerId, input.ledgerId),
+            eq(pgSyncConflicts.status, "open"),
+          ),
+        );
+
+      return Number(rows[0]?.count ?? 0);
     },
 
     async recordAcceptedOperation(input) {

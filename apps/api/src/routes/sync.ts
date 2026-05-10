@@ -1,16 +1,21 @@
 import {
   parseSyncedId,
   type SyncOperationEnvelope,
+  SyncPullQuerySchema,
+  SyncPullResponseSchema,
   SyncPushRequestSchema,
   SyncPushResponseSchema,
+  SyncStatusQuerySchema,
+  SyncStatusResponseSchema,
 } from "@fastifly/common";
-import { SyncReplayError, type SyncReplayService } from "@fastifly/db";
+import { type SyncQueryService, SyncReplayError, type SyncReplayService } from "@fastifly/db";
 import type { FastifyInstance } from "fastify";
 
 import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
 import { ErrorResponseSchemas } from "../schemas.js";
 
 export type RegisterSyncRoutesOptions = {
+  readonly syncQueryService?: SyncQueryService | undefined;
   readonly syncReplayService?: SyncReplayService | undefined;
 };
 
@@ -18,54 +23,110 @@ export async function registerSyncRoutes(
   app: FastifyInstance,
   options: RegisterSyncRoutesOptions,
 ): Promise<void> {
-  if (!options.syncReplayService) {
-    return;
-  }
-  const syncReplayService = options.syncReplayService;
+  const { syncQueryService, syncReplayService } = options;
 
-  app.post(
-    "/api/v1/sync/push",
-    {
-      schema: {
-        body: SyncPushRequestSchema,
-        response: {
-          200: SyncPushResponseSchema,
-          ...ErrorResponseSchemas,
+  if (syncReplayService) {
+    app.post(
+      "/api/v1/sync/push",
+      {
+        schema: {
+          body: SyncPushRequestSchema,
+          response: {
+            200: SyncPushResponseSchema,
+            ...ErrorResponseSchemas,
+          },
         },
       },
-    },
-    async (request) => {
-      const actorUserId = requireAuthenticatedUser(request);
-      const body = SyncPushRequestSchema.parse(request.body);
-      requireActiveWorkspace(request, body.workspaceId);
-      requireAbility(request, "sync", "Sync");
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const body = SyncPushRequestSchema.parse(request.body);
+        requireActiveWorkspace(request, body.workspaceId);
+        requireAbility(request, "sync", "Sync");
 
-      try {
-        const result = await syncReplayService.push({
-          actorUserId,
-          deviceId: parseSyncedId(body.deviceId),
-          ledgerId: parseSyncedId(body.ledgerId),
-          operations: body.operations.map(
-            (operation): SyncOperationEnvelope => ({
-              ...operation,
-              deviceId: parseSyncedId(body.deviceId),
-              ledgerId: parseSyncedId(body.ledgerId),
-              workspaceId: parseSyncedId(body.workspaceId),
-            }),
-          ),
-          workspaceId: parseSyncedId(body.workspaceId),
-        });
+        try {
+          const result = await syncReplayService.push({
+            actorUserId,
+            deviceId: parseSyncedId(body.deviceId),
+            ledgerId: parseSyncedId(body.ledgerId),
+            operations: body.operations.map(
+              (operation): SyncOperationEnvelope => ({
+                ...operation,
+                deviceId: parseSyncedId(body.deviceId),
+                ledgerId: parseSyncedId(body.ledgerId),
+                workspaceId: parseSyncedId(body.workspaceId),
+              }),
+            ),
+            workspaceId: parseSyncedId(body.workspaceId),
+          });
 
-        return { data: result };
-      } catch (error) {
-        if (error instanceof SyncReplayError) {
-          throw makeHttpError(403, error.message);
+          return { data: result };
+        } catch (error) {
+          if (error instanceof SyncReplayError) {
+            throw makeHttpError(403, error.message);
+          }
+
+          throw error;
         }
+      },
+    );
+  }
 
-        throw error;
-      }
-    },
-  );
+  if (syncQueryService) {
+    app.get(
+      "/api/v1/sync/pull",
+      {
+        schema: {
+          querystring: SyncPullQuerySchema,
+          response: {
+            200: SyncPullResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const query = SyncPullQuerySchema.parse(request.query);
+        requireActiveWorkspace(request, query.workspaceId);
+        requireAbility(request, "sync", "Sync");
+
+        return {
+          data: await syncQueryService.pull({
+            actorUserId,
+            ledgerId: parseSyncedId(query.ledgerId),
+            sinceRevision: Number(query.sinceRevision),
+            workspaceId: parseSyncedId(query.workspaceId),
+          }),
+        };
+      },
+    );
+
+    app.get(
+      "/api/v1/sync/status",
+      {
+        schema: {
+          querystring: SyncStatusQuerySchema,
+          response: {
+            200: SyncStatusResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const query = SyncStatusQuerySchema.parse(request.query);
+        requireActiveWorkspace(request, query.workspaceId);
+        requireAbility(request, "sync", "Sync");
+
+        return {
+          data: await syncQueryService.status({
+            actorUserId,
+            ledgerId: parseSyncedId(query.ledgerId),
+            workspaceId: parseSyncedId(query.workspaceId),
+          }),
+        };
+      },
+    );
+  }
 }
 
 function makeHttpError(statusCode: number, message: string): Error & { statusCode: number } {

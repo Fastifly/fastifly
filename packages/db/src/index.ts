@@ -182,6 +182,16 @@ export {
   FinanceMutationError,
 } from "./services/finance-mutations.js";
 export type {
+  SyncPulledOperation,
+  SyncPullInput,
+  SyncPullResult,
+  SyncQueryService,
+  SyncQueryServiceOptions,
+  SyncStatusInput,
+  SyncStatusResult,
+} from "./services/sync-query.js";
+export { createSyncQueryService } from "./services/sync-query.js";
+export type {
   SyncReplayAcceptedResult,
   SyncReplayConflictResult,
   SyncReplayPushInput,

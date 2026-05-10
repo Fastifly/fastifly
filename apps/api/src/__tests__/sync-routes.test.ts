@@ -2,6 +2,7 @@ import { createUuidV7, type SyncedId } from "@fastifly/common";
 import type {
   IdentityRepository,
   SessionRecord,
+  SyncQueryService,
   SyncReplayService,
   UserRecord,
   UserWorkspaceContextRecord,
@@ -133,6 +134,77 @@ describe("sync routes", () => {
     expect(response.statusCode).toBe(403);
     expect(syncReplayService.push).not.toHaveBeenCalled();
   });
+
+  it("pulls accepted sync operations through the sync query service", async () => {
+    const state = createUserWorkspaceContext("editor");
+    const syncQueryService = makeSyncQueryService(state.context.activeLedger.id);
+    const app = await makeApp(state, { syncQueryService });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      query: {
+        ledgerId: state.context.activeLedger.id,
+        sinceRevision: "0",
+        workspaceId: state.context.activeWorkspace.id,
+      },
+      url: "/api/v1/sync/pull",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        fromRevision: "0",
+        ledgerId: state.context.activeLedger.id,
+        operations: [
+          {
+            createdAt: "2026-05-09T01:00:00.000Z",
+            deviceId: expect.any(String),
+            localSequence: "1",
+            operationId: "operation_1",
+            operationType: "transaction_group.create_expense.v1",
+            payload: { description: "Groceries" },
+            payloadEncoding: "plaintext.v1",
+            serverRevision: "1",
+          },
+        ],
+        toRevision: "1",
+        workspaceId: state.context.activeWorkspace.id,
+      },
+    });
+    expect(syncQueryService.pull).toHaveBeenCalledWith({
+      actorUserId: state.user.id,
+      ledgerId: state.context.activeLedger.id,
+      sinceRevision: 0,
+      workspaceId: state.context.activeWorkspace.id,
+    });
+  });
+
+  it("reports sync status through the sync query service", async () => {
+    const state = createUserWorkspaceContext("editor");
+    const syncQueryService = makeSyncQueryService(state.context.activeLedger.id);
+    const app = await makeApp(state, { syncQueryService });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      query: {
+        ledgerId: state.context.activeLedger.id,
+        workspaceId: state.context.activeWorkspace.id,
+      },
+      url: "/api/v1/sync/status",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        ledgerId: state.context.activeLedger.id,
+        openConflictCount: 1,
+        serverRevision: "1",
+        workspaceId: state.context.activeWorkspace.id,
+      },
+    });
+  });
 });
 
 function createUserWorkspaceContext(role: UserWorkspaceContextRecord["activeWorkspace"]["role"]): {
@@ -207,13 +279,19 @@ function makeIdentityRepository(input: {
 
 async function makeApp(
   state: ReturnType<typeof createUserWorkspaceContext>,
-  syncReplayService: SyncReplayService,
+  services:
+    | SyncReplayService
+    | {
+        readonly syncQueryService?: SyncQueryService;
+        readonly syncReplayService?: SyncReplayService;
+      },
 ) {
+  const serviceOptions = "push" in services ? { syncReplayService: services } : services;
   const app = await buildApiApp({
     config: { logLevel: "silent", nodeEnv: "test" },
     identityRepository: makeIdentityRepository(state),
     readiness: { migrations: "ok" },
-    syncReplayService,
+    ...serviceOptions,
   });
   apps.push(app);
 
@@ -227,6 +305,37 @@ function makeSyncReplayService(): SyncReplayService {
       conflicts: [],
       rejected: [],
       serverRevision: "1",
+    })),
+  };
+}
+
+function makeSyncQueryService(ledgerId: SyncedId): SyncQueryService {
+  const deviceId = createId();
+
+  return {
+    pull: vi.fn(async (input) => ({
+      fromRevision: input.sinceRevision.toString(),
+      ledgerId,
+      operations: [
+        {
+          createdAt: "2026-05-09T01:00:00.000Z",
+          deviceId,
+          localSequence: "1",
+          operationId: "operation_1",
+          operationType: "transaction_group.create_expense.v1",
+          payload: { description: "Groceries" },
+          payloadEncoding: "plaintext.v1" as const,
+          serverRevision: "1",
+        },
+      ],
+      toRevision: "1",
+      workspaceId: input.workspaceId,
+    })),
+    status: vi.fn(async (input) => ({
+      ledgerId,
+      openConflictCount: 1,
+      serverRevision: "1",
+      workspaceId: input.workspaceId,
     })),
   };
 }

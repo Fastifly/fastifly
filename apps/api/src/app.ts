@@ -6,6 +6,7 @@ import type {
   DeviceRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
+  SyncQueryService,
   SyncReplayService,
   TransactionQueryService,
 } from "@fastifly/db";
@@ -36,6 +37,7 @@ export type BuildApiAppOptions = {
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
+  readonly syncQueryService?: SyncQueryService;
   readonly syncReplayService?: SyncReplayService;
   readonly transactionQueryService?: TransactionQueryService;
   readonly webAuthnAdapter?: WebAuthnAdapter;
@@ -146,8 +148,9 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     });
   }
 
-  if (options.syncReplayService) {
+  if (options.syncReplayService || options.syncQueryService) {
     await registerSyncRoutes(app, {
+      syncQueryService: options.syncQueryService,
       syncReplayService: options.syncReplayService,
     });
   }

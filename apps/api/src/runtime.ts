@@ -23,6 +23,7 @@ import {
   createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
+  createSyncQueryService,
   createSyncReplayService,
   type IdentityRepository,
   LedgerMutationError,
@@ -114,6 +115,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
           financeMutationService,
           syncRepository,
         }),
+        syncQueryService: createSyncQueryService({ syncRepository }),
         transactionQueryService: createSqliteTransactionQueryService(client),
       },
       close: async () => {
@@ -168,6 +170,7 @@ async function createPostgresRuntimeDependencies(
           financeMutationService,
           syncRepository,
         }),
+        syncQueryService: createSyncQueryService({ syncRepository }),
         transactionQueryService: createPostgresTransactionQueryService(db),
       },
       close: async () => {

@@ -174,6 +174,20 @@ describe("sync repository", () => {
           id: "operation_2",
           serverRevision: 2,
         });
+        await expect(
+          syncRepository.listAcceptedOperationsSince({
+            ledgerId: workspaceState.ledger.id,
+            limit: 10,
+            sinceRevision: 1,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject([
+          {
+            id: "operation_2",
+            serverRevision: 2,
+            status: "accepted",
+          },
+        ]);
       });
     });
 
@@ -230,6 +244,12 @@ describe("sync repository", () => {
           serverRevision: null,
           status: "conflict",
         });
+        await expect(
+          syncRepository.countOpenConflicts({
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toBe(1);
       });
     });
   }

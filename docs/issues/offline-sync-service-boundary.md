@@ -45,13 +45,14 @@ Implemented on 2026-05-10:
   route permission behavior.
 - Added device registration/list/revoke repositories and API routes so sync push no longer depends
   on manually seeded devices.
+- Added sync pull/status contracts, repository reads, query service, and API routes for clients to
+  fetch accepted operations after a revision and inspect current server revision/conflict count.
 
 Remaining before offline write beta:
 
 - `category.create.v1` and `budget.assign_category_month.v1` need real domain services or must be
   removed from the approved offline command list. Tracked in
   `docs/issues/sync-category-budget-domain-services.md`.
-- Sync pull/status endpoints still need implementation.
 
 ## Blocking Milestone
 

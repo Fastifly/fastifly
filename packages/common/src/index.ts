@@ -56,11 +56,23 @@ export {
   paginatedResponseSchema,
   parseFinanceCursor,
 } from "./api/pagination.js";
-export type { SyncPushOperation, SyncPushRequest, SyncPushResponse } from "./api/sync.js";
+export type {
+  SyncPullQuery,
+  SyncPullResponse,
+  SyncPushOperation,
+  SyncPushRequest,
+  SyncPushResponse,
+  SyncStatusQuery,
+  SyncStatusResponse,
+} from "./api/sync.js";
 export {
+  SyncPullQuerySchema,
+  SyncPullResponseSchema,
   SyncPushOperationSchema,
   SyncPushRequestSchema,
   SyncPushResponseSchema,
+  SyncStatusQuerySchema,
+  SyncStatusResponseSchema,
 } from "./api/sync.js";
 export {
   accountListFixture,

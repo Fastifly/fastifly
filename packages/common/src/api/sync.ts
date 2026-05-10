@@ -59,6 +59,51 @@ export const SyncPushResponseSchema = z.strictObject({
   }),
 });
 
+export const SyncPullQuerySchema = z.strictObject({
+  workspaceId: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+  sinceRevision: SyncRevisionStringSchema,
+});
+
+export const SyncPullResponseSchema = z.strictObject({
+  data: z.strictObject({
+    workspaceId: SyncedIdSchema,
+    ledgerId: SyncedIdSchema,
+    fromRevision: SyncRevisionStringSchema,
+    toRevision: SyncRevisionStringSchema,
+    operations: z.array(
+      z.strictObject({
+        operationId: SyncOperationIdSchema,
+        deviceId: SyncedIdSchema,
+        localSequence: SyncRevisionStringSchema,
+        operationType: SyncOperationTypeSchema,
+        serverRevision: SyncRevisionStringSchema,
+        payloadEncoding: z.enum(["plaintext.v1"]),
+        payload: z.record(z.string(), z.unknown()),
+        createdAt: z.string(),
+      }),
+    ),
+  }),
+});
+
+export const SyncStatusQuerySchema = z.strictObject({
+  workspaceId: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+});
+
+export const SyncStatusResponseSchema = z.strictObject({
+  data: z.strictObject({
+    workspaceId: SyncedIdSchema,
+    ledgerId: SyncedIdSchema,
+    serverRevision: SyncRevisionStringSchema,
+    openConflictCount: z.number().int().min(0),
+  }),
+});
+
 export type SyncPushOperation = z.infer<typeof SyncPushOperationSchema>;
 export type SyncPushRequest = z.infer<typeof SyncPushRequestSchema>;
 export type SyncPushResponse = z.infer<typeof SyncPushResponseSchema>;
+export type SyncPullQuery = z.infer<typeof SyncPullQuerySchema>;
+export type SyncPullResponse = z.infer<typeof SyncPullResponseSchema>;
+export type SyncStatusQuery = z.infer<typeof SyncStatusQuerySchema>;
+export type SyncStatusResponse = z.infer<typeof SyncStatusResponseSchema>;
