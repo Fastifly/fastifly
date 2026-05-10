@@ -337,6 +337,8 @@ Use idempotency for:
 
 Idempotency replay response must be fixture-tested.
 
+Idempotency request matching must hash both payload and behavior-relevant envelope fields, including mutation source, base revision, dry-run mode, side-effect flags, and sync metadata (for sync writes).
+
 ---
 
 ## Sync API

@@ -228,6 +228,123 @@ describe("ledger mutation runner", () => {
       });
     });
 
+    it(`rejects idempotency key reuse when side effect flags change on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_side_effects",
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        await runner.run({
+          envelope,
+          requestPayload: { amountMinor: "100" },
+          handler: () => ({ body: { ok: true }, status: 201 }),
+        });
+
+        await expect(
+          runner.run({
+            envelope: {
+              ...envelope,
+              sideEffectFlags: {
+                ...envelope.sideEffectFlags,
+                applyRules: true,
+              },
+            },
+            requestPayload: { amountMinor: "100" },
+            handler: () => ({ body: { ok: true }, status: 201 }),
+          }),
+        ).rejects.toMatchObject({
+          code: "IDEMPOTENCY_CONFLICT",
+        } satisfies Partial<LedgerMutationError>);
+      });
+    });
+
+    it(`rejects idempotency key reuse when dry run mode changes on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_dry_run_conflict",
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        await runner.run({
+          envelope,
+          requestPayload: { amountMinor: "100" },
+          handler: () => ({ body: { ok: true }, status: 201 }),
+        });
+
+        await expect(
+          runner.run({
+            envelope: {
+              ...envelope,
+              dryRun: true,
+            },
+            requestPayload: { amountMinor: "100" },
+            handler: () => ({ body: { ok: true }, status: 201 }),
+          }),
+        ).rejects.toMatchObject({
+          code: "IDEMPOTENCY_CONFLICT",
+        } satisfies Partial<LedgerMutationError>);
+      });
+    });
+
+    it(`rejects idempotency key reuse when sync metadata changes on ${factory.name}`, async () => {
+      await factory.run(async ({ identityRepository, store }) => {
+        const { user, workspaceState } = await createBaseState(identityRepository);
+        const runner = new LedgerMutationRunner({
+          authorize: () => undefined,
+          store,
+          writeBoundary: createInProcessLedgerWriteBoundary(),
+        });
+        const envelope = createEnvelope({
+          actorUserId: user.id,
+          idempotencyKey: "idem_sync_metadata",
+          ledgerId: workspaceState.ledger.id,
+          source: "sync",
+          syncOperationId: "operation_1",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        await runner.run({
+          envelope,
+          requestPayload: { amountMinor: "100" },
+          handler: () => ({ body: { ok: true }, status: 202 }),
+        });
+
+        await expect(
+          runner.run({
+            envelope: createEnvelope({
+              actorUserId: user.id,
+              idempotencyKey: "idem_sync_metadata",
+              ledgerId: workspaceState.ledger.id,
+              source: "sync",
+              syncOperationId: "operation_2",
+              workspaceId: workspaceState.workspace.id,
+            }),
+            requestPayload: { amountMinor: "100" },
+            handler: () => ({ body: { ok: true }, status: 202 }),
+          }),
+        ).rejects.toMatchObject({
+          code: "IDEMPOTENCY_CONFLICT",
+        } satisfies Partial<LedgerMutationError>);
+      });
+    });
+
     it(`ignores expired idempotency receipts on ${factory.name}`, async () => {
       await factory.run(async ({ dialect, identityRepository, rawDb, store }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);

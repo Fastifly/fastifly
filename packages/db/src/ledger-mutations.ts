@@ -281,7 +281,10 @@ export class LedgerMutationRunner<TTransaction> {
       envelope: {
         authorization: input.envelope.authorization,
         baseRevision: input.envelope.baseRevision ?? null,
+        dryRun: input.envelope.dryRun,
+        sideEffectFlags: input.envelope.sideEffectFlags,
         source: input.envelope.source,
+        syncOperation: input.envelope.syncOperation ?? null,
         workspaceId: input.envelope.workspaceId,
         ledgerId: input.envelope.ledgerId,
       },

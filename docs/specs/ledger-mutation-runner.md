@@ -78,7 +78,7 @@ recalculateBalances
 The runner performs the same sequence for every write:
 
 1. Authorize the actor against the current envelope.
-2. Hash the authorization context, envelope-relevant scope fields, and request payload for idempotency comparison.
+2. Hash the authorization context, envelope-relevant behavior fields, and request payload for idempotency comparison.
 3. Acquire the per-ledger write boundary.
 4. Open one database transaction.
 5. Check idempotency receipt replay or conflict.
@@ -134,6 +134,17 @@ Rules:
 - expired receipts are deleted inside the mutation transaction and do not replay
 - dry-run mutations do not write receipts
 - failed mutations do not write receipts
+
+Request hash input must include:
+
+- authorization action/subject
+- workspace and ledger scope
+- base revision
+- source
+- dry-run mode
+- side-effect flags
+- sync operation metadata when source is sync
+- request payload
 
 Customer-safe API messages:
 
