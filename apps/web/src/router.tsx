@@ -1,7 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
+import { testIds } from "./testing/testid-registry";
 import { AppShell } from "./ui/app-shell";
 import { AuthPage } from "./ui/auth-page";
-import { testIds } from "./testing/testid-registry";
 
 const rootRoute = createRootRoute({
   component: () => (

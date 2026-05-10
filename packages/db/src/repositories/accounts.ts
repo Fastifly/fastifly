@@ -242,6 +242,7 @@ export function createSqliteAccountRepository(
           FROM accounts
           WHERE workspace_id = ?
             AND ledger_id = ?
+            AND NOT (kind = 'equity' AND subtype IN ('opening_helper', 'reconciliation_helper'))
             ${cursorClause}
           ORDER BY name, id
           LIMIT ?
@@ -399,6 +400,7 @@ export function createPostgresAccountRepository(
           and(
             eq(pgAccounts.workspaceId, scope.workspaceId),
             eq(pgAccounts.ledgerId, scope.ledgerId),
+            sql`NOT (${pgAccounts.kind} = 'equity' AND ${pgAccounts.subtype} IN ('opening_helper', 'reconciliation_helper'))`,
             cursor
               ? or(
                   gt(pgAccounts.name, cursor.sortKey),

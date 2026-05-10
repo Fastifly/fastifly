@@ -42,6 +42,7 @@ import type { RepositoryClock, RepositoryListPage } from "./base.js";
 import { assertLedgerScope, makeTimestamp, systemClock } from "./base.js";
 
 const TRANSACTION_WRITE_REASON = "transaction.created";
+const PUBLIC_TRANSACTION_GROUP_TYPES = ["expense", "income", "transfer", "split"] as const;
 
 export type TransactionWriteRepositoryOptions = {
   readonly clock?: RepositoryClock;
@@ -598,6 +599,7 @@ function listSqliteTransactionGroupIds(
     "transaction_groups.workspace_id = ?",
     "transaction_groups.ledger_id = ?",
     "transaction_groups.deleted_at IS NULL",
+    "transaction_groups.type IN ('expense', 'income', 'transfer', 'split')",
     "transaction_journals.deleted_at IS NULL",
   ];
 
@@ -716,6 +718,7 @@ function readSqliteTransactionGroupsByIds(
       WHERE transaction_groups.workspace_id = ?
         AND transaction_groups.ledger_id = ?
         AND transaction_groups.deleted_at IS NULL
+        AND transaction_groups.type IN ('expense', 'income', 'transfer', 'split')
         AND transaction_journals.deleted_at IS NULL
         AND transaction_groups.id IN (${placeholders})
         ${filterConditions.length > 0 ? `AND ${filterConditions.join(" AND ")}` : ""}
@@ -1033,6 +1036,7 @@ async function listPostgresTransactionGroupIds(
     eq(pgTransactionGroups.workspaceId, scope.workspaceId),
     eq(pgTransactionGroups.ledgerId, scope.ledgerId),
     isNull(pgTransactionGroups.deletedAt),
+    inArray(pgTransactionGroups.type, PUBLIC_TRANSACTION_GROUP_TYPES),
     isNull(pgTransactionJournals.deletedAt),
   ];
   if (input.accountId) {
@@ -1105,6 +1109,7 @@ async function readPostgresTransactionGroupsByIds(
     eq(pgTransactionGroups.workspaceId, scope.workspaceId),
     eq(pgTransactionGroups.ledgerId, scope.ledgerId),
     isNull(pgTransactionGroups.deletedAt),
+    inArray(pgTransactionGroups.type, PUBLIC_TRANSACTION_GROUP_TYPES),
     isNull(pgTransactionJournals.deletedAt),
     inArray(pgTransactionGroups.id, groupIds),
     ...buildPostgresHydrationFilterConditions(filters),

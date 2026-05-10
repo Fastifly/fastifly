@@ -43,6 +43,7 @@ import { en } from "../i18n/en";
 import { registerServiceWorker } from "../pwa";
 import { readPendingOutboxCount } from "../sync/outbox";
 import { testIds } from "../testing/testid-registry";
+import { AccountCreatePanel } from "./account-create-panel";
 import { FastiflyIcon } from "./fastifly-icon";
 import {
   getCurrentNavigationItem,
@@ -257,6 +258,7 @@ export function AppShell({ children }: PropsWithChildren) {
           theme={theme}
           transactionsCount={transactions.length}
         />
+        {children}
 
         {pendingOutboxCount > 0 ? (
           <Alert
@@ -550,7 +552,13 @@ function PageBody({
     );
   }
   if (pageSlug === "accounts") {
-    return <AccountsPage accounts={accounts} accountsLoading={accountsLoading} />;
+    return (
+      <AccountsPage
+        accounts={accounts}
+        accountsLoading={accountsLoading}
+        ledgerContext={ledgerContext}
+      />
+    );
   }
   if (pageSlug === "budgets") {
     return (
@@ -633,12 +641,18 @@ function TransactionsPage({
 function AccountsPage({
   accounts,
   accountsLoading,
+  ledgerContext,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly accountsLoading: boolean;
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
 }) {
   return (
-    <section className="ff-single-page" data-testid={testIds.accounts.page}>
+    <section className="ff-single-page space-y-4" data-testid={testIds.accounts.page}>
+      <AccountCreatePanel ledgerContext={ledgerContext} />
       <GlassSection title={en.shell.allAccounts} description={en.shell.accountsBody}>
         <div
           className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"

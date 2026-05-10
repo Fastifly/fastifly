@@ -71,6 +71,19 @@ export function parseDecimalMoneyToMinor(value: string): AmountMinorString {
   return formatAmountMinor(amountMinor);
 }
 
+export function parseSignedDecimalMoneyToMinor(value: string): AmountMinorString {
+  const trimmed = value.trim();
+  if (!/^-?(0|[1-9]\d*)(\.\d{1,2})?$/.test(trimmed)) {
+    throw new Error("Money amount must be a decimal with up to 2 fraction digits");
+  }
+
+  const isNegative = trimmed.startsWith("-");
+  const unsigned = isNegative ? trimmed.slice(1) : trimmed;
+  const [whole = "0", fraction = ""] = unsigned.split(".");
+  const amountMinor = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0") || "0");
+  return formatAmountMinor(isNegative && amountMinor > 0n ? -amountMinor : amountMinor);
+}
+
 export function formatAmountMinor(value: bigint): AmountMinorString {
   if (value < MIN_SIGNED_64 || value > MAX_SIGNED_64) {
     throw new RangeError("Amount minor must fit in a signed 64-bit integer");

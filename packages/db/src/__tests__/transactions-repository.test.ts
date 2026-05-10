@@ -372,6 +372,16 @@ describe("transaction write repository", () => {
             identityRepository,
             accountRepository,
           );
+          const openingBalanceAccount = await accountRepository.createAccount({
+            currencyCode: "INR",
+            kind: "asset",
+            ledgerId: workspaceState.ledger.id,
+            name: "Starting balance account",
+            openingBalanceDate: "2026-05-01",
+            openingBalanceMinor: 25_000n,
+            subtype: "bank",
+            workspaceId: workspaceState.workspace.id,
+          });
           await transactionRepository.createTransaction({
             currencyCode: "INR",
             description: "Early groceries",
@@ -402,10 +412,18 @@ describe("transaction write repository", () => {
             workspaceId: workspaceState.workspace.id,
           });
 
+          expect(openingBalanceAccount.openingBalanceGroupId).not.toBeNull();
           expect(groups.items.map((group) => group.title)).toEqual([
             "Latest split",
             "Early groceries",
           ]);
+          await expect(
+            transactionQueryService.getTransactionGroup({
+              ledgerId: workspaceState.ledger.id,
+              transactionGroupId: openingBalanceAccount.openingBalanceGroupId as SyncedId,
+              workspaceId: workspaceState.workspace.id,
+            }),
+          ).resolves.toBeNull();
           expect(groups.items[0]).toMatchObject({
             id: latest.id,
             type: "split",

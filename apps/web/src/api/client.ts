@@ -3,6 +3,8 @@ import {
   ApiErrorSchema,
   type AuthResponse,
   AuthResponseSchema,
+  type CreateAccountRequest,
+  CreateAccountResponseSchema,
   type CreateTransactionRequest,
   CreateTransactionResponseSchema,
   CsrfTokenResponseSchema,
@@ -31,6 +33,7 @@ export class FastiflyApiError extends Error {
 }
 
 export type ApiClient = {
+  readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
   readonly createTransaction: (input: LedgerPathInput & CreateTransactionRequest) => Promise<void>;
   readonly getHealth: () => Promise<{ readonly status: string }>;
   readonly getMeContext: () => Promise<MeContextResponse>;
@@ -54,6 +57,28 @@ const openApiClient = createClient<paths>({
 let csrfTokenPromise: Promise<string> | null = null;
 
 export const apiClient: ApiClient = {
+  async createAccount(input) {
+    const { ledgerId, workspaceId, ...body } = input;
+    await withCsrf(async (csrfToken) => {
+      CreateAccountResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/accounts", {
+            body: makeCreateAccountBody(body),
+            headers: {
+              "idempotency-key": makeIdempotencyKey(),
+              "x-csrf-token": csrfToken,
+            },
+            params: {
+              path: {
+                ledgerId,
+                workspaceId,
+              },
+            },
+          }),
+        ),
+      );
+    });
+  },
   async createTransaction(input) {
     const { ledgerId, workspaceId, ...body } = input;
     await withCsrf(async (csrfToken) => {
@@ -243,6 +268,21 @@ function notifyIfSessionExpired(error: ApiError): void {
 
 function makeIdempotencyKey(): string {
   return `web-${crypto.randomUUID()}`;
+}
+
+function makeCreateAccountBody(input: CreateAccountRequest) {
+  return {
+    currencyCode: input.currencyCode,
+    kind: input.kind,
+    name: input.name,
+    subtype: input.subtype,
+    ...(input.openingBalanceDate !== undefined
+      ? { openingBalanceDate: input.openingBalanceDate }
+      : {}),
+    ...(input.openingBalanceMinor !== undefined
+      ? { openingBalanceMinor: input.openingBalanceMinor }
+      : {}),
+  };
 }
 
 function makeCreateTransactionBody(input: CreateTransactionRequest) {

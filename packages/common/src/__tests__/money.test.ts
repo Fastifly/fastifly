@@ -9,6 +9,7 @@ import {
   makeMoneyAmount,
   parseAmountMinor,
   parseDecimalMoneyToMinor,
+  parseSignedDecimalMoneyToMinor,
 } from "../money.js";
 
 describe("money contracts", () => {
@@ -33,6 +34,17 @@ describe("money contracts", () => {
 
     for (const value of ["", "-1", "01", "1.234", "1,000", "1e3"]) {
       expect(() => parseDecimalMoneyToMinor(value)).toThrow();
+    }
+  });
+
+  it("converts signed user-entered decimal money to integer minor units without floats", () => {
+    expect(parseSignedDecimalMoneyToMinor("125")).toBe("12500");
+    expect(parseSignedDecimalMoneyToMinor("-125.5")).toBe("-12550");
+    expect(parseSignedDecimalMoneyToMinor("-0.00")).toBe("0");
+    expect(parseSignedDecimalMoneyToMinor(" 10.01 ")).toBe("1001");
+
+    for (const value of ["", "01", "-01", "1.234", "1,000", "1e3"]) {
+      expect(() => parseSignedDecimalMoneyToMinor(value)).toThrow();
     }
   });
 

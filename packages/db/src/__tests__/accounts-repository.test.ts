@@ -176,10 +176,7 @@ describe("account repository", () => {
           ledgerId: workspaceState.ledger.id,
           workspaceId: workspaceState.workspace.id,
         });
-        expect(accounts.items.map((account) => account.name).sort()).toEqual([
-          "Checking",
-          "Opening Balances (INR)",
-        ]);
+        expect(accounts.items.map((account) => account.name)).toEqual(["Checking"]);
       });
     });
 
