@@ -1,11 +1,13 @@
 import { z } from "zod";
 
 import { SyncedIdSchema } from "../ids.js";
+import { IsoDateTimeSchema, NullableIsoDateTimeSchema } from "../schemas/scalars.js";
 import {
   SyncOperationIdSchema,
   SyncOperationTypeSchema,
   SyncRevisionStringSchema,
 } from "../sync/operations.js";
+import { IdempotencyKeySchema } from "./idempotency.js";
 
 export const SyncPushOperationSchema = z.strictObject({
   operationId: SyncOperationIdSchema,
@@ -13,10 +15,10 @@ export const SyncPushOperationSchema = z.strictObject({
   operationType: SyncOperationTypeSchema,
   operationVersion: z.literal(1),
   baseRevision: SyncRevisionStringSchema.nullish(),
-  idempotencyKey: z.string().trim().min(1).max(255),
+  idempotencyKey: IdempotencyKeySchema,
   payloadEncoding: z.enum(["plaintext.v1"]).default("plaintext.v1"),
   payload: z.record(z.string(), z.unknown()),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: IsoDateTimeSchema,
 });
 
 export const SyncPushRequestSchema = z.strictObject({
@@ -82,7 +84,7 @@ export const SyncPullResponseSchema = z.strictObject({
         serverRevision: SyncRevisionStringSchema,
         payloadEncoding: z.enum(["plaintext.v1"]),
         payload: z.record(z.string(), z.unknown()),
-        createdAt: z.string(),
+        createdAt: IsoDateTimeSchema,
       }),
     ),
   }),
@@ -99,7 +101,7 @@ export const SyncStatusResponseSchema = z.strictObject({
     ledgerId: SyncedIdSchema,
     serverRevision: SyncRevisionStringSchema,
     openConflicts: z.number().int().min(0),
-    lastOperationAt: z.string().nullable(),
+    lastOperationAt: NullableIsoDateTimeSchema,
   }),
 });
 
@@ -131,7 +133,7 @@ export const SyncConflictsResponseSchema = z.strictObject({
         localSnapshot: z.record(z.string(), z.unknown()),
         incomingPayload: z.record(z.string(), z.unknown()),
         status: z.enum(["open", "resolved", "dismissed"]),
-        createdAt: z.string(),
+        createdAt: IsoDateTimeSchema,
       }),
     ),
   }),
@@ -151,7 +153,7 @@ export const SyncResolveConflictResponseSchema = z.strictObject({
   data: z.strictObject({
     conflictId: SyncedIdSchema,
     status: z.literal("dismissed"),
-    resolvedAt: z.string(),
+    resolvedAt: IsoDateTimeSchema,
   }),
 });
 

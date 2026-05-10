@@ -3,21 +3,22 @@ import { z } from "zod";
 import { SyncedIdSchema } from "../ids.js";
 import { AmountMinorStringSchema, CurrencyCodeSchema, MoneyAmountSchema } from "../money.js";
 import { AccountKindSchema, AccountSubtypeSchema } from "../product-rules/accounts.js";
+import { IsoDateSchema, IsoDateTimeSchema, NullableIsoDateTimeSchema } from "../schemas/scalars.js";
 import { CursorPaginationQuerySchema, paginatedResponseSchema } from "./pagination.js";
 
 export const AccountResponseSchema = z.strictObject({
-  archivedAt: z.string().nullable(),
-  createdAt: z.string(),
+  archivedAt: NullableIsoDateTimeSchema,
+  createdAt: IsoDateTimeSchema,
   currencyCode: CurrencyCodeSchema,
   id: SyncedIdSchema,
   isActive: z.boolean(),
   kind: AccountKindSchema,
   ledgerId: SyncedIdSchema,
   name: z.string().min(1),
-  openingBalanceDate: z.string().nullable(),
+  openingBalanceDate: IsoDateSchema.nullable(),
   openingBalanceMinor: AmountMinorStringSchema.nullable(),
   subtype: AccountSubtypeSchema,
-  updatedAt: z.string(),
+  updatedAt: IsoDateTimeSchema,
   workspaceId: SyncedIdSchema,
 });
 
@@ -30,7 +31,7 @@ export const CreateAccountRequestSchema = z.strictObject({
   currencyCode: CurrencyCodeSchema,
   kind: AccountKindSchema,
   name: z.string().trim().min(1).max(200),
-  openingBalanceDate: z.string().min(1).nullable().optional(),
+  openingBalanceDate: IsoDateSchema.nullable().optional(),
   openingBalanceMinor: AmountMinorStringSchema.nullable().optional(),
   subtype: AccountSubtypeSchema,
 });
@@ -68,8 +69,8 @@ export const BudgetPeriodSchema = z.enum([
 ]);
 
 export const BudgetSummaryResponseSchema = z.strictObject({
-  archivedAt: z.string().nullable(),
-  createdAt: z.string(),
+  archivedAt: NullableIsoDateTimeSchema,
+  createdAt: IsoDateTimeSchema,
   currencyCode: CurrencyCodeSchema,
   id: SyncedIdSchema,
   ledgerId: SyncedIdSchema,
@@ -79,7 +80,7 @@ export const BudgetSummaryResponseSchema = z.strictObject({
   remaining: MoneyAmountSchema,
   rolloverEnabled: z.boolean(),
   spent: MoneyAmountSchema,
-  updatedAt: z.string(),
+  updatedAt: IsoDateTimeSchema,
   workspaceId: SyncedIdSchema,
 });
 
@@ -102,7 +103,7 @@ export const TransactionLineRequestSchema = z.strictObject({
 export const CreateTransactionRequestSchema = z.strictObject({
   currencyCode: CurrencyCodeSchema,
   description: z.string().trim().min(1).max(500),
-  occurredAt: z.string().min(1),
+  occurredAt: IsoDateTimeSchema,
   options: z
     .strictObject({
       applyRules: z.boolean().optional(),
@@ -132,7 +133,7 @@ export const TransactionPostingResponseSchema = z.strictObject({
 export const TransactionJournalResponseSchema = z.strictObject({
   description: z.string().min(1),
   id: SyncedIdSchema,
-  occurredAt: z.string().min(1),
+  occurredAt: IsoDateTimeSchema,
   postings: z.array(TransactionPostingResponseSchema).min(2),
   type: z.enum(["expense", "income", "transfer"]),
 });
@@ -154,9 +155,9 @@ export const CreateTransactionResponseSchema = z.strictObject({
 
 export const ListTransactionsQuerySchema = CursorPaginationQuerySchema.extend({
   accountId: SyncedIdSchema.optional(),
-  fromOccurredAt: z.string().min(1).optional(),
+  fromOccurredAt: IsoDateTimeSchema.optional(),
   status: z.enum(["pending", "cleared", "reconciled", "void"]).optional(),
-  toOccurredAt: z.string().min(1).optional(),
+  toOccurredAt: IsoDateTimeSchema.optional(),
   type: z.enum(["expense", "income", "transfer"]).optional(),
 });
 

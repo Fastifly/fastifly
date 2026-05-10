@@ -1,14 +1,15 @@
 import { z } from "zod";
 
 import { SyncedIdSchema } from "../ids.js";
+import { IsoDateTimeSchema, NullableIsoDateTimeSchema } from "../schemas/scalars.js";
 
 export const DeviceResponseSchema = z.strictObject({
   id: SyncedIdSchema,
   deviceKey: z.string().min(1),
   name: z.string().min(1),
-  createdAt: z.string(),
-  lastSeenAt: z.string().nullable(),
-  revokedAt: z.string().nullable(),
+  createdAt: IsoDateTimeSchema,
+  lastSeenAt: NullableIsoDateTimeSchema,
+  revokedAt: NullableIsoDateTimeSchema,
 });
 
 export const CreateDeviceRequestSchema = z.strictObject({

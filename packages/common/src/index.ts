@@ -166,6 +166,11 @@ export {
   isCompatibleAccountPair,
   UserFacingTransactionTypeSchema,
 } from "./product-rules/accounts.js";
+export {
+  IsoDateSchema,
+  IsoDateTimeSchema,
+  NullableIsoDateTimeSchema,
+} from "./schemas/scalars.js";
 export type { LedgerScope, WorkspaceScope } from "./scope.js";
 export { LedgerScopeSchema, WorkspaceScopeSchema } from "./scope.js";
 export type {

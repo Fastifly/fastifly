@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { MeContextResponseSchema } from "../api/auth.js";
+import { DeviceResponseSchema } from "../api/devices.js";
 import { makeValidationError } from "../api/errors.js";
 import {
   CreateTransactionRequestSchema,
@@ -19,6 +21,7 @@ import {
   paginatedResponseSchema,
   parseFinanceCursor,
 } from "../api/pagination.js";
+import { SyncPushOperationSchema } from "../api/sync.js";
 import {
   accountListFixture,
   emptyPaginatedMoneyFixture,
@@ -130,7 +133,63 @@ describe("API contract schemas", () => {
     expect(
       CreateTransactionRequestSchema.safeParse({
         ...validSplit,
+        occurredAt: "2026-05-09T08:00:00.000",
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateTransactionRequestSchema.safeParse({
+        ...validSplit,
         transactions: [{ ...validSplit.transactions[0], amountMinor: "12.00" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps timestamp and currency boundary contracts strict", () => {
+    expect(
+      DeviceResponseSchema.safeParse({
+        id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+        deviceKey: "device_key",
+        name: "Pixel 9",
+        createdAt: "2026-05-09T08:00:00.000",
+        lastSeenAt: null,
+        revokedAt: null,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      MeContextResponseSchema.safeParse({
+        data: {
+          activeLedger: {
+            baseCurrencyCode: "inr",
+            id: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+            name: "Main",
+          },
+          activeWorkspace: {
+            id: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
+            name: "Main",
+            role: "owner",
+          },
+          user: {
+            displayName: "Owner",
+            id: "019dfbac-3319-7773-9a7d-52fb8d9b73e9",
+            username: "owner",
+          },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("reuses strict idempotency-key contract for sync push operations", () => {
+    expect(
+      SyncPushOperationSchema.safeParse({
+        operationId: "operation_1",
+        localSequence: "1",
+        operationType: "transaction_group.create_expense.v1",
+        operationVersion: 1,
+        idempotencyKey: "with space",
+        payloadEncoding: "plaintext.v1",
+        payload: {},
+        createdAt: "2026-05-09T08:00:00.000Z",
       }).success,
     ).toBe(false);
   });

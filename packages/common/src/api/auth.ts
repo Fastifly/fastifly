@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SyncedIdSchema } from "../ids.js";
+import { CurrencyCodeSchema } from "../money.js";
 
 export const LoginCredentialsSchema = z.strictObject({
   password: z.string().min(1).max(1024),
@@ -35,7 +36,7 @@ export const CsrfTokenResponseSchema = z.strictObject({
 export const MeContextResponseSchema = z.strictObject({
   data: z.strictObject({
     activeLedger: z.strictObject({
-      baseCurrencyCode: z.string().length(3),
+      baseCurrencyCode: CurrencyCodeSchema,
       id: SyncedIdSchema,
       name: z.string().min(1),
     }),
