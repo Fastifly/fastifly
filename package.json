@@ -27,6 +27,8 @@
     "db:generate:postgres": "pnpm --filter @fastifly/db db:generate:postgres",
     "db:migrate:sqlite": "pnpm --filter @fastifly/db db:migrate:sqlite",
     "db:migrate:postgres": "pnpm --filter @fastifly/db db:migrate:postgres",
+    "db:clean": "tilt trigger db-clean --port 10360",
+    "db:seed": "tilt trigger db-seed --port 10360",
     "db:seed:essential": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:essential",
     "db:seed:demo": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:demo",
     "db:seed:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"

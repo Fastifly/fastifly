@@ -174,9 +174,12 @@ Docs: http://localhost:3400/api/docs
 Demo login:
 
 ```text
-Username: demo-owner
-Password: fastifly-demo-password
+Username: owner
+Password: password
 ```
+
+The same demo login values are defined once in `packages/common/src/demo-login.ts`
+and reused by DB seeds and the web login screen.
 
 For SQLite without seeded demo data, use:
 
@@ -189,6 +192,18 @@ For the full demo dataset explicitly:
 ```bash
 pnpm dev:sqlite:demo
 ```
+
+To clean or seed the currently running Tilt database:
+
+```bash
+pnpm db:clean
+pnpm db:seed
+```
+
+These trigger Tilt's manual `db-clean` and `db-seed` resources on port `10360`.
+Both commands use the active Tilt database mode and connection URL. If Tilt was
+started with `FASTIFLY_DEV_SEED=none`, `pnpm db:seed` uses the full `e2e` demo
+seed.
 
 Tilt uses fixed development ports. If a port is busy, stop the conflicting
 process before running Tilt.
@@ -339,6 +354,8 @@ pnpm db:generate:sqlite
 pnpm db:generate:postgres
 pnpm db:migrate:sqlite
 pnpm db:migrate:postgres
+pnpm db:clean
+pnpm db:seed
 pnpm db:seed:essential
 pnpm db:seed:demo
 pnpm db:seed:e2e

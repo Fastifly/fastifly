@@ -47,7 +47,7 @@ import {
   sqliteWorkspaceMembers,
   sqliteWorkspaces,
 } from "../sqlite/schema.js";
-import { SEED_CREDENTIALS, SEED_NOW, SEED_PASSWORD_HASH } from "./fixtures.js";
+import { createSeedPasswordHash, SEED_CREDENTIALS, SEED_NOW } from "./fixtures.js";
 import { SEED_IDS, seedId } from "./ids.js";
 
 export type SeedLevel = "essential" | "demo" | "e2e";
@@ -495,31 +495,39 @@ async function seedE2ePostgres(db: PostgresDatabase): Promise<void> {
 }
 
 async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
+  const ownerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.owner.password);
+  const partnerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.partner.password);
+
   await db
     .insert(sqliteUsers)
-    .values([
-      {
-        id: SEED_IDS.USER_OWNER,
-        username: SEED_CREDENTIALS.owner.username,
-        usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
-        displayName: "Demo Owner",
-        passwordHash: SEED_PASSWORD_HASH,
-        createdAt: SEED_NOW,
-        updatedAt: SEED_NOW,
-      },
-      {
-        id: SEED_IDS.USER_PARTNER,
-        username: SEED_CREDENTIALS.partner.username,
-        usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
-        displayName: "Demo Partner",
-        passwordHash: SEED_PASSWORD_HASH,
-        createdAt: SEED_NOW,
-        updatedAt: SEED_NOW,
-      },
-    ])
+    .values({
+      id: SEED_IDS.USER_OWNER,
+      username: SEED_CREDENTIALS.owner.username,
+      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
+      displayName: "Demo Owner",
+      passwordHash: ownerPasswordHash,
+      createdAt: SEED_NOW,
+      updatedAt: SEED_NOW,
+    })
     .onConflictDoUpdate({
       target: sqliteUsers.id,
-      set: { passwordHash: SEED_PASSWORD_HASH, updatedAt: SEED_NOW },
+      set: { passwordHash: ownerPasswordHash, updatedAt: SEED_NOW },
+    });
+
+  await db
+    .insert(sqliteUsers)
+    .values({
+      id: SEED_IDS.USER_PARTNER,
+      username: SEED_CREDENTIALS.partner.username,
+      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
+      displayName: "Demo Partner",
+      passwordHash: partnerPasswordHash,
+      createdAt: SEED_NOW,
+      updatedAt: SEED_NOW,
+    })
+    .onConflictDoUpdate({
+      target: sqliteUsers.id,
+      set: { passwordHash: partnerPasswordHash, updatedAt: SEED_NOW },
     });
 
   await db
@@ -587,31 +595,39 @@ async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
 
 async function seedFoundationPostgres(db: PostgresDatabase): Promise<void> {
   const now = new Date(SEED_NOW);
+  const ownerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.owner.password);
+  const partnerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.partner.password);
+
   await db
     .insert(pgUsers)
-    .values([
-      {
-        id: SEED_IDS.USER_OWNER,
-        username: SEED_CREDENTIALS.owner.username,
-        usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
-        displayName: "Demo Owner",
-        passwordHash: SEED_PASSWORD_HASH,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: SEED_IDS.USER_PARTNER,
-        username: SEED_CREDENTIALS.partner.username,
-        usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
-        displayName: "Demo Partner",
-        passwordHash: SEED_PASSWORD_HASH,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ])
+    .values({
+      id: SEED_IDS.USER_OWNER,
+      username: SEED_CREDENTIALS.owner.username,
+      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
+      displayName: "Demo Owner",
+      passwordHash: ownerPasswordHash,
+      createdAt: now,
+      updatedAt: now,
+    })
     .onConflictDoUpdate({
       target: pgUsers.id,
-      set: { passwordHash: SEED_PASSWORD_HASH, updatedAt: now },
+      set: { passwordHash: ownerPasswordHash, updatedAt: now },
+    });
+
+  await db
+    .insert(pgUsers)
+    .values({
+      id: SEED_IDS.USER_PARTNER,
+      username: SEED_CREDENTIALS.partner.username,
+      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
+      displayName: "Demo Partner",
+      passwordHash: partnerPasswordHash,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: pgUsers.id,
+      set: { passwordHash: partnerPasswordHash, updatedAt: now },
     });
 
   await db

@@ -21,6 +21,7 @@
     "fastifly": "node dist/cli.js",
     "db:generate:sqlite": "drizzle-kit generate --config=drizzle.sqlite.config.ts",
     "db:generate:postgres": "drizzle-kit generate --config=drizzle.postgres.config.ts",
+    "db:clean": "node dist/dev/clean-cli.js",
     "db:migrate:sqlite": "node -e \"if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for SQLite migrations.'); process.exit(1); }\" && drizzle-kit migrate --config=drizzle.sqlite.config.ts",
     "db:migrate:postgres": "node -e \"if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for PostgreSQL migrations.'); process.exit(1); }\" && drizzle-kit migrate --config=drizzle.postgres.config.ts",
     "db:seed:essential": "node dist/seed/cli.js essential",
@@ -30,6 +31,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.4.5",
     "@fastifly/common": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "1.0.0-rc.2",
     "postgres": "3.4.9"
