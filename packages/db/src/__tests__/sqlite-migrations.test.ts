@@ -63,6 +63,8 @@ describe("SQLite migrations", () => {
         "payees",
         "recovery_codes",
         "sessions",
+        "sync_conflicts",
+        "sync_operations",
         "tags",
         "transaction_groups",
         "transaction_journals",
@@ -70,6 +72,7 @@ describe("SQLite migrations", () => {
         "transaction_tags",
         "users",
         "workspace_invitations",
+        "workspace_ledger_revisions",
         "workspace_members",
         "workspaces",
       ]);

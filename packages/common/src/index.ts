@@ -48,6 +48,12 @@ export {
   paginatedResponseSchema,
   parseFinanceCursor,
 } from "./api/pagination.js";
+export type { SyncPushOperation, SyncPushRequest, SyncPushResponse } from "./api/sync.js";
+export {
+  SyncPushOperationSchema,
+  SyncPushRequestSchema,
+  SyncPushResponseSchema,
+} from "./api/sync.js";
 export {
   accountListFixture,
   emptyPaginatedMoneyFixture,

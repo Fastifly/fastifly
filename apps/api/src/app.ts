@@ -5,6 +5,7 @@ import type {
   AccountRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
+  SyncReplayService,
   TransactionQueryService,
 } from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
@@ -23,6 +24,7 @@ import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
 import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";
 import { registerFinanceRoutes } from "./routes/finance.js";
+import { registerSyncRoutes } from "./routes/sync.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 
 export type BuildApiAppOptions = {
@@ -31,6 +33,7 @@ export type BuildApiAppOptions = {
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
+  readonly syncReplayService?: SyncReplayService;
   readonly transactionQueryService?: TransactionQueryService;
   readonly webAuthnAdapter?: WebAuthnAdapter;
 };
@@ -131,6 +134,12 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       accountRepository: options.accountRepository,
       financeMutationService: options.financeMutationService,
       transactionQueryService: options.transactionQueryService,
+    });
+  }
+
+  if (options.syncReplayService) {
+    await registerSyncRoutes(app, {
+      syncReplayService: options.syncReplayService,
     });
   }
 

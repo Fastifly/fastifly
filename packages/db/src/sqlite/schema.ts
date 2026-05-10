@@ -2,7 +2,14 @@ import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import type { AuditAction, JobQueueStatus, JsonObject } from "../schema-types.js";
+import type {
+  AuditAction,
+  JobQueueStatus,
+  JsonObject,
+  SyncConflictStatus,
+  SyncConflictType,
+  SyncOperationStatus,
+} from "../schema-types.js";
 
 const timestampText = (name: string) => text(name).notNull();
 const optionalTimestampText = (name: string) => text(name);
@@ -215,6 +222,104 @@ export const sqliteIdempotencyReceipts = sqliteTable(
       table.actorUserId,
       table.idempotencyKey,
     ),
+  ],
+);
+
+export const sqliteWorkspaceLedgerRevisions = sqliteTable(
+  "workspace_ledger_revisions",
+  {
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    currentRevision: integer("current_revision").notNull().default(0),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("workspace_ledger_revisions_scope_unique").on(table.workspaceId, table.ledgerId),
+    check("workspace_ledger_revisions_non_negative_check", sql`${table.currentRevision} >= 0`),
+  ],
+);
+
+export const sqliteSyncOperations = sqliteTable(
+  "sync_operations",
+  {
+    id: text("id").primaryKey().notNull(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    deviceId: requiredIdText("device_id").references(() => sqliteDevices.id),
+    localSequence: text("local_sequence").notNull(),
+    operationType: text("operation_type").notNull(),
+    operationVersion: integer("operation_version").notNull(),
+    baseRevision: integer("base_revision"),
+    serverRevision: integer("server_revision"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    payloadJson: text("payload_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    payloadEncoding: text("payload_encoding").notNull(),
+    encryptedPayload: text("encrypted_payload"),
+    keyVersion: integer("key_version"),
+    status: text("status").$type<SyncOperationStatus>().notNull(),
+    resultJson: text("result_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    receivedAt: timestampText("received_at"),
+  },
+  (table) => [
+    index("sync_operations_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("sync_operations_status_idx").on(table.status),
+    uniqueIndex("sync_operations_device_sequence_unique").on(table.deviceId, table.localSequence),
+    uniqueIndex("sync_operations_workspace_ledger_revision_unique").on(
+      table.workspaceId,
+      table.ledgerId,
+      table.serverRevision,
+    ),
+    check(
+      "sync_operations_revision_check",
+      sql`${table.serverRevision} IS NULL OR ${table.serverRevision} >= 0`,
+    ),
+    check(
+      "sync_operations_status_check",
+      sql`${table.status} IN ('accepted', 'rejected', 'conflict', 'superseded')`,
+    ),
+    check(
+      "sync_operations_payload_encoding_check",
+      sql`${table.payloadEncoding} IN ('plaintext.v1')`,
+    ),
+  ],
+);
+
+export const sqliteSyncConflicts = sqliteTable(
+  "sync_conflicts",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    objectType: text("object_type"),
+    objectId: text("object_id"),
+    incomingOperationId: requiredIdText("incoming_operation_id").references(
+      () => sqliteSyncOperations.id,
+    ),
+    conflictType: text("conflict_type").$type<SyncConflictType>().notNull(),
+    localRevision: integer("local_revision").notNull(),
+    incomingBaseRevision: integer("incoming_base_revision"),
+    localSnapshotJson: text("local_snapshot_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    incomingPayloadJson: text("incoming_payload_json", { mode: "json" })
+      .$type<JsonObject>()
+      .notNull(),
+    status: text("status").$type<SyncConflictStatus>().notNull(),
+    resolutionOperationId: text("resolution_operation_id").references(
+      () => sqliteSyncOperations.id,
+    ),
+    createdAt: timestampText("created_at"),
+    resolvedAt: optionalTimestampText("resolved_at"),
+  },
+  (table) => [
+    index("sync_conflicts_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("sync_conflicts_status_idx").on(table.status),
+    index("sync_conflicts_incoming_operation_idx").on(table.incomingOperationId),
+    check(
+      "sync_conflicts_type_check",
+      sql`${table.conflictType} IN ('stale_update', 'update_after_delete', 'delete_after_update', 'duplicate_unique_value', 'invalid_operation', 'reconciled_record_blocked')`,
+    ),
+    check("sync_conflicts_status_check", sql`${table.status} IN ('open', 'resolved', 'dismissed')`),
   ],
 );
 
@@ -747,6 +852,8 @@ export const sqliteSchema = {
   payees: sqlitePayees,
   recoveryCodes: sqliteRecoveryCodes,
   sessions: sqliteSessions,
+  syncConflicts: sqliteSyncConflicts,
+  syncOperations: sqliteSyncOperations,
   tags: sqliteTags,
   transactionGroups: sqliteTransactionGroups,
   transactionJournals: sqliteTransactionJournals,
@@ -754,6 +861,7 @@ export const sqliteSchema = {
   transactionTags: sqliteTransactionTags,
   users: sqliteUsers,
   workspaceInvitations: sqliteWorkspaceInvitations,
+  workspaceLedgerRevisions: sqliteWorkspaceLedgerRevisions,
   workspaceMembers: sqliteWorkspaceMembers,
   workspaces: sqliteWorkspaces,
 };

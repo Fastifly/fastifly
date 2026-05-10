@@ -11,14 +11,17 @@ import {
   createPostgresDatabaseFromClient,
   createPostgresIdentityRepository,
   createPostgresLedgerMutationStore,
+  createPostgresSyncRepository,
   createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
   createSqliteAccountRepository,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
+  createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
+  createSyncReplayService,
   type IdentityRepository,
   LedgerMutationError,
   LedgerMutationRunner,
@@ -84,22 +87,29 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     const createId = createUuidV7;
     const accountRepository = createSqliteAccountRepository(client, { createId });
     const identityRepository = createSqliteIdentityRepository(db, { createId });
+    const syncRepository = createSqliteSyncRepository(client);
     const transactionRepository = createSqliteTransactionWriteRepository(client, { createId });
     const runner = new LedgerMutationRunner({
       authorize: createRuntimeAuthorization(identityRepository),
       store: createSqliteLedgerMutationStore(db, { createId }),
       writeBoundary: createInProcessLedgerWriteBoundary(),
     });
+    const financeMutationService = createLedgerFinanceMutationService({
+      accountRepository,
+      runner,
+      transactionRepository,
+    });
 
     return {
       appOptions: {
         accountRepository,
-        financeMutationService: createLedgerFinanceMutationService({
-          accountRepository,
-          runner,
-          transactionRepository,
-        }),
+        financeMutationService,
         identityRepository,
+        syncReplayService: createSyncReplayService({
+          createId,
+          financeMutationService,
+          syncRepository,
+        }),
         transactionQueryService: createSqliteTransactionQueryService(client),
       },
       close: async () => {
@@ -123,28 +133,35 @@ async function createPostgresRuntimeDependencies(
     const createId = createUuidV7;
     const accountRepository = createPostgresAccountRepository(db, { createId });
     const identityRepository = createPostgresIdentityRepository(db, { createId });
+    const syncRepository = createPostgresSyncRepository(db);
     const transactionRepository = createPostgresTransactionWriteRepository(db, { createId });
     const runner = new LedgerMutationRunner({
       authorize: createRuntimeAuthorization(identityRepository),
       store: createPostgresLedgerMutationStore(db, { createId }),
       writeBoundary: createInProcessLedgerWriteBoundary(),
     });
+    const financeMutationService = createLedgerFinanceMutationService({
+      accountRepository,
+      createAccountRepositoryForTransaction: (transaction) =>
+        createPostgresAccountRepository(transaction as PostgresTransaction, { createId }),
+      createTransactionRepositoryForTransaction: (transaction) =>
+        createPostgresTransactionWriteRepository(transaction as PostgresTransaction, {
+          createId,
+        }),
+      runner,
+      transactionRepository,
+    });
 
     return {
       appOptions: {
         accountRepository,
-        financeMutationService: createLedgerFinanceMutationService({
-          accountRepository,
-          createAccountRepositoryForTransaction: (transaction) =>
-            createPostgresAccountRepository(transaction as PostgresTransaction, { createId }),
-          createTransactionRepositoryForTransaction: (transaction) =>
-            createPostgresTransactionWriteRepository(transaction as PostgresTransaction, {
-              createId,
-            }),
-          runner,
-          transactionRepository,
-        }),
+        financeMutationService,
         identityRepository,
+        syncReplayService: createSyncReplayService({
+          createId,
+          financeMutationService,
+          syncRepository,
+        }),
         transactionQueryService: createPostgresTransactionQueryService(db),
       },
       close: async () => {

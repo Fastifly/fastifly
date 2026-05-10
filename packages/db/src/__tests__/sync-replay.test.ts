@@ -1,0 +1,278 @@
+import { createUuidV7, type SyncedId, type SyncOperationEnvelope } from "@fastifly/common";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  createSyncReplayService,
+  type LedgerFinanceMutationService,
+  type SyncDeviceRecord,
+  type SyncOperationRecord,
+  SyncReplayError,
+  type SyncRepository,
+} from "../index.js";
+
+const workspaceId = createUuidV7();
+const ledgerId = createUuidV7();
+const deviceId = createUuidV7();
+const actorUserId = createUuidV7();
+
+describe("sync replay service", () => {
+  it("applies transaction commands through the finance mutation service", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 0 });
+    const financeMutationService = makeFinanceMutationService();
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService,
+      now: () => new Date("2026-05-09T02:00:00.000Z"),
+      syncRepository,
+    });
+
+    const result = await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [createExpenseOperation({ baseRevision: "0", operationId: "operation_1" })],
+      workspaceId,
+    });
+
+    expect(result).toEqual({
+      accepted: [{ operationId: "operation_1", serverRevision: "1" }],
+      conflicts: [],
+      rejected: [],
+      serverRevision: "1",
+    });
+    expect(financeMutationService.createExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        envelope: expect.objectContaining({
+          authorization: { action: "create", subject: "TransactionGroup" },
+          deviceId,
+          source: "sync",
+          syncOperation: expect.objectContaining({ operationId: "operation_1" }),
+        }),
+      }),
+    );
+    expect(syncRepository.operations.get("operation_1")).toMatchObject({
+      serverRevision: 1,
+      status: "accepted",
+    });
+  });
+
+  it("replays duplicate operation results without calling finance twice", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 1 });
+    syncRepository.operations.set("operation_1", {
+      ...makeOperationRecord("operation_1"),
+      serverRevision: 1,
+      status: "accepted",
+    });
+    const financeMutationService = makeFinanceMutationService();
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService,
+      syncRepository,
+    });
+
+    const result = await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [createExpenseOperation({ baseRevision: "0", operationId: "operation_1" })],
+      workspaceId,
+    });
+
+    expect(result.accepted).toEqual([{ operationId: "operation_1", serverRevision: "1" }]);
+    expect(financeMutationService.createExpense).not.toHaveBeenCalled();
+  });
+
+  it("records stale base revisions as explicit conflicts", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 3 });
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService: makeFinanceMutationService(),
+      syncRepository,
+    });
+
+    const result = await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [createExpenseOperation({ baseRevision: "1", operationId: "operation_stale" })],
+      workspaceId,
+    });
+
+    expect(result.conflicts).toEqual([
+      {
+        conflictType: "stale_update",
+        operationId: "operation_stale",
+        serverRevision: "3",
+      },
+    ]);
+    expect(syncRepository.operations.get("operation_stale")).toMatchObject({
+      serverRevision: null,
+      status: "conflict",
+    });
+  });
+
+  it("fails closed for revoked devices", async () => {
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService: makeFinanceMutationService(),
+      syncRepository: new FakeSyncRepository({
+        currentRevision: 0,
+        revokedAt: "2026-05-09T02:00:00.000Z",
+      }),
+    });
+
+    await expect(
+      service.push({
+        actorUserId,
+        deviceId,
+        ledgerId,
+        operations: [createExpenseOperation({ baseRevision: "0", operationId: "operation_1" })],
+        workspaceId,
+      }),
+    ).rejects.toBeInstanceOf(SyncReplayError);
+  });
+});
+
+class FakeSyncRepository implements SyncRepository {
+  readonly operations = new Map<string, SyncOperationRecord>();
+  #currentRevision: number;
+  readonly #revokedAt: string | null;
+
+  constructor(input: { readonly currentRevision: number; readonly revokedAt?: string | null }) {
+    this.#currentRevision = input.currentRevision;
+    this.#revokedAt = input.revokedAt ?? null;
+  }
+
+  async findDeviceForUser(id: SyncedId, userId: SyncedId): Promise<SyncDeviceRecord | null> {
+    if (id !== deviceId || userId !== actorUserId) {
+      return null;
+    }
+
+    return {
+      createdAt: "2026-05-09T00:00:00.000Z",
+      deviceKey: "device-key",
+      id,
+      lastSeenAt: null,
+      name: "Test device",
+      revokedAt: this.#revokedAt,
+      userId,
+    };
+  }
+
+  async findOperation(operationId: string): Promise<SyncOperationRecord | null> {
+    return this.operations.get(operationId) ?? null;
+  }
+
+  async findOperationByDeviceSequence(
+    id: SyncedId,
+    localSequence: string,
+  ): Promise<SyncOperationRecord | null> {
+    return (
+      [...this.operations.values()].find(
+        (operation) => operation.deviceId === id && operation.localSequence === localSequence,
+      ) ?? null
+    );
+  }
+
+  async getCurrentRevision(): Promise<number> {
+    return this.#currentRevision;
+  }
+
+  async recordAcceptedOperation(input): Promise<number> {
+    this.#currentRevision += 1;
+    this.operations.set(input.operation.operationId, {
+      ...makeOperationRecord(input.operation.operationId),
+      localSequence: input.operation.localSequence,
+      resultJson: input.resultJson,
+      serverRevision: this.#currentRevision,
+      status: "accepted",
+    });
+    return this.#currentRevision;
+  }
+
+  async recordRejectedOperation(input): Promise<void> {
+    this.operations.set(input.operation.operationId, {
+      ...makeOperationRecord(input.operation.operationId),
+      resultJson: input.resultJson,
+      serverRevision: null,
+      status: "rejected",
+    });
+  }
+
+  async recordConflictOperation(input): Promise<void> {
+    this.operations.set(input.operation.operationId, {
+      ...makeOperationRecord(input.operation.operationId),
+      resultJson: input.resultJson,
+      serverRevision: null,
+      status: "conflict",
+    });
+  }
+}
+
+function makeFinanceMutationService(): LedgerFinanceMutationService {
+  return {
+    archiveAccount: vi.fn(),
+    createAccount: vi.fn(),
+    createExpense: vi.fn(async () => ({
+      body: { data: { transactionGroup: { id: createUuidV7() } } },
+      idempotencyReplayed: false,
+      status: 201,
+    })),
+    createIncome: vi.fn(),
+    createTransaction: vi.fn(),
+    createTransfer: vi.fn(),
+  };
+}
+
+function createExpenseOperation(input: {
+  readonly operationId: string;
+  readonly baseRevision: string;
+}): SyncOperationEnvelope {
+  return {
+    baseRevision: input.baseRevision,
+    createdAt: "2026-05-09T01:00:00.000Z",
+    deviceId,
+    idempotencyKey: `idem_${input.operationId}`,
+    ledgerId,
+    localSequence: "1",
+    operationId: input.operationId,
+    operationType: "transaction_group.create_expense.v1",
+    operationVersion: 1,
+    payload: {
+      currencyCode: "INR",
+      description: "Groceries",
+      occurredAt: "2026-05-09T08:00:00.000Z",
+      sourceAccountId: createUuidV7(),
+      transactions: [
+        {
+          amountMinor: "12000",
+          destinationAccountId: createUuidV7(),
+        },
+      ],
+    },
+    payloadEncoding: "plaintext.v1",
+    workspaceId,
+  };
+}
+
+function makeOperationRecord(operationId: string): SyncOperationRecord {
+  return {
+    baseRevision: 0,
+    createdAt: "2026-05-09T01:00:00.000Z",
+    createdBy: actorUserId,
+    deviceId,
+    id: operationId,
+    idempotencyKey: `idem_${operationId}`,
+    ledgerId,
+    localSequence: "1",
+    operationType: "transaction_group.create_expense.v1",
+    operationVersion: 1,
+    payloadEncoding: "plaintext.v1",
+    payloadJson: {},
+    receivedAt: "2026-05-09T02:00:00.000Z",
+    resultJson: {},
+    serverRevision: null,
+    status: "accepted",
+    workspaceId,
+  };
+}

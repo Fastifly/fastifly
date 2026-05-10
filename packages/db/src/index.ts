@@ -126,6 +126,14 @@ export {
   normalizeUsername,
 } from "./repositories/identity.js";
 export type {
+  RecordSyncConflictInput,
+  RecordSyncOperationInput,
+  SyncDeviceRecord,
+  SyncOperationRecord,
+  SyncRepository,
+} from "./repositories/sync.js";
+export { createPostgresSyncRepository, createSqliteSyncRepository } from "./repositories/sync.js";
+export type {
   CreateTransactionInput,
   CreateTransactionLineInput,
   GetTransactionGroupInput,
@@ -162,6 +170,16 @@ export {
   createLedgerFinanceMutationService,
   FinanceMutationError,
 } from "./services/finance-mutations.js";
+export type {
+  SyncReplayAcceptedResult,
+  SyncReplayConflictResult,
+  SyncReplayPushInput,
+  SyncReplayPushResult,
+  SyncReplayRejectedResult,
+  SyncReplayService,
+  SyncReplayServiceOptions,
+} from "./services/sync-replay.js";
+export { createSyncReplayService, SyncReplayError } from "./services/sync-replay.js";
 export type {
   SqliteClient,
   SqliteClientConfig,

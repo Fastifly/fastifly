@@ -15,7 +15,7 @@ export type SyncOperationType = z.infer<typeof SyncOperationTypeSchema>;
 
 export const APPROVED_SYNC_OPERATION_TYPES = SyncOperationTypeSchema.options;
 
-export const SyncOperationStatusSchema = z.enum(["pending", "accepted", "rejected", "conflicted"]);
+export const SyncOperationStatusSchema = z.enum(["accepted", "rejected", "conflict", "superseded"]);
 
 export type SyncOperationStatus = z.infer<typeof SyncOperationStatusSchema>;
 

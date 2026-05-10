@@ -368,6 +368,8 @@ Request:
       "operationVersion": 1,
       "baseRevision": "42",
       "idempotencyKey": "idem_123",
+      "payloadEncoding": "plaintext.v1",
+      "createdAt": "2026-05-09T12:00:00.000Z",
       "payload": {}
     }
   ]

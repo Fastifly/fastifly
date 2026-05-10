@@ -42,11 +42,9 @@ describe("Fastifly maintenance CLI", () => {
       };
 
       expect(exitCode).toBe(1);
-      expect(status).toMatchObject({
-        appliedMigrations: 0,
-        pendingMigrations: 1,
-        totalMigrations: 1,
-      });
+      expect(status.appliedMigrations).toBe(0);
+      expect(status.pendingMigrations).toBe(status.totalMigrations);
+      expect(status.totalMigrations).toBeGreaterThan(0);
     } finally {
       rmSync(sqliteDir, { force: true, recursive: true });
     }
@@ -75,11 +73,14 @@ describe("Fastifly maintenance CLI", () => {
         ),
       ).resolves.toBe(0);
 
-      expect(JSON.parse(statusOutput.stdout.join(""))).toMatchObject({
-        appliedMigrations: 1,
-        pendingMigrations: 0,
-        totalMigrations: 1,
-      });
+      const status = JSON.parse(statusOutput.stdout.join("")) as {
+        readonly pendingMigrations: number;
+        readonly appliedMigrations: number;
+        readonly totalMigrations: number;
+      };
+      expect(status.appliedMigrations).toBe(status.totalMigrations);
+      expect(status.pendingMigrations).toBe(0);
+      expect(status.totalMigrations).toBeGreaterThan(0);
     } finally {
       rmSync(sqliteDir, { force: true, recursive: true });
     }

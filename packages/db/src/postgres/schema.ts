@@ -14,7 +14,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import type { AuditAction, JobQueueStatus, JsonObject } from "../schema-types.js";
+import type {
+  AuditAction,
+  JobQueueStatus,
+  JsonObject,
+  SyncConflictStatus,
+  SyncConflictType,
+  SyncOperationStatus,
+} from "../schema-types.js";
 
 const timestampTz = (name: string) => timestamp(name, { withTimezone: true }).notNull();
 const optionalTimestampTz = (name: string) => timestamp(name, { withTimezone: true });
@@ -227,6 +234,100 @@ export const pgIdempotencyReceipts = pgTable(
       table.actorUserId,
       table.idempotencyKey,
     ),
+  ],
+);
+
+export const pgWorkspaceLedgerRevisions = pgTable(
+  "workspace_ledger_revisions",
+  {
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    currentRevision: integer("current_revision").notNull().default(0),
+    updatedAt: timestampTz("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("workspace_ledger_revisions_scope_unique").on(table.workspaceId, table.ledgerId),
+    check("workspace_ledger_revisions_non_negative_check", sql`${table.currentRevision} >= 0`),
+  ],
+);
+
+export const pgSyncOperations = pgTable(
+  "sync_operations",
+  {
+    id: text("id").primaryKey().notNull(),
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    deviceId: requiredIdText("device_id").references(() => pgDevices.id),
+    localSequence: text("local_sequence").notNull(),
+    operationType: text("operation_type").notNull(),
+    operationVersion: integer("operation_version").notNull(),
+    baseRevision: integer("base_revision"),
+    serverRevision: integer("server_revision"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    payloadJson: jsonb("payload_json").$type<JsonObject>().notNull(),
+    payloadEncoding: text("payload_encoding").notNull(),
+    encryptedPayload: text("encrypted_payload"),
+    keyVersion: integer("key_version"),
+    status: text("status").$type<SyncOperationStatus>().notNull(),
+    resultJson: jsonb("result_json").$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => pgUsers.id),
+    createdAt: timestampTz("created_at"),
+    receivedAt: timestampTz("received_at"),
+  },
+  (table) => [
+    index("sync_operations_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("sync_operations_status_idx").on(table.status),
+    uniqueIndex("sync_operations_device_sequence_unique").on(table.deviceId, table.localSequence),
+    uniqueIndex("sync_operations_workspace_ledger_revision_unique").on(
+      table.workspaceId,
+      table.ledgerId,
+      table.serverRevision,
+    ),
+    check(
+      "sync_operations_revision_check",
+      sql`${table.serverRevision} IS NULL OR ${table.serverRevision} >= 0`,
+    ),
+    check(
+      "sync_operations_status_check",
+      sql`${table.status} IN ('accepted', 'rejected', 'conflict', 'superseded')`,
+    ),
+    check(
+      "sync_operations_payload_encoding_check",
+      sql`${table.payloadEncoding} IN ('plaintext.v1')`,
+    ),
+  ],
+);
+
+export const pgSyncConflicts = pgTable(
+  "sync_conflicts",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    objectType: text("object_type"),
+    objectId: text("object_id"),
+    incomingOperationId: requiredIdText("incoming_operation_id").references(
+      () => pgSyncOperations.id,
+    ),
+    conflictType: text("conflict_type").$type<SyncConflictType>().notNull(),
+    localRevision: integer("local_revision").notNull(),
+    incomingBaseRevision: integer("incoming_base_revision"),
+    localSnapshotJson: jsonb("local_snapshot_json").$type<JsonObject>().notNull(),
+    incomingPayloadJson: jsonb("incoming_payload_json").$type<JsonObject>().notNull(),
+    status: text("status").$type<SyncConflictStatus>().notNull(),
+    resolutionOperationId: text("resolution_operation_id").references(() => pgSyncOperations.id),
+    createdAt: timestampTz("created_at"),
+    resolvedAt: optionalTimestampTz("resolved_at"),
+  },
+  (table) => [
+    index("sync_conflicts_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("sync_conflicts_status_idx").on(table.status),
+    index("sync_conflicts_incoming_operation_idx").on(table.incomingOperationId),
+    check(
+      "sync_conflicts_type_check",
+      sql`${table.conflictType} IN ('stale_update', 'update_after_delete', 'delete_after_update', 'duplicate_unique_value', 'invalid_operation', 'reconciled_record_blocked')`,
+    ),
+    check("sync_conflicts_status_check", sql`${table.status} IN ('open', 'resolved', 'dismissed')`),
   ],
 );
 
@@ -746,6 +847,8 @@ export const pgSchema = {
   payees: pgPayees,
   recoveryCodes: pgRecoveryCodes,
   sessions: pgSessions,
+  syncConflicts: pgSyncConflicts,
+  syncOperations: pgSyncOperations,
   tags: pgTags,
   transactionGroups: pgTransactionGroups,
   transactionJournals: pgTransactionJournals,
@@ -753,6 +856,7 @@ export const pgSchema = {
   transactionTags: pgTransactionTags,
   users: pgUsers,
   workspaceInvitations: pgWorkspaceInvitations,
+  workspaceLedgerRevisions: pgWorkspaceLedgerRevisions,
   workspaceMembers: pgWorkspaceMembers,
   workspaces: pgWorkspaces,
 };
