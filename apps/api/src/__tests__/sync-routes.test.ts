@@ -155,7 +155,9 @@ describe("sync routes", () => {
     expect(response.json()).toEqual({
       data: {
         fromRevision: "0",
+        hasMore: false,
         ledgerId: state.context.activeLedger.id,
+        nextSinceRevision: null,
         operations: [
           {
             createdAt: "2026-05-09T01:00:00.000Z",
@@ -198,10 +200,82 @@ describe("sync routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: {
+        lastOperationAt: "2026-05-09T01:00:00.000Z",
         ledgerId: state.context.activeLedger.id,
-        openConflictCount: 1,
+        openConflicts: 1,
         serverRevision: "1",
         workspaceId: state.context.activeWorkspace.id,
+      },
+    });
+  });
+
+  it("lists and dismisses sync conflicts through the sync query service", async () => {
+    const state = createUserWorkspaceContext("editor");
+    const syncQueryService = makeSyncQueryService(state.context.activeLedger.id);
+    const app = await makeApp(state, { syncQueryService });
+    const conflictId = createId();
+
+    vi.mocked(syncQueryService.listConflicts).mockResolvedValueOnce({
+      conflicts: [
+        {
+          conflictType: "stale_update",
+          createdAt: "2026-05-09T02:00:00.000Z",
+          id: conflictId,
+          incomingBaseRevision: "1",
+          incomingOperationId: "operation_conflict",
+          incomingPayload: { description: "Local edit" },
+          localRevision: "5",
+          localSnapshot: { currentRevision: 5 },
+          status: "open",
+        },
+      ],
+      ledgerId: state.context.activeLedger.id,
+      workspaceId: state.context.activeWorkspace.id,
+    });
+    vi.mocked(syncQueryService.dismissConflict).mockResolvedValueOnce({
+      conflictId,
+      resolvedAt: "2026-05-09T03:00:00.000Z",
+      status: "dismissed",
+    });
+
+    const listResponse = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      query: {
+        ledgerId: state.context.activeLedger.id,
+        workspaceId: state.context.activeWorkspace.id,
+      },
+      url: "/api/v1/sync/conflicts",
+    });
+    const resolveResponse = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "POST",
+      payload: {
+        ledgerId: state.context.activeLedger.id,
+        resolution: "dismiss",
+        workspaceId: state.context.activeWorkspace.id,
+      },
+      url: `/api/v1/sync/conflicts/${conflictId}/resolve`,
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      data: {
+        conflicts: [
+          {
+            conflictType: "stale_update",
+            id: conflictId,
+            incomingOperationId: "operation_conflict",
+          },
+        ],
+      },
+    });
+    expect(resolveResponse.statusCode).toBe(200);
+    expect(resolveResponse.json()).toEqual({
+      data: {
+        conflictId,
+        resolvedAt: "2026-05-09T03:00:00.000Z",
+        status: "dismissed",
       },
     });
   });
@@ -315,7 +389,9 @@ function makeSyncQueryService(ledgerId: SyncedId): SyncQueryService {
   return {
     pull: vi.fn(async (input) => ({
       fromRevision: input.sinceRevision.toString(),
+      hasMore: false,
       ledgerId,
+      nextSinceRevision: null,
       operations: [
         {
           createdAt: "2026-05-09T01:00:00.000Z",
@@ -331,9 +407,16 @@ function makeSyncQueryService(ledgerId: SyncedId): SyncQueryService {
       toRevision: "1",
       workspaceId: input.workspaceId,
     })),
-    status: vi.fn(async (input) => ({
+    dismissConflict: vi.fn(async () => null),
+    listConflicts: vi.fn(async (input) => ({
+      conflicts: [],
       ledgerId,
-      openConflictCount: 1,
+      workspaceId: input.workspaceId,
+    })),
+    status: vi.fn(async (input) => ({
+      lastOperationAt: "2026-05-09T01:00:00.000Z",
+      ledgerId,
+      openConflicts: 1,
       serverRevision: "1",
       workspaceId: input.workspaceId,
     })),

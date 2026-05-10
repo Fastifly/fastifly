@@ -24,7 +24,7 @@ export const SyncPushRequestSchema = z.strictObject({
   ledgerId: SyncedIdSchema,
   deviceId: SyncedIdSchema,
   lastKnownServerRevision: SyncRevisionStringSchema.optional(),
-  operations: z.array(SyncPushOperationSchema).min(1).max(50),
+  operations: z.array(SyncPushOperationSchema).min(1).max(100),
 });
 
 export const SyncPushResponseSchema = z.strictObject({
@@ -71,6 +71,8 @@ export const SyncPullResponseSchema = z.strictObject({
     ledgerId: SyncedIdSchema,
     fromRevision: SyncRevisionStringSchema,
     toRevision: SyncRevisionStringSchema,
+    hasMore: z.boolean(),
+    nextSinceRevision: SyncRevisionStringSchema.nullable(),
     operations: z.array(
       z.strictObject({
         operationId: SyncOperationIdSchema,
@@ -96,7 +98,60 @@ export const SyncStatusResponseSchema = z.strictObject({
     workspaceId: SyncedIdSchema,
     ledgerId: SyncedIdSchema,
     serverRevision: SyncRevisionStringSchema,
-    openConflictCount: z.number().int().min(0),
+    openConflicts: z.number().int().min(0),
+    lastOperationAt: z.string().nullable(),
+  }),
+});
+
+export const SyncConflictsQuerySchema = z.strictObject({
+  workspaceId: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+});
+
+const SyncConflictTypeSchema = z.enum([
+  "stale_update",
+  "update_after_delete",
+  "delete_after_update",
+  "duplicate_unique_value",
+  "invalid_operation",
+  "reconciled_record_blocked",
+]);
+
+export const SyncConflictsResponseSchema = z.strictObject({
+  data: z.strictObject({
+    workspaceId: SyncedIdSchema,
+    ledgerId: SyncedIdSchema,
+    conflicts: z.array(
+      z.strictObject({
+        id: SyncedIdSchema,
+        incomingOperationId: SyncOperationIdSchema,
+        conflictType: SyncConflictTypeSchema,
+        localRevision: SyncRevisionStringSchema,
+        incomingBaseRevision: SyncRevisionStringSchema.nullable(),
+        localSnapshot: z.record(z.string(), z.unknown()),
+        incomingPayload: z.record(z.string(), z.unknown()),
+        status: z.enum(["open", "resolved", "dismissed"]),
+        createdAt: z.string(),
+      }),
+    ),
+  }),
+});
+
+export const SyncResolveConflictParamsSchema = z.strictObject({
+  conflictId: SyncedIdSchema,
+});
+
+export const SyncResolveConflictRequestSchema = z.strictObject({
+  workspaceId: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+  resolution: z.literal("dismiss"),
+});
+
+export const SyncResolveConflictResponseSchema = z.strictObject({
+  data: z.strictObject({
+    conflictId: SyncedIdSchema,
+    status: z.literal("dismissed"),
+    resolvedAt: z.string(),
   }),
 });
 
@@ -107,3 +162,8 @@ export type SyncPullQuery = z.infer<typeof SyncPullQuerySchema>;
 export type SyncPullResponse = z.infer<typeof SyncPullResponseSchema>;
 export type SyncStatusQuery = z.infer<typeof SyncStatusQuerySchema>;
 export type SyncStatusResponse = z.infer<typeof SyncStatusResponseSchema>;
+export type SyncConflictsQuery = z.infer<typeof SyncConflictsQuerySchema>;
+export type SyncConflictsResponse = z.infer<typeof SyncConflictsResponseSchema>;
+export type SyncResolveConflictParams = z.infer<typeof SyncResolveConflictParamsSchema>;
+export type SyncResolveConflictRequest = z.infer<typeof SyncResolveConflictRequestSchema>;
+export type SyncResolveConflictResponse = z.infer<typeof SyncResolveConflictResponseSchema>;

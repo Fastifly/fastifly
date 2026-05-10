@@ -57,20 +57,30 @@ export {
   parseFinanceCursor,
 } from "./api/pagination.js";
 export type {
+  SyncConflictsQuery,
+  SyncConflictsResponse,
   SyncPullQuery,
   SyncPullResponse,
   SyncPushOperation,
   SyncPushRequest,
   SyncPushResponse,
+  SyncResolveConflictParams,
+  SyncResolveConflictRequest,
+  SyncResolveConflictResponse,
   SyncStatusQuery,
   SyncStatusResponse,
 } from "./api/sync.js";
 export {
+  SyncConflictsQuerySchema,
+  SyncConflictsResponseSchema,
   SyncPullQuerySchema,
   SyncPullResponseSchema,
   SyncPushOperationSchema,
   SyncPushRequestSchema,
   SyncPushResponseSchema,
+  SyncResolveConflictParamsSchema,
+  SyncResolveConflictRequestSchema,
+  SyncResolveConflictResponseSchema,
   SyncStatusQuerySchema,
   SyncStatusResponseSchema,
 } from "./api/sync.js";

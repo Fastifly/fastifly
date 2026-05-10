@@ -12,7 +12,12 @@ import {
   pgSyncOperations,
   pgWorkspaceLedgerRevisions,
 } from "../postgres/schema.js";
-import type { JsonObject, SyncConflictType, SyncOperationStatus } from "../schema-types.js";
+import type {
+  JsonObject,
+  SyncConflictStatus,
+  SyncConflictType,
+  SyncOperationStatus,
+} from "../schema-types.js";
 import type { SqliteClient } from "../sqlite/client.js";
 
 export type SyncDeviceRecord = {
@@ -43,6 +48,37 @@ export type SyncOperationRecord = {
   readonly createdBy: SyncedId;
   readonly createdAt: string;
   readonly receivedAt: string;
+};
+
+export type SyncConflictRecord = {
+  readonly id: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly objectType: string | null;
+  readonly objectId: string | null;
+  readonly incomingOperationId: string;
+  readonly conflictType: SyncConflictType;
+  readonly localRevision: number;
+  readonly incomingBaseRevision: number | null;
+  readonly localSnapshotJson: JsonObject;
+  readonly incomingPayloadJson: JsonObject;
+  readonly status: SyncConflictStatus;
+  readonly resolutionOperationId: string | null;
+  readonly createdAt: string;
+  readonly resolvedAt: string | null;
+};
+
+export type ResolveSyncConflictInput = {
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly conflictId: SyncedId;
+  readonly resolvedAt: Date;
+};
+
+export type ResolvedSyncConflictRecord = {
+  readonly conflictId: SyncedId;
+  readonly status: "dismissed";
+  readonly resolvedAt: string;
 };
 
 export type RecordSyncOperationInput = {
@@ -85,6 +121,17 @@ export type SyncRepository = {
     readonly workspaceId: SyncedId;
     readonly ledgerId: SyncedId;
   }) => Promise<number>;
+  readonly getLastAcceptedOperationAt: (input: {
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+  }) => Promise<string | null>;
+  readonly listOpenConflicts: (input: {
+    readonly workspaceId: SyncedId;
+    readonly ledgerId: SyncedId;
+  }) => Promise<readonly SyncConflictRecord[]>;
+  readonly dismissConflict: (
+    input: ResolveSyncConflictInput,
+  ) => Promise<ResolvedSyncConflictRecord | null>;
 };
 
 export function createSqliteSyncRepository(client: SqliteClient): SyncRepository {
@@ -175,6 +222,77 @@ export function createSqliteSyncRepository(client: SqliteClient): SyncRepository
         .get(input.workspaceId, input.ledgerId) as { readonly count: number } | undefined;
 
       return Number(row?.count ?? 0);
+    },
+
+    async getLastAcceptedOperationAt(input) {
+      const row = client
+        .prepare(
+          `
+          SELECT MAX(received_at) AS last_operation_at
+          FROM sync_operations
+          WHERE workspace_id = ?
+            AND ledger_id = ?
+            AND status = 'accepted'
+        `,
+        )
+        .get(input.workspaceId, input.ledgerId) as
+        | { readonly last_operation_at: string | null }
+        | undefined;
+
+      return row?.last_operation_at ?? null;
+    },
+
+    async listOpenConflicts(input) {
+      const rows = client
+        .prepare(
+          `
+          SELECT
+            id,
+            workspace_id,
+            ledger_id,
+            object_type,
+            object_id,
+            incoming_operation_id,
+            conflict_type,
+            local_revision,
+            incoming_base_revision,
+            local_snapshot_json,
+            incoming_payload_json,
+            status,
+            resolution_operation_id,
+            created_at,
+            resolved_at
+          FROM sync_conflicts
+          WHERE workspace_id = ?
+            AND ledger_id = ?
+            AND status = 'open'
+          ORDER BY created_at ASC, id ASC
+        `,
+        )
+        .all(input.workspaceId, input.ledgerId) as SqliteSyncConflictRow[];
+
+      return rows.map(toSyncConflictRecord);
+    },
+
+    async dismissConflict(input) {
+      const resolvedAt = input.resolvedAt.toISOString();
+      const result = client
+        .prepare(
+          `
+          UPDATE sync_conflicts
+          SET status = 'dismissed',
+              resolved_at = ?
+          WHERE id = ?
+            AND workspace_id = ?
+            AND ledger_id = ?
+            AND status = 'open'
+        `,
+        )
+        .run(resolvedAt, input.conflictId, input.workspaceId, input.ledgerId);
+
+      return result.changes === 1
+        ? { conflictId: input.conflictId, resolvedAt, status: "dismissed" }
+        : null;
     },
 
     async recordAcceptedOperation(input) {
@@ -314,6 +432,69 @@ export function createPostgresSyncRepository(db: PostgresDatabase): SyncReposito
       return Number(rows[0]?.count ?? 0);
     },
 
+    async getLastAcceptedOperationAt(input) {
+      const rows = await db
+        .select({ lastOperationAt: sql<Date | null>`max(${pgSyncOperations.receivedAt})` })
+        .from(pgSyncOperations)
+        .where(
+          and(
+            eq(pgSyncOperations.workspaceId, input.workspaceId),
+            eq(pgSyncOperations.ledgerId, input.ledgerId),
+            eq(pgSyncOperations.status, "accepted"),
+          ),
+        );
+
+      return toNullableIsoString(rows[0]?.lastOperationAt ?? null);
+    },
+
+    async listOpenConflicts(input) {
+      const rows = await db
+        .select()
+        .from(pgSyncConflicts)
+        .where(
+          and(
+            eq(pgSyncConflicts.workspaceId, input.workspaceId),
+            eq(pgSyncConflicts.ledgerId, input.ledgerId),
+            eq(pgSyncConflicts.status, "open"),
+          ),
+        )
+        .orderBy(asc(pgSyncConflicts.createdAt), asc(pgSyncConflicts.id));
+
+      return rows.map(toSyncConflictRecord);
+    },
+
+    async dismissConflict(input) {
+      const rows = await db
+        .update(pgSyncConflicts)
+        .set({
+          resolvedAt: input.resolvedAt,
+          status: "dismissed",
+        })
+        .where(
+          and(
+            eq(pgSyncConflicts.id, input.conflictId),
+            eq(pgSyncConflicts.workspaceId, input.workspaceId),
+            eq(pgSyncConflicts.ledgerId, input.ledgerId),
+            eq(pgSyncConflicts.status, "open"),
+          ),
+        )
+        .returning({
+          conflictId: pgSyncConflicts.id,
+          resolvedAt: pgSyncConflicts.resolvedAt,
+          status: pgSyncConflicts.status,
+        });
+      const row = rows[0];
+      if (!row || row.status !== "dismissed" || !row.resolvedAt) {
+        return null;
+      }
+
+      return {
+        conflictId: row.conflictId as SyncedId,
+        resolvedAt: row.resolvedAt.toISOString(),
+        status: "dismissed",
+      };
+    },
+
     async recordAcceptedOperation(input) {
       return await db.transaction(async (tx) => {
         await tx
@@ -407,6 +588,24 @@ type SqliteSyncOperationRow = {
   readonly created_by: string;
   readonly created_at: string;
   readonly received_at: string;
+};
+
+type SqliteSyncConflictRow = {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly ledger_id: string;
+  readonly object_type: string | null;
+  readonly object_id: string | null;
+  readonly incoming_operation_id: string;
+  readonly conflict_type: SyncConflictType;
+  readonly local_revision: number;
+  readonly incoming_base_revision: number | null;
+  readonly local_snapshot_json: string;
+  readonly incoming_payload_json: string;
+  readonly status: SyncConflictStatus;
+  readonly resolution_operation_id: string | null;
+  readonly created_at: string;
+  readonly resolved_at: string | null;
 };
 
 function readSqliteCurrentRevision(
@@ -653,6 +852,55 @@ function toSyncOperationRecord(input: {
   };
 }
 
+function toSyncConflictRecord(input: {
+  readonly id: string;
+  readonly workspaceId?: string;
+  readonly workspace_id?: string;
+  readonly ledgerId?: string;
+  readonly ledger_id?: string;
+  readonly objectType?: string | null;
+  readonly object_type?: string | null;
+  readonly objectId?: string | null;
+  readonly object_id?: string | null;
+  readonly incomingOperationId?: string;
+  readonly incoming_operation_id?: string;
+  readonly conflictType?: SyncConflictType;
+  readonly conflict_type?: SyncConflictType;
+  readonly localRevision?: number;
+  readonly local_revision?: number;
+  readonly incomingBaseRevision?: number | null;
+  readonly incoming_base_revision?: number | null;
+  readonly localSnapshotJson?: JsonObject;
+  readonly local_snapshot_json?: JsonObject | string;
+  readonly incomingPayloadJson?: JsonObject;
+  readonly incoming_payload_json?: JsonObject | string;
+  readonly status: SyncConflictStatus;
+  readonly resolutionOperationId?: string | null;
+  readonly resolution_operation_id?: string | null;
+  readonly createdAt?: Date | string;
+  readonly created_at?: string;
+  readonly resolvedAt?: Date | string | null;
+  readonly resolved_at?: string | null;
+}): SyncConflictRecord {
+  return {
+    conflictType: input.conflictType ?? input.conflict_type ?? "invalid_operation",
+    createdAt: toIsoString(input.createdAt ?? input.created_at),
+    id: input.id as SyncedId,
+    incomingBaseRevision: input.incomingBaseRevision ?? input.incoming_base_revision ?? null,
+    incomingOperationId: input.incomingOperationId ?? input.incoming_operation_id ?? "",
+    incomingPayloadJson: parseJsonObject(input.incomingPayloadJson ?? input.incoming_payload_json),
+    ledgerId: (input.ledgerId ?? input.ledger_id ?? "") as SyncedId,
+    localRevision: input.localRevision ?? input.local_revision ?? 0,
+    localSnapshotJson: parseJsonObject(input.localSnapshotJson ?? input.local_snapshot_json),
+    objectId: input.objectId ?? input.object_id ?? null,
+    objectType: input.objectType ?? input.object_type ?? null,
+    resolutionOperationId: input.resolutionOperationId ?? input.resolution_operation_id ?? null,
+    resolvedAt: toNullableIsoString(input.resolvedAt ?? input.resolved_at ?? null),
+    status: input.status,
+    workspaceId: (input.workspaceId ?? input.workspace_id ?? "") as SyncedId,
+  };
+}
+
 function parseJsonObject(input: JsonObject | string | undefined): JsonObject {
   if (typeof input === "string") {
     return JSON.parse(input) as JsonObject;
@@ -673,6 +921,12 @@ function toIsoString(input: Date | string | undefined): string {
   if (input instanceof Date) {
     return input.toISOString();
   }
+  if (typeof input === "string") {
+    const parsed = new Date(input);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
 
   return input ?? "";
 }
@@ -680,6 +934,12 @@ function toIsoString(input: Date | string | undefined): string {
 function toNullableIsoString(input: Date | string | null): string | null {
   if (input instanceof Date) {
     return input.toISOString();
+  }
+  if (typeof input === "string") {
+    const parsed = new Date(input);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
   }
 
   return input;

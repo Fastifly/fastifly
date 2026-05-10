@@ -2,8 +2,9 @@ import type { SyncedId } from "@fastifly/common";
 import type { SyncRepository } from "../repositories/sync.js";
 import type { JsonObject } from "../schema-types.js";
 
-const DEFAULT_PULL_LIMIT = 100;
+const DEFAULT_PULL_LIMIT = 500;
 const MAX_PULL_LIMIT = 500;
+const DEFAULT_CONFLICT_LIMIT = 100;
 
 export type SyncPullInput = {
   readonly actorUserId: SyncedId;
@@ -30,6 +31,8 @@ export type SyncPullResult = {
   readonly fromRevision: string;
   readonly toRevision: string;
   readonly operations: readonly SyncPulledOperation[];
+  readonly hasMore: boolean;
+  readonly nextSinceRevision: string | null;
 };
 
 export type SyncStatusInput = {
@@ -42,19 +45,64 @@ export type SyncStatusResult = {
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
   readonly serverRevision: string;
-  readonly openConflictCount: number;
+  readonly openConflicts: number;
+  readonly lastOperationAt: string | null;
+};
+
+export type SyncConflictResult = {
+  readonly id: SyncedId;
+  readonly incomingOperationId: string;
+  readonly conflictType: string;
+  readonly localRevision: string;
+  readonly incomingBaseRevision: string | null;
+  readonly localSnapshot: JsonObject;
+  readonly incomingPayload: JsonObject;
+  readonly status: "open" | "resolved" | "dismissed";
+  readonly createdAt: string;
+};
+
+export type SyncConflictsInput = {
+  readonly actorUserId: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+};
+
+export type SyncConflictsResult = {
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly conflicts: readonly SyncConflictResult[];
+};
+
+export type SyncDismissConflictInput = {
+  readonly actorUserId: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly conflictId: SyncedId;
+};
+
+export type SyncDismissConflictResult = {
+  readonly conflictId: SyncedId;
+  readonly status: "dismissed";
+  readonly resolvedAt: string;
 };
 
 export type SyncQueryService = {
   readonly pull: (input: SyncPullInput) => Promise<SyncPullResult>;
   readonly status: (input: SyncStatusInput) => Promise<SyncStatusResult>;
+  readonly listConflicts: (input: SyncConflictsInput) => Promise<SyncConflictsResult>;
+  readonly dismissConflict: (
+    input: SyncDismissConflictInput,
+  ) => Promise<SyncDismissConflictResult | null>;
 };
 
 export type SyncQueryServiceOptions = {
   readonly syncRepository: SyncRepository;
+  readonly now?: () => Date;
 };
 
 export function createSyncQueryService(options: SyncQueryServiceOptions): SyncQueryService {
+  const now = options.now ?? (() => new Date());
+
   return {
     async pull(input) {
       const limit = clampPullLimit(input.limit);
@@ -62,17 +110,21 @@ export function createSyncQueryService(options: SyncQueryServiceOptions): SyncQu
         options.syncRepository.getCurrentRevision(input),
         options.syncRepository.listAcceptedOperationsSince({
           ledgerId: input.ledgerId,
-          limit,
+          limit: limit + 1,
           sinceRevision: input.sinceRevision,
           workspaceId: input.workspaceId,
         }),
       ]);
-      const deliveredRevision = operations.at(-1)?.serverRevision ?? currentRevision;
+      const visibleOperations = operations.slice(0, limit);
+      const deliveredRevision = visibleOperations.at(-1)?.serverRevision ?? currentRevision;
+      const hasMore = operations.length > limit;
 
       return {
         fromRevision: input.sinceRevision.toString(),
+        hasMore,
         ledgerId: input.ledgerId,
-        operations: operations.map((operation) => ({
+        nextSinceRevision: hasMore ? deliveredRevision.toString() : null,
+        operations: visibleOperations.map((operation) => ({
           createdAt: operation.createdAt,
           deviceId: operation.deviceId,
           localSequence: operation.localSequence,
@@ -88,17 +140,48 @@ export function createSyncQueryService(options: SyncQueryServiceOptions): SyncQu
     },
 
     async status(input) {
-      const [serverRevision, openConflictCount] = await Promise.all([
+      const [serverRevision, openConflicts, lastOperationAt] = await Promise.all([
         options.syncRepository.getCurrentRevision(input),
         options.syncRepository.countOpenConflicts(input),
+        options.syncRepository.getLastAcceptedOperationAt(input),
       ]);
 
       return {
         ledgerId: input.ledgerId,
-        openConflictCount,
+        lastOperationAt,
+        openConflicts,
         serverRevision: serverRevision.toString(),
         workspaceId: input.workspaceId,
       };
+    },
+
+    async listConflicts(input) {
+      const conflicts = await options.syncRepository.listOpenConflicts(input);
+
+      return {
+        conflicts: conflicts.slice(0, DEFAULT_CONFLICT_LIMIT).map((conflict) => ({
+          conflictType: conflict.conflictType,
+          createdAt: conflict.createdAt,
+          id: conflict.id,
+          incomingBaseRevision: conflict.incomingBaseRevision?.toString() ?? null,
+          incomingOperationId: conflict.incomingOperationId,
+          incomingPayload: conflict.incomingPayloadJson,
+          localRevision: conflict.localRevision.toString(),
+          localSnapshot: conflict.localSnapshotJson,
+          status: conflict.status,
+        })),
+        ledgerId: input.ledgerId,
+        workspaceId: input.workspaceId,
+      };
+    },
+
+    async dismissConflict(input) {
+      return await options.syncRepository.dismissConflict({
+        conflictId: input.conflictId,
+        ledgerId: input.ledgerId,
+        resolvedAt: now(),
+        workspaceId: input.workspaceId,
+      });
     },
   };
 }

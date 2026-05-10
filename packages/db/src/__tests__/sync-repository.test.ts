@@ -188,6 +188,12 @@ describe("sync repository", () => {
             status: "accepted",
           },
         ]);
+        await expect(
+          syncRepository.getLastAcceptedOperationAt({
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toBe("2026-05-09T01:01:00.000Z");
       });
     });
 
@@ -250,6 +256,41 @@ describe("sync repository", () => {
             workspaceId: workspaceState.workspace.id,
           }),
         ).resolves.toBe(1);
+        await expect(
+          syncRepository.listOpenConflicts({
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject([
+          {
+            conflictType: "stale_update",
+            incomingOperationId: "operation_conflict",
+            localRevision: 3,
+            status: "open",
+          },
+        ]);
+        const conflict = await syncRepository.listOpenConflicts({
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+        const dismissed = await syncRepository.dismissConflict({
+          conflictId: conflict[0]?.id ?? createUuidV7(),
+          ledgerId: workspaceState.ledger.id,
+          resolvedAt: new Date("2026-05-09T02:00:00.000Z"),
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        expect(dismissed).toEqual({
+          conflictId: conflict[0]?.id,
+          resolvedAt: "2026-05-09T02:00:00.000Z",
+          status: "dismissed",
+        });
+        await expect(
+          syncRepository.countOpenConflicts({
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toBe(0);
       });
     });
   }

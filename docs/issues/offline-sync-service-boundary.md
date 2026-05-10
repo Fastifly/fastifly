@@ -47,6 +47,9 @@ Implemented on 2026-05-10:
   on manually seeded devices.
 - Added sync pull/status contracts, repository reads, query service, and API routes for clients to
   fetch accepted operations after a revision and inspect current server revision/conflict count.
+- Updated sync pull/status to match the canonical paginated contract with `hasMore`,
+  `nextSinceRevision`, `openConflicts`, and `lastOperationAt`.
+- Added conflict list and dismiss endpoints backed by SQLite/PostgreSQL repository behavior.
 
 Remaining before offline write beta:
 

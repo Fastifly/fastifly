@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSyncReplayService,
   type LedgerFinanceMutationService,
+  type ResolvedSyncConflictRecord,
+  type ResolveSyncConflictInput,
+  type SyncConflictRecord,
   type SyncDeviceRecord,
   type SyncOperationRecord,
   SyncReplayError,
@@ -196,6 +199,26 @@ class FakeSyncRepository implements SyncRepository {
   async countOpenConflicts(): Promise<number> {
     return [...this.operations.values()].filter((operation) => operation.status === "conflict")
       .length;
+  }
+
+  async getLastAcceptedOperationAt(): Promise<string | null> {
+    return (
+      [...this.operations.values()]
+        .filter((operation) => operation.status === "accepted")
+        .map((operation) => operation.receivedAt)
+        .sort()
+        .at(-1) ?? null
+    );
+  }
+
+  async listOpenConflicts(): Promise<readonly SyncConflictRecord[]> {
+    return [];
+  }
+
+  async dismissConflict(
+    _input: ResolveSyncConflictInput,
+  ): Promise<ResolvedSyncConflictRecord | null> {
+    return null;
   }
 
   async recordAcceptedOperation(input): Promise<number> {

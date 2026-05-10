@@ -139,6 +139,9 @@ export {
 export type {
   RecordSyncConflictInput,
   RecordSyncOperationInput,
+  ResolvedSyncConflictRecord,
+  ResolveSyncConflictInput,
+  SyncConflictRecord,
   SyncDeviceRecord,
   SyncOperationRecord,
   SyncRepository,
@@ -182,6 +185,11 @@ export {
   FinanceMutationError,
 } from "./services/finance-mutations.js";
 export type {
+  SyncConflictResult,
+  SyncConflictsInput,
+  SyncConflictsResult,
+  SyncDismissConflictInput,
+  SyncDismissConflictResult,
   SyncPulledOperation,
   SyncPullInput,
   SyncPullResult,

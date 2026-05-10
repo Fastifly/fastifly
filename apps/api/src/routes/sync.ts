@@ -1,10 +1,15 @@
 import {
   parseSyncedId,
+  SyncConflictsQuerySchema,
+  SyncConflictsResponseSchema,
   type SyncOperationEnvelope,
   SyncPullQuerySchema,
   SyncPullResponseSchema,
   SyncPushRequestSchema,
   SyncPushResponseSchema,
+  SyncResolveConflictParamsSchema,
+  SyncResolveConflictRequestSchema,
+  SyncResolveConflictResponseSchema,
   SyncStatusQuerySchema,
   SyncStatusResponseSchema,
 } from "@fastifly/common";
@@ -124,6 +129,66 @@ export async function registerSyncRoutes(
             workspaceId: parseSyncedId(query.workspaceId),
           }),
         };
+      },
+    );
+
+    app.get(
+      "/api/v1/sync/conflicts",
+      {
+        schema: {
+          querystring: SyncConflictsQuerySchema,
+          response: {
+            200: SyncConflictsResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const query = SyncConflictsQuerySchema.parse(request.query);
+        requireActiveWorkspace(request, query.workspaceId);
+        requireAbility(request, "sync", "Sync");
+
+        return {
+          data: await syncQueryService.listConflicts({
+            actorUserId,
+            ledgerId: parseSyncedId(query.ledgerId),
+            workspaceId: parseSyncedId(query.workspaceId),
+          }),
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/sync/conflicts/:conflictId/resolve",
+      {
+        schema: {
+          body: SyncResolveConflictRequestSchema,
+          params: SyncResolveConflictParamsSchema,
+          response: {
+            200: SyncResolveConflictResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = SyncResolveConflictParamsSchema.parse(request.params);
+        const body = SyncResolveConflictRequestSchema.parse(request.body);
+        requireActiveWorkspace(request, body.workspaceId);
+        requireAbility(request, "sync", "Sync");
+
+        const result = await syncQueryService.dismissConflict({
+          actorUserId,
+          conflictId: parseSyncedId(params.conflictId),
+          ledgerId: parseSyncedId(body.ledgerId),
+          workspaceId: parseSyncedId(body.workspaceId),
+        });
+        if (!result) {
+          throw makeHttpError(404, "Sync conflict was not found.");
+        }
+
+        return { data: result };
       },
     );
   }
