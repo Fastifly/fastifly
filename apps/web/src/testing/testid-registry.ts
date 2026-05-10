@@ -15,6 +15,7 @@ type TransactionType = "expense" | "income" | "transfer";
 
 export const testIds = {
   shell: {
+    root: "fastifly-root",
     app: "app-shell",
     main: "app-main",
     pendingSyncAlert: "pending-sync-alert",
@@ -27,6 +28,9 @@ export const testIds = {
     themeToggleButton: "theme-toggle-button",
     authGate: "auth-gate-screen",
     authGateMessage: "auth-gate-message",
+  },
+  icon: {
+    brand: "fastifly-brand-icon",
   },
   navigation: {
     mobileTabbar: "mobile-tabbar",

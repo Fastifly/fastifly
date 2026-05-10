@@ -1,12 +1,18 @@
 import type { SVGProps } from "react";
+import { testIds } from "@/testing/testid-registry";
 
 type FastiflyIconProps = SVGProps<SVGSVGElement> & {
   readonly title?: string;
+  readonly testId?: string;
 };
 
-export function FastiflyIcon({ title = "Fastifly", ...props }: FastiflyIconProps) {
+export function FastiflyIcon({
+  title = "Fastifly",
+  testId = testIds.icon.brand,
+  ...props
+}: FastiflyIconProps) {
   return (
-    <svg aria-label={title} role="img" viewBox="0 0 64 64" {...props}>
+    <svg aria-label={title} data-testid={testId} role="img" viewBox="0 0 64 64" {...props}>
       <title>{title}</title>
       <rect width="64" height="64" rx="16" fill="currentColor" />
       <path
