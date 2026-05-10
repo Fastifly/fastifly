@@ -13,7 +13,7 @@ services:
       timeout: 5s
       retries: 20
     volumes:
-      - fastifly-dev-postgres-data:/var/lib/postgresql/data
+      - fastifly-dev-postgres-data:/var/lib/postgresql
 
 volumes:
   fastifly-dev-postgres-data:

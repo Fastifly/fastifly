@@ -59,10 +59,7 @@ jobs:
       - name: Test SQLite lane
         run: pnpm test:sqlite
 
-      - name: Test PostgreSQL lane
-        run: pnpm test:postgres
-
-      - name: Test PostgreSQL runtime adapter lane
+      - name: Test PostgreSQL lane (PGlite + runtime adapter)
         env:
           FASTIFLY_TEST_POSTGRES_URL: postgres://fastifly:fastifly@127.0.0.1:5432/fastifly_ci
-        run: pnpm test:postgres:runtime
+        run: pnpm test:postgres

@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { createInMemoryPostgresDatabase, runPostgresMigrations } from "../testing/migrations.js";
+import {
+  createInMemoryPgliteDatabase,
+  runPglitePostgresMigrations,
+} from "../testing/migrations.js";
 
-describe("PostgreSQL migrations", () => {
+describe("PostgreSQL-compat migrations (PGlite)", () => {
   it("applies the foundation migration into a clean database", async () => {
-    const db = await createInMemoryPostgresDatabase();
+    const db = await createInMemoryPgliteDatabase();
 
     try {
-      await runPostgresMigrations(db);
+      await runPglitePostgresMigrations(db);
 
       const result = await db.query<{ table_name: string }>(`
         SELECT table_name

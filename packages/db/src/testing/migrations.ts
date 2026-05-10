@@ -21,7 +21,7 @@ export function createInMemorySqliteDatabase(): SqliteClient {
   return client;
 }
 
-export async function createInMemoryPostgresDatabase(): Promise<PGlite> {
+export async function createInMemoryPgliteDatabase(): Promise<PGlite> {
   return PGlite.create();
 }
 
@@ -31,8 +31,12 @@ export function runSqliteMigrations(db: SqliteClient): void {
   });
 }
 
-export async function runPostgresMigrations(db: PGlite): Promise<void> {
+export async function runPglitePostgresMigrations(db: PGlite): Promise<void> {
   await migratePostgres(createPglitePostgresDatabaseFromClient(db), {
     migrationsFolder: postgresMigrationsFolder,
   });
 }
+
+// Backward-compatible aliases while callers migrate to explicit PGlite names.
+export const createInMemoryPostgresDatabase = createInMemoryPgliteDatabase;
+export const runPostgresMigrations = runPglitePostgresMigrations;

@@ -17,8 +17,8 @@ import {
   type SqliteClient,
 } from "../index.js";
 import {
-  createInMemoryPostgresDatabase,
-  runPostgresMigrations,
+  createInMemoryPgliteDatabase,
+  runPglitePostgresMigrations,
   runSqliteMigrations,
 } from "../testing/migrations.js";
 
@@ -87,12 +87,12 @@ const factories: readonly AccountsRepositoryFactory[] = [
     },
   },
   {
-    name: "PostgreSQL",
+    name: "PostgreSQL (PGlite)",
     async run(test) {
-      const client = await createInMemoryPostgresDatabase();
+      const client = await createInMemoryPgliteDatabase();
 
       try {
-        await runPostgresMigrations(client);
+        await runPglitePostgresMigrations(client);
         await seedPostgresCurrency(client);
         const db = createPglitePostgresDatabaseFromClient(client);
         const createId = createDeterministicIdGenerator();

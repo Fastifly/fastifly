@@ -19,8 +19,8 @@ import {
   seedSqlite,
 } from "../index.js";
 import {
-  createInMemoryPostgresDatabase,
-  runPostgresMigrations,
+  createInMemoryPgliteDatabase,
+  runPglitePostgresMigrations,
   runSqliteMigrations,
 } from "../testing/migrations.js";
 
@@ -58,10 +58,10 @@ describe("seed data", () => {
   });
 
   it("seeds full demo data idempotently on PostgreSQL", async () => {
-    const client = await createInMemoryPostgresDatabase();
+    const client = await createInMemoryPgliteDatabase();
 
     try {
-      await runPostgresMigrations(client);
+      await runPglitePostgresMigrations(client);
       await assertFullSeedIsIdempotent(createPostgresSeedContext(client));
     } finally {
       await client.close();

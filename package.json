@@ -22,6 +22,7 @@
     "lint:packages": "turbo run lint",
     "test": "turbo run test",
     "test:sqlite": "pnpm --filter @fastifly/db test:sqlite",
+    "test:postgres:pglite": "pnpm --filter @fastifly/db test:postgres:pglite",
     "test:postgres": "pnpm --filter @fastifly/db test:postgres",
     "test:postgres:runtime": "pnpm --filter @fastifly/db test:postgres:runtime",
     "typecheck:tsc": "turbo run typecheck:tsc",

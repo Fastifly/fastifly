@@ -364,9 +364,16 @@ pnpm db:seed:demo
 pnpm db:seed:e2e
 
 pnpm test:sqlite
+pnpm test:postgres:pglite
 pnpm test:postgres
 pnpm test:postgres:runtime
 ```
+
+PostgreSQL test lanes:
+
+- `pnpm test:postgres:pglite`: fast PostgreSQL-compat migration lane on PGlite.
+- `pnpm test:postgres:runtime`: real postgres.js runtime lane (requires `FASTIFLY_TEST_POSTGRES_URL` or `TEST_POSTGRES_DATABASE_URL`).
+- `pnpm test:postgres`: full PostgreSQL gate (`pglite` + `runtime`).
 
 ---
 

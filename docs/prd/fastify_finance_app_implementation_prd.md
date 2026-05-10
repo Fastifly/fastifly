@@ -2454,6 +2454,8 @@ Example commands:
 
 ```bash
 pnpm test:sqlite
+pnpm test:postgres:pglite
+FASTIFLY_TEST_POSTGRES_URL=postgres://... pnpm test:postgres:runtime
 pnpm test:postgres
 pnpm test:e2e
 ```

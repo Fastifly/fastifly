@@ -337,6 +337,7 @@ Stop condition:
 - `pnpm typecheck:refs`
 - `pnpm test`
 - `pnpm test:postgres:runtime`
+- `pnpm test:postgres`
 
 all run successfully, even if tests are minimal.
 
@@ -407,7 +408,13 @@ Stop condition:
 
 - clean SQLite migration works
 - clean PostgreSQL migration works
-- repository smoke tests pass on both dialects
+- repository smoke tests pass on SQLite, PostgreSQL-compat PGlite, and postgres.js runtime
+
+Phase 2 clarifications:
+
+- keep PGlite as a fast compatibility lane for local and CI feedback
+- require a real postgres.js runtime lane against hosted/local PostgreSQL before moving past Phase 2
+- keep lane names explicit (`test:postgres:pglite`, `test:postgres:runtime`, `test:postgres`)
 
 ### Phase 3: API foundation
 

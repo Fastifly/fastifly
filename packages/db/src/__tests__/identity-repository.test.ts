@@ -13,8 +13,8 @@ import {
   normalizeUsername,
 } from "../index.js";
 import {
-  createInMemoryPostgresDatabase,
-  runPostgresMigrations,
+  createInMemoryPgliteDatabase,
+  runPglitePostgresMigrations,
   runSqliteMigrations,
 } from "../testing/migrations.js";
 
@@ -69,12 +69,12 @@ const repositoryFactories: readonly RepositoryFactory[] = [
     },
   },
   {
-    name: "PostgreSQL",
+    name: "PostgreSQL (PGlite)",
     async run(test) {
-      const client = await createInMemoryPostgresDatabase();
+      const client = await createInMemoryPgliteDatabase();
 
       try {
-        await runPostgresMigrations(client);
+        await runPglitePostgresMigrations(client);
         const repo = createPostgresIdentityRepository(
           createPglitePostgresDatabaseFromClient(client),
           {

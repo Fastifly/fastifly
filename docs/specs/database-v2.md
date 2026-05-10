@@ -137,10 +137,11 @@ postgres: postgres.js for production migration/runtime wiring; @electric-sql/pgl
 PostgreSQL runtime rules:
 
 - production runtime uses `postgres` / postgres.js through `createPostgresClient`
-- tests may use `@electric-sql/pglite` only through explicitly named PGlite helpers
+- PGlite is for fast PostgreSQL-compat tests only and must be referenced through explicitly named PGlite helpers
 - runtime client config must define pool size, idle timeout, connect timeout, application name, and optional SSL
 - graceful shutdown must call `closePostgresClient`, which delegates to postgres.js `sql.end()`
-- hosted PostgreSQL CI must run `test:postgres:runtime` with `FASTIFLY_TEST_POSTGRES_URL`
+- explicit postgres.js runtime tests must fail fast when `FASTIFLY_TEST_POSTGRES_URL`/`TEST_POSTGRES_DATABASE_URL` is missing (no silent skip for dedicated runtime commands)
+- hosted PostgreSQL CI must run `test:postgres` with `FASTIFLY_TEST_POSTGRES_URL` so both PGlite and postgres.js runtime lanes are enforced
 
 ---
 

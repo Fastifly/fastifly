@@ -9,7 +9,7 @@ import {
 } from "../index.js";
 import { assertLedgerScope, makeTimestamp } from "../repositories/base.js";
 import {
-  createInMemoryPostgresDatabase,
+  createInMemoryPgliteDatabase,
   createInMemorySqliteDatabase,
 } from "../testing/migrations.js";
 
@@ -30,7 +30,7 @@ describe("database package surface", () => {
 
   it("creates Drizzle clients from standard dialect drivers", async () => {
     const sqliteClient = createInMemorySqliteDatabase();
-    const postgresClient = await createInMemoryPostgresDatabase();
+    const postgresClient = await createInMemoryPgliteDatabase();
 
     try {
       expect(createSqliteDatabaseFromClient(sqliteClient)).toBeDefined();
