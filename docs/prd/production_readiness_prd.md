@@ -751,8 +751,8 @@ Required before beta:
 - username/password login
 - passkey login
 - session invalidation
-- login rate limiting
-- CSRF strategy for cookie-auth requests
+- login and passkey-login rate limiting
+- CSRF token endpoint plus `x-csrf-token` enforcement for cookie-auth unsafe requests
 - secure cookie settings
 - security headers
 - workspace/ledger authorization tests

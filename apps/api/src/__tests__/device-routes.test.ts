@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
 import { hashSessionToken } from "../auth/sessions.js";
+import { injectWithCsrf } from "./helpers/csrf.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
 const SESSION_TOKEN = "device-route-session";
@@ -41,7 +42,7 @@ describe("device routes", () => {
     });
     apps.push(app);
 
-    const created = await app.inject({
+    const created = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: { deviceKey: "browser-profile", name: "Laptop" },
@@ -57,7 +58,7 @@ describe("device routes", () => {
     });
     expect(list.json().data).toHaveLength(1);
 
-    const revoked = await app.inject({
+    const revoked = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       url: `/api/v1/devices/${deviceId}/revoke`,

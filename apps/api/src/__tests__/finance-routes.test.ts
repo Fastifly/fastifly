@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
 import { hashSessionToken } from "../auth/sessions.js";
+import { injectWithCsrf } from "./helpers/csrf.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
 const SESSION_TOKEN = "finance-route-session";
@@ -415,7 +416,7 @@ describe("finance routes", () => {
   it("creates accounts through the finance mutation service with idempotency", async () => {
     const { app, financeMutationService, state } = await makeApp("editor");
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: {
         cookie: sessionCookie(),
         "idempotency-key": "create-account-1",
@@ -454,7 +455,7 @@ describe("finance routes", () => {
     const sourceAccountId = createId();
     const destinationAccountId = createId();
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: {
         cookie: sessionCookie(),
         "idempotency-key": "create-expense-1",
@@ -495,7 +496,7 @@ describe("finance routes", () => {
     const { app, financeMutationService, state } = await makeApp("editor");
     const accountId = createId();
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: {
         cookie: sessionCookie(),
         "idempotency-key": "archive-account-1",
@@ -520,7 +521,7 @@ describe("finance routes", () => {
   it("rejects invalid money before calling the mutation service", async () => {
     const { app, financeMutationService, state } = await makeApp("editor");
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: {
@@ -730,7 +731,7 @@ describe("finance routes", () => {
   it("rejects finance writes for viewers before calling the service", async () => {
     const { app, financeMutationService, state } = await makeApp("viewer");
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: {

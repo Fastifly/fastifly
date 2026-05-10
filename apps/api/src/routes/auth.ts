@@ -1,9 +1,11 @@
 import {
-  AuthCredentialsSchema,
   AuthResponseSchema,
   type AuthUserSchema,
+  CsrfTokenResponseSchema,
+  LoginCredentialsSchema,
   MeContextResponseSchema,
   parseSyncedId,
+  RegisterCredentialsSchema,
 } from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
 import type { IdentityRepository, UserRecord, WorkspaceMemberWithUserRecord } from "@fastifly/db";
@@ -22,6 +24,7 @@ import {
 } from "../auth/sessions.js";
 import type { WebAuthnAdapter } from "../auth/webauthn.js";
 import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
+import { ErrorResponseSchemas } from "../schemas.js";
 
 const PasskeyOptionsResponseSchema = z
   .object({
@@ -214,6 +217,12 @@ const WorkspaceMemberListResponseSchema = z
   })
   .strict();
 
+const AUTH_RATE_LIMIT = {
+  groupId: "auth",
+  max: 10,
+  timeWindow: "1 minute",
+} as const;
+
 export type RegisterAuthRoutesOptions = {
   readonly identityRepository: IdentityRepository;
   readonly config: ApiConfig;
@@ -332,18 +341,40 @@ export async function registerAuthRoutes(
 ): Promise<void> {
   const { config, identityRepository, webAuthnAdapter } = options;
 
+  app.get(
+    "/api/v1/auth/csrf",
+    {
+      schema: {
+        response: {
+          200: CsrfTokenResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (_request, reply) => ({
+      data: {
+        csrfToken: await reply.generateCsrf(),
+      },
+    }),
+  );
+
   app.post(
     "/api/v1/auth/register",
     {
+      config: {
+        rateLimit: AUTH_RATE_LIMIT,
+      },
+      onRequest: app.csrfProtection,
       schema: {
-        body: AuthCredentialsSchema,
+        body: RegisterCredentialsSchema,
         response: {
           201: AuthResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
     async (request, reply) => {
-      const input = AuthCredentialsSchema.parse(request.body);
+      const input = RegisterCredentialsSchema.parse(request.body);
       const existingUser = await identityRepository.findUserByNormalizedUsername(input.username);
 
       if (existingUser) {
@@ -384,15 +415,20 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/auth/login",
     {
+      config: {
+        rateLimit: AUTH_RATE_LIMIT,
+      },
+      onRequest: app.csrfProtection,
       schema: {
-        body: AuthCredentialsSchema,
+        body: LoginCredentialsSchema,
         response: {
           200: AuthResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
     async (request, reply) => {
-      const input = AuthCredentialsSchema.parse(request.body);
+      const input = LoginCredentialsSchema.parse(request.body);
       const user = await identityRepository.findUserByNormalizedUsername(input.username);
 
       if (!user || user.disabledAt) {
@@ -421,22 +457,34 @@ export async function registerAuthRoutes(
     },
   );
 
-  app.post("/api/v1/auth/logout", async (request, reply) => {
-    const token = request.cookies[config.sessionCookieName];
+  app.post(
+    "/api/v1/auth/logout",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const token = request.cookies[config.sessionCookieName];
 
-    if (token) {
-      const session = await identityRepository.findActiveSessionByTokenHash(
-        hashSessionToken(token),
-      );
+      if (token) {
+        const session = await identityRepository.findActiveSessionByTokenHash(
+          hashSessionToken(token),
+        );
 
-      if (session) {
-        await identityRepository.revokeSession(session.id);
+        if (session) {
+          await identityRepository.revokeSession(session.id);
+        }
       }
-    }
 
-    clearSessionCookie(reply, config);
-    return reply.status(204).send();
-  });
+      clearSessionCookie(reply, config);
+      return reply.status(204).send();
+    },
+  );
 
   app.get(
     "/api/v1/me/context",
@@ -444,6 +492,7 @@ export async function registerAuthRoutes(
       schema: {
         response: {
           200: MeContextResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -487,9 +536,11 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/auth/passkeys/registration/start",
     {
+      onRequest: app.csrfProtection,
       schema: {
         response: {
           200: PasskeyOptionsResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -531,10 +582,12 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/auth/passkeys/registration/finish",
     {
+      onRequest: app.csrfProtection,
       schema: {
         body: PasskeyFinishBodySchema,
         response: {
           201: PasskeyResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -586,10 +639,15 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/auth/passkeys/login/start",
     {
+      config: {
+        rateLimit: AUTH_RATE_LIMIT,
+      },
+      onRequest: app.csrfProtection,
       schema: {
         body: PasskeyLoginStartBodySchema,
         response: {
           200: PasskeyOptionsResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -624,10 +682,15 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/auth/passkeys/login/finish",
     {
+      config: {
+        rateLimit: AUTH_RATE_LIMIT,
+      },
+      onRequest: app.csrfProtection,
       schema: {
         body: PasskeyFinishBodySchema,
         response: {
           200: AuthResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -701,6 +764,7 @@ export async function registerAuthRoutes(
       schema: {
         response: {
           200: PasskeyListResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -715,11 +779,13 @@ export async function registerAuthRoutes(
   app.patch(
     "/api/v1/me/passkeys/:passkeyId",
     {
+      onRequest: app.csrfProtection,
       schema: {
         body: RenamePasskeyBodySchema,
         params: PasskeyParamsSchema,
         response: {
           200: PasskeyResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -741,38 +807,53 @@ export async function registerAuthRoutes(
     },
   );
 
-  app.delete("/api/v1/me/passkeys/:passkeyId", async (request, reply) => {
-    const userId = requireAuthenticatedUser(request);
-    const params = PasskeyParamsSchema.parse(request.params);
-    const user = await identityRepository.findUserById(userId);
-    const existingPasskeys = await identityRepository.listPasskeysByUserId(userId);
+  app.delete(
+    "/api/v1/me/passkeys/:passkeyId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        params: PasskeyParamsSchema,
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
+      const params = PasskeyParamsSchema.parse(request.params);
+      const user = await identityRepository.findUserById(userId);
+      const existingPasskeys = await identityRepository.listPasskeysByUserId(userId);
 
-    if (!user || user.disabledAt) {
-      throw makeHttpError(401, "Authentication is required.");
-    }
+      if (!user || user.disabledAt) {
+        throw makeHttpError(401, "Authentication is required.");
+      }
 
-    if (!user.passwordHash && existingPasskeys.length <= 1) {
-      throw makeHttpError(409, "At least one usable sign-in method must remain.");
-    }
+      if (!user.passwordHash && existingPasskeys.length <= 1) {
+        throw makeHttpError(409, "At least one usable sign-in method must remain.");
+      }
 
-    const passkey = await identityRepository.deletePasskey({
-      id: params.passkeyId,
-      userId,
-    });
+      const passkey = await identityRepository.deletePasskey({
+        id: params.passkeyId,
+        userId,
+      });
 
-    if (!passkey) {
-      throw makeHttpError(404, "Passkey was not found.");
-    }
+      if (!passkey) {
+        throw makeHttpError(404, "Passkey was not found.");
+      }
 
-    return reply.status(204).send();
-  });
+      return reply.status(204).send();
+    },
+  );
 
   app.post(
     "/api/v1/me/recovery-codes",
     {
+      onRequest: app.csrfProtection,
       schema: {
         response: {
           201: RecoveryCodesResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -789,21 +870,35 @@ export async function registerAuthRoutes(
     },
   );
 
-  app.delete("/api/v1/me/recovery-codes", async (request, reply) => {
-    const userId = requireAuthenticatedUser(request);
-    await identityRepository.deleteRecoveryCodesForUser(userId);
+  app.delete(
+    "/api/v1/me/recovery-codes",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
+      await identityRepository.deleteRecoveryCodesForUser(userId);
 
-    return reply.status(204).send();
-  });
+      return reply.status(204).send();
+    },
+  );
 
   app.post(
     "/api/v1/workspaces/:workspaceId/invitations",
     {
+      onRequest: app.csrfProtection,
       schema: {
         body: CreateInvitationBodySchema,
         params: WorkspaceParamsSchema,
         response: {
           201: InvitationResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -867,6 +962,7 @@ export async function registerAuthRoutes(
         params: InvitationTokenParamsSchema,
         response: {
           200: InvitationPreviewResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -904,10 +1000,12 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/invitations/:token/accept",
     {
+      onRequest: app.csrfProtection,
       schema: {
         params: InvitationTokenParamsSchema,
         response: {
           200: WorkspaceMemberResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -967,8 +1065,13 @@ export async function registerAuthRoutes(
   app.post(
     "/api/v1/invitations/:token/decline",
     {
+      onRequest: app.csrfProtection,
       schema: {
         params: InvitationTokenParamsSchema,
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
       },
     },
     async (request, reply) => {
@@ -998,8 +1101,13 @@ export async function registerAuthRoutes(
   app.delete(
     "/api/v1/workspaces/:workspaceId/invitations/:invitationId",
     {
+      onRequest: app.csrfProtection,
       schema: {
         params: WorkspaceInvitationParamsSchema,
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
       },
     },
     async (request, reply) => {
@@ -1038,6 +1146,7 @@ export async function registerAuthRoutes(
         params: WorkspaceParamsSchema,
         response: {
           200: WorkspaceMemberListResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -1057,11 +1166,13 @@ export async function registerAuthRoutes(
   app.patch(
     "/api/v1/workspaces/:workspaceId/members/:userId",
     {
+      onRequest: app.csrfProtection,
       schema: {
         body: UpdateWorkspaceMemberBodySchema,
         params: WorkspaceMemberParamsSchema,
         response: {
           200: WorkspaceMemberResponseSchema,
+          ...ErrorResponseSchemas,
         },
       },
     },
@@ -1116,8 +1227,13 @@ export async function registerAuthRoutes(
   app.delete(
     "/api/v1/workspaces/:workspaceId/members/:userId",
     {
+      onRequest: app.csrfProtection,
       schema: {
         params: WorkspaceMemberParamsSchema,
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
       },
     },
     async (request, reply) => {

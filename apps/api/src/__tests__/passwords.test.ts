@@ -1,3 +1,4 @@
+import { createSeedPasswordHash, SEED_CREDENTIALS } from "@fastifly/db";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -30,6 +31,24 @@ describe("password hashing", () => {
     );
   });
 
+  it("keeps seeded demo credentials compatible with API password verification", async () => {
+    const ownerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.owner.password);
+    const partnerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.partner.password);
+
+    await expect(
+      verifyPasswordHash({
+        password: SEED_CREDENTIALS.owner.password,
+        passwordHash: ownerPasswordHash,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      verifyPasswordHash({
+        password: SEED_CREDENTIALS.partner.password,
+        passwordHash: partnerPasswordHash,
+      }),
+    ).resolves.toBe(true);
+  });
+
   it("fails closed for unsupported hash formats and weak passwords", async () => {
     await expect(
       verifyPasswordHash({
@@ -38,6 +57,6 @@ describe("password hashing", () => {
       }),
     ).resolves.toBe(false);
 
-    await expect(hashPassword("too-short")).rejects.toThrow(PasswordPolicyError);
+    await expect(hashPassword("short")).rejects.toThrow(PasswordPolicyError);
   });
 });

@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
 import { hashSessionToken } from "../auth/sessions.js";
+import { injectWithCsrf } from "./helpers/csrf.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
 const SESSION_TOKEN = "sync-route-session";
@@ -48,7 +49,7 @@ describe("sync routes", () => {
     const deviceId = createId();
     const operationId = "operation_1";
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: {
@@ -109,7 +110,7 @@ describe("sync routes", () => {
     const syncReplayService = makeSyncReplayService();
     const app = await makeApp(state, syncReplayService);
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: {
@@ -247,7 +248,7 @@ describe("sync routes", () => {
       },
       url: "/api/v1/sync/conflicts",
     });
-    const resolveResponse = await app.inject({
+    const resolveResponse = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie() },
       method: "POST",
       payload: {

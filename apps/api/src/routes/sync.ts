@@ -34,6 +34,7 @@ export async function registerSyncRoutes(
     app.post(
       "/api/v1/sync/push",
       {
+        onRequest: app.csrfProtection,
         schema: {
           body: SyncPushRequestSchema,
           response: {
@@ -162,6 +163,7 @@ export async function registerSyncRoutes(
     app.post(
       "/api/v1/sync/conflicts/:conflictId/resolve",
       {
+        onRequest: app.csrfProtection,
         schema: {
           body: SyncResolveConflictRequestSchema,
           params: SyncResolveConflictParamsSchema,

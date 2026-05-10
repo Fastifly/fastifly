@@ -1,15 +1,14 @@
+import {
+  ARGON2ID_ALGORITHM,
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_HASHING_OPTIONS,
+} from "@fastifly/common";
 import { type Options as Argon2Options, hash, verify } from "@node-rs/argon2";
 
-export const MIN_PASSWORD_LENGTH = 12;
-export const MAX_PASSWORD_LENGTH = 1024;
-export const ARGON2ID_ALGORITHM = 2;
+export { ARGON2ID_ALGORITHM, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, PASSWORD_HASHING_OPTIONS };
 
-export const PASSWORD_HASHING_OPTIONS = {
-  algorithm: ARGON2ID_ALGORITHM,
-  memoryCost: 19 * 1024,
-  parallelism: 1,
-  timeCost: 2,
-} as const satisfies Argon2Options;
+const passwordHashingOptions: Argon2Options = PASSWORD_HASHING_OPTIONS;
 
 export class PasswordPolicyError extends Error {
   constructor(message: string) {
@@ -20,7 +19,7 @@ export class PasswordPolicyError extends Error {
 
 export function assertPasswordMeetsPolicy(password: string): void {
   if (password.length < MIN_PASSWORD_LENGTH) {
-    throw new PasswordPolicyError("Password must be at least 12 characters long.");
+    throw new PasswordPolicyError("Password must be at least 8 characters long.");
   }
 
   if (password.length > MAX_PASSWORD_LENGTH) {
@@ -30,7 +29,7 @@ export function assertPasswordMeetsPolicy(password: string): void {
 
 export async function hashPassword(password: string): Promise<string> {
   assertPasswordMeetsPolicy(password);
-  return hash(password, PASSWORD_HASHING_OPTIONS);
+  return hash(password, passwordHashingOptions);
 }
 
 export async function verifyPasswordHash(input: {

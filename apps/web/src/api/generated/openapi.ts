@@ -133,6 +133,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -284,6 +303,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -447,6 +485,199 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/csrf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                csrfToken: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -518,6 +749,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -569,6 +935,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -596,11 +1097,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -657,6 +1293,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -694,6 +1465,141 @@ export interface paths {
             "application/json": {
               data: {
                 options: unknown;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
               };
             };
           };
@@ -752,6 +1658,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -793,6 +1834,141 @@ export interface paths {
             "application/json": {
               data: {
                 options: unknown;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
               };
             };
           };
@@ -849,6 +2025,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -893,6 +2204,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -925,11 +2371,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -972,6 +2553,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     trace?: never;
@@ -1007,6 +2723,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete: {
@@ -1019,11 +2870,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -1084,6 +3070,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -1129,6 +3250,141 @@ export interface paths {
                   role: "admin" | "editor" | "viewer";
                   expiresAt: string;
                 };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
               };
             };
           };
@@ -1195,6 +3451,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -1224,11 +3615,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -1261,11 +3787,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -1324,6 +3985,141 @@ export interface paths {
             };
           };
         };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
       };
     };
     put?: never;
@@ -1357,11 +4153,146 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Default Response */
-        200: {
+        204: {
           headers: {
             [name: string]: unknown;
           };
           content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
         };
       };
     };
@@ -1414,6 +4345,141 @@ export interface paths {
                     disabledAt: string | null;
                   };
                 };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR";
+                message: string;
+                details: {
+                  fields: {
+                    [key: string]: string[];
+                  };
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
               };
             };
           };
@@ -1545,6 +4611,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -1711,6 +4796,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -1866,6 +4970,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -2077,6 +5200,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -2267,6 +5409,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -2472,6 +5633,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -2638,6 +5818,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -2833,6 +6032,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -3049,6 +6267,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -3224,6 +6461,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -3448,6 +6704,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -3632,6 +6907,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -3786,6 +7080,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;
@@ -3981,6 +7294,25 @@ export interface paths {
           };
         };
         /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
         500: {
           headers: {
             [name: string]: unknown;
@@ -4145,6 +7477,25 @@ export interface paths {
               error: {
                 /** @enum {string} */
                 code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
                 message: string;
                 details: {
                   [key: string]: unknown;

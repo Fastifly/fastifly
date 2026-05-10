@@ -38,6 +38,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApiApp } from "../app.js";
 import type { WebAuthnAdapter } from "../auth/webauthn.js";
+import { injectWithCsrf } from "./helpers/csrf.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
 
@@ -638,10 +639,43 @@ afterEach(async () => {
 });
 
 describe("auth routes", () => {
+  it("issues a CSRF token cookie and rejects unsafe auth requests without it", async () => {
+    const { app } = await makeApp();
+
+    const csrf = await app.inject({
+      method: "GET",
+      url: "/api/v1/auth/csrf",
+    });
+    expect(csrf.statusCode).toBe(200);
+    expect(csrf.json()).toMatchObject({
+      data: {
+        csrfToken: expect.any(String),
+      },
+    });
+    expect(String(csrf.headers["set-cookie"])).toContain("_fastifly_csrf=");
+    expect(String(csrf.headers["set-cookie"])).toContain("HttpOnly");
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "FORBIDDEN",
+      },
+    });
+  });
+
   it("registers a user, bootstraps default workspace state, and sets an HttpOnly session", async () => {
     const { app, identityRepository } = await makeApp();
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -667,9 +701,44 @@ describe("auth routes", () => {
     expect(String(response.headers["set-cookie"])).toContain("SameSite=Lax");
   });
 
+  it("keeps password length policy on registration only", async () => {
+    const { app } = await makeApp();
+
+    const shortRegistrationPassword = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "seven77",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+
+    expect(shortRegistrationPassword.statusCode).toBe(400);
+
+    await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "register-password",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+
+    const shortLoginPassword = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "x",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/login",
+    });
+
+    expect(shortLoginPassword.statusCode).toBe(401);
+  });
+
   it("logs in with a valid password and resolves the current user from the session cookie", async () => {
     const { app } = await makeApp();
-    await app.inject({
+    await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -678,7 +747,7 @@ describe("auth routes", () => {
       url: "/api/v1/auth/register",
     });
 
-    const failedLogin = await app.inject({
+    const failedLogin = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "wrong horse battery staple",
@@ -688,7 +757,7 @@ describe("auth routes", () => {
     });
     expect(failedLogin.statusCode).toBe(401);
 
-    const login = await app.inject({
+    const login = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -724,9 +793,49 @@ describe("auth routes", () => {
     });
   });
 
+  it("rate-limits repeated password login failures before hashing can be abused", async () => {
+    const { app } = await makeApp();
+    await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const failedLogin = await injectWithCsrf(app, {
+        method: "POST",
+        payload: {
+          password: "wrong horse battery staple",
+          username: "Owner",
+        },
+        url: "/api/v1/auth/login",
+      });
+      expect(failedLogin.statusCode).toBe(401);
+    }
+
+    const limited = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "wrong horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/login",
+    });
+
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toMatchObject({
+      error: {
+        code: "RATE_LIMITED",
+      },
+    });
+  });
+
   it("registers, lists, renames, uses, and removes a passkey", async () => {
     const { app, identityRepository } = await makeApp();
-    const register = await app.inject({
+    const register = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -736,7 +845,7 @@ describe("auth routes", () => {
     });
     const sessionCookie = getCookiePair(register);
 
-    const startRegistration = await app.inject({
+    const startRegistration = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie },
       method: "POST",
       url: "/api/v1/auth/passkeys/registration/start",
@@ -751,7 +860,7 @@ describe("auth routes", () => {
     });
 
     const registrationChallengeCookie = getCookiePair(startRegistration);
-    const finishRegistration = await app.inject({
+    const finishRegistration = await injectWithCsrf(app, {
       headers: { cookie: `${sessionCookie}; ${registrationChallengeCookie}` },
       method: "POST",
       payload: {
@@ -787,7 +896,7 @@ describe("auth routes", () => {
       },
     });
 
-    const rename = await app.inject({
+    const rename = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie },
       method: "PATCH",
       payload: { name: "Laptop" },
@@ -802,7 +911,7 @@ describe("auth routes", () => {
       },
     });
 
-    const startLogin = await app.inject({
+    const startLogin = await injectWithCsrf(app, {
       method: "POST",
       payload: { username: "owner" },
       url: "/api/v1/auth/passkeys/login/start",
@@ -821,7 +930,7 @@ describe("auth routes", () => {
       },
     });
 
-    const finishLogin = await app.inject({
+    const finishLogin = await injectWithCsrf(app, {
       headers: { cookie: getCookiePair(startLogin) },
       method: "POST",
       payload: {
@@ -841,7 +950,7 @@ describe("auth routes", () => {
       )?.counter,
     ).toBe(2);
 
-    const remove = await app.inject({
+    const remove = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie },
       method: "DELETE",
       url: `/api/v1/me/passkeys/${passkey.id}`,
@@ -857,13 +966,13 @@ describe("auth routes", () => {
       username: "Owner",
     };
 
-    await app.inject({
+    await injectWithCsrf(app, {
       method: "POST",
       payload,
       url: "/api/v1/auth/register",
     });
 
-    const duplicate = await app.inject({
+    const duplicate = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         ...payload,
@@ -882,7 +991,7 @@ describe("auth routes", () => {
 
   it("generates one-time recovery codes and stores only hashes", async () => {
     const { app, identityRepository } = await makeApp();
-    const register = await app.inject({
+    const register = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -892,7 +1001,7 @@ describe("auth routes", () => {
     });
     const cookie = getCookiePair(register);
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie },
       method: "POST",
       url: "/api/v1/me/recovery-codes",
@@ -906,7 +1015,7 @@ describe("auth routes", () => {
     expect(storedCodes[0]?.codeHash).toMatch(/^[a-f0-9]{64}$/);
     expect(storedCodes.some((record) => codes.includes(record.codeHash))).toBe(false);
 
-    const remove = await app.inject({
+    const remove = await injectWithCsrf(app, {
       headers: { cookie },
       method: "DELETE",
       url: "/api/v1/me/recovery-codes",
@@ -918,7 +1027,7 @@ describe("auth routes", () => {
 
   it("creates copyable workspace invite links only for roles with invite permission", async () => {
     const { app, identityRepository } = await makeApp();
-    const register = await app.inject({
+    const register = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -933,7 +1042,7 @@ describe("auth routes", () => {
       throw new Error("Expected registration to create a workspace context");
     }
 
-    const response = await app.inject({
+    const response = await injectWithCsrf(app, {
       headers: { cookie },
       method: "POST",
       payload: {
@@ -964,7 +1073,7 @@ describe("auth routes", () => {
       }),
     );
 
-    const duplicate = await app.inject({
+    const duplicate = await injectWithCsrf(app, {
       headers: { cookie },
       method: "POST",
       payload: {
@@ -987,7 +1096,7 @@ describe("auth routes", () => {
       },
     );
 
-    const denied = await app.inject({
+    const denied = await injectWithCsrf(app, {
       headers: { cookie },
       method: "POST",
       payload: {
@@ -1001,7 +1110,7 @@ describe("auth routes", () => {
 
   it("previews, accepts, declines, revokes, and manages workspace memberships", async () => {
     const { app, identityRepository } = await makeApp();
-    const ownerRegister = await app.inject({
+    const ownerRegister = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -1016,7 +1125,7 @@ describe("auth routes", () => {
       throw new Error("Expected owner registration to create a workspace context");
     }
 
-    const createInvite = await app.inject({
+    const createInvite = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "POST",
       payload: {
@@ -1043,7 +1152,7 @@ describe("auth routes", () => {
       },
     });
 
-    const inviteeRegister = await app.inject({
+    const inviteeRegister = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -1060,7 +1169,7 @@ describe("auth routes", () => {
       throw new Error("Expected invitee registration to create a user");
     }
 
-    const accept = await app.inject({
+    const accept = await injectWithCsrf(app, {
       headers: { cookie: inviteeCookie },
       method: "POST",
       url: `/api/v1/invitations/${inviteToken}/accept`,
@@ -1117,7 +1226,7 @@ describe("auth routes", () => {
       },
     });
 
-    const updateRole = await app.inject({
+    const updateRole = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "PATCH",
       payload: { role: "viewer" },
@@ -1132,7 +1241,7 @@ describe("auth routes", () => {
       },
     });
 
-    const removeMember = await app.inject({
+    const removeMember = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "DELETE",
       url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/members/${inviteeUser.id}`,
@@ -1142,7 +1251,7 @@ describe("auth routes", () => {
       identityRepository.findWorkspaceMember(ownerContext.activeWorkspace.id, inviteeUser.id),
     ).resolves.toBeNull();
 
-    const declineInvite = await app.inject({
+    const declineInvite = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "POST",
       payload: {
@@ -1154,7 +1263,7 @@ describe("auth routes", () => {
     const declineToken = getInvitationToken(
       declineInvite.json<{ data: { inviteLink: string } }>().data.inviteLink,
     );
-    const decline = await app.inject({
+    const decline = await injectWithCsrf(app, {
       method: "POST",
       url: `/api/v1/invitations/${declineToken}/decline`,
     });
@@ -1167,7 +1276,7 @@ describe("auth routes", () => {
       }),
     );
 
-    const revokeInvite = await app.inject({
+    const revokeInvite = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "POST",
       payload: {
@@ -1179,7 +1288,7 @@ describe("auth routes", () => {
     const revokePayload = revokeInvite.json<{
       data: { invitation: { id: SyncedId }; inviteLink: string };
     }>().data;
-    const revoke = await app.inject({
+    const revoke = await injectWithCsrf(app, {
       headers: { cookie: ownerCookie },
       method: "DELETE",
       url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations/${revokePayload.invitation.id}`,
@@ -1203,7 +1312,7 @@ describe("auth routes", () => {
 
   it("revokes the current session on logout", async () => {
     const { app, identityRepository } = await makeApp();
-    const register = await app.inject({
+    const register = await injectWithCsrf(app, {
       method: "POST",
       payload: {
         password: "correct horse battery staple",
@@ -1213,7 +1322,7 @@ describe("auth routes", () => {
     });
     const cookie = getCookiePair(register);
 
-    const logout = await app.inject({
+    const logout = await injectWithCsrf(app, {
       headers: { cookie },
       method: "POST",
       url: "/api/v1/auth/logout",

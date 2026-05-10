@@ -161,6 +161,7 @@ export async function registerFinanceRoutes(
     app.post(
       "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/accounts",
       {
+        onRequest: app.csrfProtection,
         schema: {
           body: CreateAccountRequestSchema,
           params: LedgerParamsSchema,
@@ -215,6 +216,7 @@ export async function registerFinanceRoutes(
     app.delete(
       "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/accounts/:accountId",
       {
+        onRequest: app.csrfProtection,
         schema: {
           params: AccountParamsSchema,
           response: {
@@ -260,6 +262,7 @@ export async function registerFinanceRoutes(
     app.post(
       "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/transactions",
       {
+        onRequest: app.csrfProtection,
         schema: {
           body: CreateTransactionRequestSchema,
           params: LedgerParamsSchema,

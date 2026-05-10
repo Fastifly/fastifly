@@ -33,6 +33,7 @@ export const UnauthenticatedErrorResponseSchema = apiErrorResponseSchema("UNAUTH
 export const ForbiddenErrorResponseSchema = apiErrorResponseSchema("FORBIDDEN");
 export const NotFoundErrorResponseSchema = apiErrorResponseSchema("NOT_FOUND");
 export const ConflictErrorResponseSchema = apiErrorResponseSchema("CONFLICT");
+export const RateLimitedErrorResponseSchema = apiErrorResponseSchema("RATE_LIMITED");
 export const InternalServerErrorResponseSchema = apiErrorResponseSchema("INTERNAL_SERVER_ERROR");
 
 export const ErrorResponseSchemas = {
@@ -41,6 +42,7 @@ export const ErrorResponseSchemas = {
   403: ForbiddenErrorResponseSchema,
   404: NotFoundErrorResponseSchema,
   409: ConflictErrorResponseSchema,
+  429: RateLimitedErrorResponseSchema,
   500: InternalServerErrorResponseSchema,
 } as const;
 

@@ -13,6 +13,7 @@ const DEFAULT_ERROR_MESSAGES = {
   FORBIDDEN: "You do not have permission to perform this action.",
   NOT_FOUND: "The requested resource was not found.",
   CONFLICT: "The request conflicts with the current resource state.",
+  RATE_LIMITED: "Too many requests. Try again later.",
   INTERNAL_SERVER_ERROR: "An unexpected error occurred.",
 } as const;
 
@@ -107,6 +108,8 @@ function mapStatusToApiErrorCode(statusCode: number): ApiErrorCode {
       return "NOT_FOUND";
     case 409:
       return "CONFLICT";
+    case 429:
+      return "RATE_LIMITED";
     case 400:
       return "BAD_REQUEST";
     default:

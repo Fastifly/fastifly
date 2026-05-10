@@ -496,10 +496,38 @@ All other operations are online-only until a later ADR expands the safe offline 
 
 No email support in v0.1.
 
+### CSRF token
+
+Browser clients using cookie sessions must fetch a CSRF token before any unsafe
+request (`POST`, `PATCH`, `PUT`, or `DELETE`).
+
+```text
+GET /api/v1/auth/csrf
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "csrfToken": "csrf_token"
+  }
+}
+```
+
+The response also sets the CSRF secret cookie. Unsafe browser requests must send
+the returned token in the `x-csrf-token` header and include cookies.
+
 ### Register
 
 ```text
 POST /api/v1/auth/register
+```
+
+Required header:
+
+```text
+x-csrf-token: <token from GET /api/v1/auth/csrf>
 ```
 
 Request:
@@ -531,6 +559,12 @@ Response:
 POST /api/v1/auth/login
 ```
 
+Required header:
+
+```text
+x-csrf-token: <token from GET /api/v1/auth/csrf>
+```
+
 Request:
 
 ```json
@@ -545,6 +579,17 @@ Request:
 ```text
 POST /api/v1/auth/logout
 ```
+
+Required header:
+
+```text
+x-csrf-token: <token from GET /api/v1/auth/csrf>
+```
+
+Response: `204 No Content`.
+
+Password and passkey-login endpoints are rate-limited. Rate-limit failures use
+the standard API error shape with code `RATE_LIMITED` and HTTP status `429`.
 
 ### Current user context
 
@@ -584,6 +629,8 @@ Response:
 ```text
 POST /api/v1/auth/passkeys/registration/start
 ```
+
+Unsafe passkey routes require `x-csrf-token`.
 
 ### Finish registration
 

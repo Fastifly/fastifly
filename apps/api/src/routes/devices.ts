@@ -32,6 +32,7 @@ export async function registerDeviceRoutes(
   app.post(
     "/api/v1/devices",
     {
+      onRequest: app.csrfProtection,
       schema: {
         body: CreateDeviceRequestSchema,
         response: {
@@ -74,6 +75,7 @@ export async function registerDeviceRoutes(
   app.post(
     "/api/v1/devices/:deviceId/revoke",
     {
+      onRequest: app.csrfProtection,
       schema: {
         params: DeviceParamsSchema,
         response: {

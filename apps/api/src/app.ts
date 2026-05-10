@@ -12,6 +12,7 @@ import type {
 } from "@fastifly/db";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
+import fastifyRateLimit from "@fastify/rate-limit";
 import fastifySwagger from "@fastify/swagger";
 import scalarApiReference from "@scalar/fastify-api-reference";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -98,6 +99,12 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     getToken: (request) => request.headers["x-csrf-token"]?.toString(),
   });
 
+  await app.register(fastifyRateLimit, {
+    global: false,
+    errorResponseBuilder: (_request, context) =>
+      makeRateLimitError(`Too many requests. Try again in ${context.after}.`, context.statusCode),
+  });
+
   await app.register(fastifySwagger, {
     openapi: {
       openapi: "3.1.0",
@@ -159,4 +166,10 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
   }
 
   return app;
+}
+
+function makeRateLimitError(message: string, statusCode: number): Error & { statusCode: number } {
+  const error = new Error(message) as Error & { statusCode: number };
+  error.statusCode = statusCode;
+  return error;
 }
