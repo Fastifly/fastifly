@@ -17,6 +17,15 @@ Documentation endpoints:
 /api/docs
 ```
 
+OpenAPI contract rules:
+
+- the generated document must be OpenAPI `3.1.0`
+- Fastify route schemas are the source of truth
+- Zod v4 schemas are transformed through `fastify-type-provider-zod`
+- the frontend imports generated OpenAPI path types from `apps/web/src/api/generated/openapi.ts`
+- run `pnpm api:generate` after public API route/schema changes
+- run `pnpm api:check` before merging API contract changes to catch stale generated types
+
 ---
 
 ## Goals

@@ -1,5 +1,32 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "APP_ENV",
+    "APP_PORT",
+    "APP_URL",
+    "AUTO_MIGRATE",
+    "COOKIE_SECRET",
+    "COOKIE_SECURE",
+    "CSRF_COOKIE_NAME",
+    "DATABASE_DRIVER",
+    "DATABASE_URL",
+    "HOST",
+    "INVITATION_TTL_DAYS",
+    "LOG_LEVEL",
+    "NODE_ENV",
+    "OPENAPI_BASE_URL",
+    "PASSKEY_LOGIN_CHALLENGE_COOKIE_NAME",
+    "PASSKEY_REGISTRATION_CHALLENGE_COOKIE_NAME",
+    "PORT",
+    "SESSION_COOKIE_NAME",
+    "SESSION_SECRET",
+    "SESSION_TTL_DAYS",
+    "VITE_FASTIFLY_API_BASE_URL",
+    "WEBAUTHN_CHALLENGE_TTL_MINUTES",
+    "WEBAUTHN_ORIGIN",
+    "WEBAUTHN_RP_ID",
+    "WEBAUTHN_RP_NAME"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

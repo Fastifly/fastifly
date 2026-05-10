@@ -138,7 +138,91 @@ Fastifly does not require Redis, BullMQ, Kafka, Elasticsearch, or external queue
 
 ## Quick start
 
-The quick-start flow will be finalized after the first runnable release.
+### Local development with Tilt
+
+The easiest way to run the app locally is:
+
+```bash
+pnpm install
+pnpm start
+```
+
+`pnpm start` runs Tilt on port `10360` and starts the default SQLite demo stack.
+Open Tilt at:
+
+```text
+http://localhost:10360
+```
+
+Tilt then manages:
+
+- local package builds
+- SQLite data directory creation
+- database migrations
+- seeded demo data
+- the Fastify API
+- the Vite web app
+
+Service links:
+
+```text
+Web:  http://localhost:5173
+API:  http://localhost:3400
+Docs: http://localhost:3400/api/docs
+```
+
+Demo login:
+
+```text
+Username: demo-owner
+Password: fastifly-demo-password
+```
+
+For SQLite without seeded demo data, use:
+
+```bash
+pnpm dev:sqlite
+```
+
+For the full demo dataset explicitly:
+
+```bash
+pnpm dev:sqlite:demo
+```
+
+Tilt uses fixed development ports. If a port is busy, stop the conflicting
+process before running Tilt.
+
+### PostgreSQL development
+
+To run the same dev app against a local PostgreSQL container:
+
+```bash
+pnpm dev:postgres
+```
+
+For the full demo dataset against PostgreSQL:
+
+```bash
+pnpm dev:postgres:demo
+```
+
+This command starts `docker-compose.dev-postgres.yml`, waits for PostgreSQL,
+builds local runtime packages, runs migrations, then starts the API and web app
+through Tilt.
+It uses port `55432` by default to avoid conflicting with a local PostgreSQL
+install.
+
+Stop only the Postgres dev database with:
+
+```bash
+pnpm dev:postgres:down
+```
+
+### Production image preview
+
+The production Docker image flow will be finalized after the first runnable
+release.
 
 Expected Docker usage:
 
@@ -168,7 +252,8 @@ http://localhost:3000
 
 - Node.js 24 LTS
 - pnpm
-- Turborepo
+- Tilt
+- Docker, only for `pnpm dev:postgres` or production Compose testing
 - Biome for linting and formatting
 - tsgo via `@typescript/native-preview` for fast type-checking
 - SQLite
@@ -180,26 +265,68 @@ http://localhost:3000
 pnpm install
 ```
 
-### Start development
+### Start development with a database
+
+Default SQLite demo mode:
 
 ```bash
-pnpm dev
+pnpm start
+```
+
+Tilt UI:
+
+```text
+http://localhost:10360
+```
+
+SQLite without seeded demo data:
+
+```bash
+pnpm dev:sqlite
+```
+
+SQLite with seeded demo data:
+
+```bash
+pnpm dev:sqlite:demo
+```
+
+PostgreSQL mode with a local Docker database:
+
+```bash
+pnpm dev:postgres
+```
+
+PostgreSQL with seeded demo data:
+
+```bash
+pnpm dev:postgres:demo
 ```
 
 Expected local services:
 
 ```text
-API:  http://localhost:3000
+API:  http://localhost:3400
 Web:  http://localhost:5173
-Docs: http://localhost:3000/api/docs
+Docs: http://localhost:3400/api/docs
 ```
+
+Tilt uses fixed local ports by default. Override them with `APP_PORT`,
+`FASTIFLY_WEB_PORT`, or `FASTIFLY_DEV_POSTGRES_PORT` before starting Tilt.
 
 ### Planned scripts
 
 ```bash
-pnpm dev
-pnpm build
 pnpm start
+pnpm dev
+pnpm dev:sqlite
+pnpm dev:sqlite:demo
+pnpm dev:postgres
+pnpm dev:postgres:demo
+pnpm dev:postgres:down
+pnpm build
+pnpm api:generate
+pnpm api:check
 
 pnpm lint
 pnpm lint:fix
@@ -212,6 +339,9 @@ pnpm db:generate:sqlite
 pnpm db:generate:postgres
 pnpm db:migrate:sqlite
 pnpm db:migrate:postgres
+pnpm db:seed:essential
+pnpm db:seed:demo
+pnpm db:seed:e2e
 
 pnpm test:sqlite
 pnpm test:postgres
@@ -228,34 +358,38 @@ Create an `.env` file.
 
 ```env
 APP_ENV=development
-APP_PORT=3000
-APP_URL=http://localhost:3000
+APP_PORT=3400
+APP_URL=http://localhost:3400
+FASTIFLY_API_PROXY_TARGET=http://localhost:3400
+VITE_FASTIFLY_API_BASE_URL=
 
 DATABASE_DRIVER=sqlite
-DATABASE_URL=./data/fastifly.db
+DATABASE_URL=./data/fastifly.dev.db
 
-SESSION_SECRET=change-me-in-production
+SESSION_SECRET=development-only-session-secret-change-before-prod
 COOKIE_SECURE=false
 
 LOG_LEVEL=debug
-AUTO_MIGRATE=true
+AUTO_MIGRATE=false
 ```
 
 ### PostgreSQL mode
 
 ```env
 APP_ENV=development
-APP_PORT=3000
-APP_URL=http://localhost:3000
+APP_PORT=3400
+APP_URL=http://localhost:3400
+FASTIFLY_API_PROXY_TARGET=http://localhost:3400
+VITE_FASTIFLY_API_BASE_URL=
 
 DATABASE_DRIVER=postgres
-DATABASE_URL=postgres://fastifly:fastifly@localhost:5432/fastifly?sslmode=disable
+DATABASE_URL=postgres://fastifly:fastifly@localhost:55432/fastifly?sslmode=disable
 
-SESSION_SECRET=change-me-in-production
+SESSION_SECRET=development-only-session-secret-change-before-prod
 COOKIE_SECURE=false
 
 LOG_LEVEL=debug
-AUTO_MIGRATE=true
+AUTO_MIGRATE=false
 ```
 
 ---

@@ -112,10 +112,18 @@ Mobile bottom nav:
 ```text
 Home
 Transactions
-Add
+Accounts
 Budgets
 More
 ```
+
+Rules:
+
+- render at most four primary destinations in the fixed phone tab bar
+- put every other destination in a More drawer
+- account for `env(safe-area-inset-bottom)` on phones
+- active state must use longest-prefix matching so nested routes highlight the correct tab
+- never hide a route completely just because it is not in the primary tab bar
 
 ---
 
@@ -761,6 +769,7 @@ Use centralized API client.
 
 API client should handle:
 
+- generated OpenAPI path typing
 - base URL
 - JSON parsing
 - standard errors
@@ -776,12 +785,21 @@ Runtime configuration:
 
 ```text
 VITE_FASTIFLY_API_BASE_URL
+FASTIFLY_API_PROXY_TARGET
 ```
 
 Rules:
 
+- do not hand-type route URLs, path params, query params, or response payloads when the route is present in `apps/web/src/api/generated/openapi.ts`
+- use `openapi-fetch` for typed request construction
+- keep shared Zod schemas for runtime response validation at the app boundary
+- regenerate with `pnpm api:generate` whenever API route schemas change
+- verify generated-contract drift with `pnpm api:check`
+
 - empty value means same-origin API calls
 - non-empty value must not end with a slash after normalization
+- local Vite development should prefer same-origin API calls through the Vite
+  proxy, using `FASTIFLY_API_PROXY_TARGET` to point at the API server
 - never hardcode localhost API URLs in components
 - authenticated requests use `credentials: include`
 - request and response contracts come from `packages/common`

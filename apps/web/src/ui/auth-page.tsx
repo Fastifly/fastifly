@@ -132,7 +132,7 @@ export function AuthPage() {
         </button>
 
         <Link
-          className="mt-4 block text-center text-slate-500 text-sm hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-md text-center text-slate-500 text-sm transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
           to="/"
         >
           {en.nav.dashboard}

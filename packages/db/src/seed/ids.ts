@@ -1,0 +1,70 @@
+import { parseSyncedId, type SyncedId } from "@fastifly/common";
+
+export function seedId(value: number): SyncedId {
+  return parseSyncedId(`00000000-0000-7000-a000-${value.toString().padStart(12, "0")}`);
+}
+
+export const SEED_IDS = {
+  USER_OWNER: seedId(1_001),
+  USER_PARTNER: seedId(1_002),
+
+  WORKSPACE_HOUSEHOLD: seedId(1_101),
+  LEDGER_HOUSEHOLD: seedId(1_201),
+  MEMBER_OWNER: seedId(1_301),
+  MEMBER_PARTNER: seedId(1_302),
+
+  ACCOUNT_CHECKING: seedId(2_001),
+  ACCOUNT_CASH: seedId(2_002),
+  ACCOUNT_SAVINGS: seedId(2_003),
+  ACCOUNT_CREDIT_CARD: seedId(2_004),
+  ACCOUNT_SALARY: seedId(2_101),
+  ACCOUNT_INTEREST: seedId(2_102),
+  ACCOUNT_GROCERIES: seedId(2_201),
+  ACCOUNT_DINING: seedId(2_202),
+  ACCOUNT_RENT: seedId(2_203),
+  ACCOUNT_UTILITIES: seedId(2_204),
+  ACCOUNT_TRANSPORT: seedId(2_205),
+  ACCOUNT_HEALTH: seedId(2_206),
+  ACCOUNT_SHOPPING: seedId(2_207),
+
+  CATEGORY_FOOD: seedId(3_001),
+  CATEGORY_GROCERIES: seedId(3_002),
+  CATEGORY_DINING: seedId(3_003),
+  CATEGORY_HOUSING: seedId(3_004),
+  CATEGORY_TRANSPORT: seedId(3_005),
+  CATEGORY_HEALTH: seedId(3_006),
+  CATEGORY_SHOPPING: seedId(3_007),
+
+  TAG_IMPORTANT: seedId(3_501),
+  TAG_RECURRING: seedId(3_502),
+  TAG_MANUAL_QA: seedId(3_503),
+
+  BUDGET_MONTHLY_FOOD: seedId(4_001),
+  BUDGET_MONTHLY_LIVING: seedId(4_002),
+  BUDGET_MONTHLY_TRANSPORT: seedId(4_003),
+
+  PAYEE_EMPLOYER: seedId(5_001),
+  PAYEE_RENT: seedId(5_002),
+  PAYEE_GROCERY: seedId(5_003),
+  PAYEE_METRO: seedId(5_004),
+  PAYEE_PHARMACY: seedId(5_005),
+
+  TX_SALARY: seedId(6_001),
+  TX_RENT: seedId(6_002),
+  TX_GROCERIES: seedId(6_003),
+  TX_DINING: seedId(6_004),
+  TX_TRANSFER_SAVINGS: seedId(6_005),
+  TX_UTILITIES: seedId(6_006),
+  TX_CASH_WITHDRAWAL: seedId(6_007),
+  TX_PHARMACY: seedId(6_008),
+  TX_INTEREST: seedId(6_009),
+  TX_SPLIT_MARKET: seedId(6_010),
+  TX_CARD_SHOPPING: seedId(6_011),
+  TX_BUS_PASS: seedId(6_012),
+  TX_COFFEE: seedId(6_013),
+  TX_PENDING_BILL: seedId(6_014),
+  TX_QA_GROCERIES_2: seedId(6_015),
+  TX_QA_DINING_2: seedId(6_016),
+  TX_QA_TRANSPORT_2: seedId(6_017),
+  TX_QA_HEALTH_2: seedId(6_018),
+} as const;

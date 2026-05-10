@@ -140,3 +140,7 @@ export const GetTransactionResponseSchema = z.strictObject({
 
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
 export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSchema>;
+export type AccountWithBalanceResponse = z.infer<typeof AccountWithBalanceResponseSchema>;
+export type ListAccountsResponse = z.infer<typeof ListAccountsResponseSchema>;
+export type ListTransactionsResponse = z.infer<typeof ListTransactionsResponseSchema>;
+export type TransactionGroupResponse = z.infer<typeof TransactionGroupResponseSchema>;

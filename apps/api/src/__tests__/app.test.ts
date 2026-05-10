@@ -60,7 +60,7 @@ describe("Fastifly API app", () => {
       openapi: string;
       paths: Record<string, unknown>;
     }>();
-    expect(document.openapi).toMatch(/^3\./);
+    expect(document.openapi).toBe("3.1.0");
     expect(document.paths).toHaveProperty("/health");
     expect(document.paths).toHaveProperty("/ready");
   });

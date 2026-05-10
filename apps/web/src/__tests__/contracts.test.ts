@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { webPwaSafetySmoke, webSharedContractSmoke } from "../index.js";
+import { webNavigationSmoke, webPwaSafetySmoke, webSharedContractSmoke } from "../index.js";
 
 describe("web shared contract smoke", () => {
   it("uses package contracts instead of local duplicate schemas", () => {
@@ -53,5 +53,23 @@ describe("web shared contract smoke", () => {
         getItem: () => "not-json",
       }),
     ).toBe(0);
+  });
+
+  it("keeps phone navigation curated and resolves nested active routes", () => {
+    expect(webNavigationSmoke.getMobilePrimaryNavigation()).toHaveLength(
+      webNavigationSmoke.maxMobileTabs,
+    );
+    expect(webNavigationSmoke.getMobilePrimaryNavigation().map((item) => item.slug)).toEqual([
+      "dashboard",
+      "transactions",
+      "accounts",
+      "budgets",
+    ]);
+    expect(webNavigationSmoke.getMobilePrimaryNavigation().map((item) => item.mobileLabel)).toEqual(
+      ["Home", "Txns", "Accts", "Budget"],
+    );
+    expect(webNavigationSmoke.getCurrentNavigationItem("/transactions/new").slug).toBe(
+      "transactions",
+    );
   });
 });

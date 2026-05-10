@@ -16,7 +16,7 @@ import fastifySwagger from "@fastify/swagger";
 import scalarApiReference from "@scalar/fastify-api-reference";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
-  jsonSchemaTransform,
+  createJsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -100,6 +100,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
 
   await app.register(fastifySwagger, {
     openapi: {
+      openapi: "3.1.0",
       info: {
         title: "Fastifly API",
         description: "Fastifly finance application API",
@@ -107,7 +108,9 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       },
       servers: [{ url: config.openApiBaseUrl }],
     },
-    transform: jsonSchemaTransform,
+    transform: createJsonSchemaTransform({
+      zodToJsonConfig: { target: "draft-2020-12" },
+    }),
   });
 
   await app.register(scalarApiReference, {

@@ -168,6 +168,10 @@ export {
   createSqliteTransactionWriteRepository,
 } from "./repositories/transactions.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
+export { SEED_CREDENTIALS, SEED_NOW } from "./seed/fixtures.js";
+export { SEED_IDS, seedId } from "./seed/ids.js";
+export type { SeedDatabaseInput, SeedDriver, SeedLevel } from "./seed/index.js";
+export { seedDatabase, seedPostgres, seedPostgresDatabase, seedSqlite } from "./seed/index.js";
 export type {
   ArchiveAccountMutationInput,
   ArchiveAccountMutationPayload,

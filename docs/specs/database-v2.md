@@ -93,18 +93,31 @@ duplicated API logic
 
 ## Database configuration
 
+Local development:
+
+```bash
+pnpm start
+pnpm dev:sqlite
+pnpm dev:postgres
+```
+
+`pnpm start` runs Tilt on port `10360` and starts the default SQLite demo stack.
+`pnpm dev:sqlite` runs the same Tiltfile without seeded demo data.
+`pnpm dev:postgres` starts the local PostgreSQL Compose service on host port
+`55432`, runs migrations, and starts the same dev apps through Tilt.
+
 SQLite:
 
 ```env
 DATABASE_DRIVER=sqlite
-DATABASE_URL=./data/fastifly.db
+DATABASE_URL=./data/fastifly.dev.db
 ```
 
 PostgreSQL:
 
 ```env
 DATABASE_DRIVER=postgres
-DATABASE_URL=postgres://fastifly:fastifly@localhost:5432/fastifly?sslmode=disable
+DATABASE_URL=postgres://fastifly:fastifly@localhost:55432/fastifly?sslmode=disable
 ```
 
 Supported drivers:

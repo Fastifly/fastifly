@@ -22,7 +22,14 @@ export {
   makeValidationError,
   ValidationErrorSchema,
 } from "./api/errors.js";
-export type { CreateAccountRequest, CreateTransactionRequest } from "./api/finance.js";
+export type {
+  AccountWithBalanceResponse,
+  CreateAccountRequest,
+  CreateTransactionRequest,
+  ListAccountsResponse,
+  ListTransactionsResponse,
+  TransactionGroupResponse,
+} from "./api/finance.js";
 export {
   AccountResponseSchema,
   AccountWithBalanceResponseSchema,

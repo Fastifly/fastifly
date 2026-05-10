@@ -4,10 +4,16 @@ import {
   type AuthCredentials,
   type AuthResponse,
   AuthResponseSchema,
+  type ListAccountsResponse,
+  ListAccountsResponseSchema,
+  type ListTransactionsResponse,
+  ListTransactionsResponseSchema,
   type MeContextResponse,
   MeContextResponseSchema,
 } from "@fastifly/common";
+import createClient from "openapi-fetch";
 import { API_BASE_URL } from "../env";
+import type { paths } from "./generated/openapi";
 
 export class FastiflyApiError extends Error {
   readonly response: ApiError;
@@ -22,74 +28,107 @@ export class FastiflyApiError extends Error {
 export type ApiClient = {
   readonly getHealth: () => Promise<{ readonly status: string }>;
   readonly getMeContext: () => Promise<MeContextResponse>;
+  readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
+  readonly listTransactions: (input: LedgerPathInput) => Promise<ListTransactionsResponse>;
   readonly login: (input: AuthCredentials) => Promise<AuthResponse>;
   readonly register: (input: AuthCredentials) => Promise<AuthResponse>;
 };
 
+type LedgerPathInput = {
+  readonly ledgerId: string;
+  readonly workspaceId: string;
+};
+
+const openApiClient = createClient<paths>({
+  baseUrl: API_BASE_URL,
+  credentials: "include",
+});
+
 export const apiClient: ApiClient = {
   async getMeContext() {
-    return MeContextResponseSchema.parse(await requestJson("/api/v1/me/context"));
+    return MeContextResponseSchema.parse(
+      await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/context")),
+    );
   },
   async getHealth() {
-    return await requestJson<{ readonly status: string }>("/health");
+    return await unwrapOpenApiResponse(await openApiClient.GET("/health"));
+  },
+  async listAccounts(input) {
+    return ListAccountsResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/accounts", {
+          params: {
+            path: {
+              ledgerId: input.ledgerId,
+              workspaceId: input.workspaceId,
+            },
+            query: {
+              limit: 50,
+            },
+          },
+        }),
+      ),
+    );
+  },
+  async listTransactions(input) {
+    return ListTransactionsResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET(
+          "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/transactions",
+          {
+            params: {
+              path: {
+                ledgerId: input.ledgerId,
+                workspaceId: input.workspaceId,
+              },
+              query: {
+                limit: 50,
+              },
+            },
+          },
+        ),
+      ),
+    );
   },
   async login(input) {
     return AuthResponseSchema.parse(
-      await requestJson("/api/v1/auth/login", {
-        json: input,
-        method: "POST",
-      }),
+      await unwrapOpenApiResponse(
+        await openApiClient.POST("/api/v1/auth/login", {
+          body: input,
+        }),
+      ),
     );
   },
   async register(input) {
     return AuthResponseSchema.parse(
-      await requestJson("/api/v1/auth/register", {
-        json: input,
-        method: "POST",
-      }),
+      await unwrapOpenApiResponse(
+        await openApiClient.POST("/api/v1/auth/register", {
+          body: input,
+        }),
+      ),
     );
   },
 };
 
-type JsonRequestInit = RequestInit & {
-  readonly json?: unknown;
+type OpenApiFetchResult<TData> = {
+  readonly data?: TData;
+  readonly error?: unknown;
+  readonly response: Response;
 };
 
-async function requestJson<TResponse>(path: string, init?: JsonRequestInit): Promise<TResponse> {
-  const headers = new Headers(init?.headers);
-  headers.set("Accept", "application/json");
-
-  let body = init?.body;
-  if (init && "json" in init) {
-    headers.set("Content-Type", "application/json");
-    body = JSON.stringify(init.json);
-  }
-  const fetchInit = init ? withoutJson(init) : {};
-
-  const requestInit: RequestInit = {
-    credentials: "include",
-    ...fetchInit,
-    headers,
-  };
-  if (body !== undefined) {
-    requestInit.body = body;
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, requestInit);
-  const payload = (await response.json().catch(() => ({}))) as unknown;
-
-  if (!response.ok) {
-    const parsed = ApiErrorSchema.safeParse(payload);
+async function unwrapOpenApiResponse<TData>(result: OpenApiFetchResult<TData>): Promise<TData> {
+  if (result.error !== undefined) {
+    const parsed = ApiErrorSchema.safeParse(result.error);
     if (parsed.success) {
       throw new FastiflyApiError(parsed.data);
     }
 
-    throw new Error(`Request failed with status ${response.status}.`);
+    throw new Error(`Request failed with status ${result.response.status}.`);
   }
 
-  return payload as TResponse;
-}
+  if (result.data === undefined) {
+    throw new Error(`Request returned no response body with status ${result.response.status}.`);
+  }
 
-function withoutJson({ json: _json, ...init }: JsonRequestInit): RequestInit {
-  return init;
+  return result.data;
 }

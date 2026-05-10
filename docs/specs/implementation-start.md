@@ -321,11 +321,15 @@ strict TypeScript baseline
 lint/format/typecheck/test commands
 workspace package exports
 CI skeleton
+one-command local dev startup with database migration
 ```
 
 Stop condition:
 
 - `pnpm install`
+- `pnpm start` runs Tilt on port `10360` and starts the SQLite demo stack
+- `pnpm dev:sqlite` starts SQLite through Tilt without seeded demo data
+- `pnpm dev:sqlite:demo` seeds full demo data for manual UI testing
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm typecheck:tsc`
@@ -416,6 +420,7 @@ structured logger
 error serializer
 health/readiness
 OpenAPI/Scalar
+OpenAPI 3.1 generation
 cookie/session setup
 CSRF setup
 auth context hook
@@ -428,6 +433,8 @@ Stop condition:
 - `/health` works
 - `/ready` reflects migration/config state
 - `/api/openapi.json` works
+- `pnpm api:generate` updates the generated web OpenAPI types
+- `pnpm api:check` catches stale generated OpenAPI types
 - standard error fixture is tested
 - if no frontend build exists yet, static serving must be explicitly marked as deferred to the frontend/PWA phase
 
@@ -557,6 +564,7 @@ TanStack Router
 TanStack Query
 TanStack Form
 API client
+OpenAPI-generated API types
 theme provider
 i18n structure
 permission helpers

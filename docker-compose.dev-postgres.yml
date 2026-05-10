@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: fastifly
+      POSTGRES_USER: fastifly
+      POSTGRES_PASSWORD: fastifly
+    ports:
+      - "${FASTIFLY_DEV_POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastifly -d fastifly"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - fastifly-dev-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  fastifly-dev-postgres-data:

@@ -3,8 +3,16 @@
   "private": true,
   "packageManager": "pnpm@11.0.9+sha512.34ce82e6780233cf9cad8685029a8f81d2e06196c5a9bad98879f7424940c6817c4e4524fb7d38b8553ceed48b9758b8ebaf1abd3600c232c4c8cf7366086f38",
   "scripts": {
-    "dev": "turbo run dev",
+    "start": "tilt up --port 10360",
+    "dev": "pnpm start",
+    "dev:sqlite": "FASTIFLY_DEV_DB=sqlite FASTIFLY_DEV_SEED=none tilt up --port 10360",
+    "dev:sqlite:demo": "FASTIFLY_DEV_DB=sqlite FASTIFLY_DEV_SEED=e2e tilt up --port 10360",
+    "dev:postgres": "FASTIFLY_DEV_DB=postgres FASTIFLY_DEV_SEED=none tilt up --port 10360",
+    "dev:postgres:demo": "FASTIFLY_DEV_DB=postgres FASTIFLY_DEV_SEED=e2e tilt up --port 10360",
+    "dev:postgres:down": "docker compose -f docker-compose.dev-postgres.yml down",
     "build": "turbo run build",
+    "api:generate": "node scripts/generate-openapi.mjs",
+    "api:check": "pnpm api:generate && git diff --exit-code -- apps/web/src/api/generated/openapi.ts",
     "typecheck": "turbo run typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -18,11 +26,15 @@
     "db:generate:sqlite": "pnpm --filter @fastifly/db db:generate:sqlite",
     "db:generate:postgres": "pnpm --filter @fastifly/db db:generate:postgres",
     "db:migrate:sqlite": "pnpm --filter @fastifly/db db:migrate:sqlite",
-    "db:migrate:postgres": "pnpm --filter @fastifly/db db:migrate:postgres"
+    "db:migrate:postgres": "pnpm --filter @fastifly/db db:migrate:postgres",
+    "db:seed:essential": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:essential",
+    "db:seed:demo": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:demo",
+    "db:seed:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
     "@typescript/native-preview": "latest",
+    "openapi-typescript": "^7.13.0",
     "turbo": "latest",
     "typescript": "latest",
     "vitest": "^4.1.5"
