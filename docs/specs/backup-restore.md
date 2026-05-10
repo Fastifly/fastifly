@@ -293,18 +293,17 @@ Before every production migration:
 
 ```bash
 fastifly backup create
-DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
-DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 ```
-
-The future `fastifly migrate status/up` CLI is tracked in
-`docs/issues/first-class-maintenance-cli.md`.
 
 For PostgreSQL:
 
 ```bash
 pg_dump -F c -f fastifly-before-upgrade.dump
-DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 ```
 
 Upgrade docs must always remind users to back up first.

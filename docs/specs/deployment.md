@@ -137,8 +137,9 @@ services:
     profiles:
       - migrate
     environment:
+      DATABASE_DRIVER: sqlite
       DATABASE_URL: /app/data/fastifly.db
-    command: ["pnpm", "db:migrate:sqlite"]
+    command: ["./node_modules/.bin/fastifly", "migrate", "up"]
     volumes:
       - fastifly-sqlite-data:/app/data
 
@@ -247,8 +248,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      DATABASE_DRIVER: postgres
       DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
-    command: ["pnpm", "db:migrate:postgres"]
+    command: ["./node_modules/.bin/fastifly", "migrate", "up"]
 
 volumes:
   fastifly-postgres-data:
@@ -287,8 +289,10 @@ AUTO_MIGRATE=false
 Before starting a new version:
 
 ```bash
-DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
-DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 ```
 
 With Docker:

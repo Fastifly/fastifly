@@ -1,6 +1,6 @@
 # First-Class Maintenance CLI
 
-Status: open
+Status: resolved
 Phase: 6
 Severity: blocking before production upgrade docs are final
 
@@ -33,3 +33,14 @@ Docker, package installs, backups, restores, and integrity reports.
 ## Blocking Milestone
 
 Required before production upgrade, backup, and restore docs are advertised as final.
+
+## Resolution
+
+Implemented on 2026-05-10.
+
+- `@fastifly/db` now exposes a `fastifly` package bin.
+- `fastifly migrate status` reports applied, pending, and total generated migrations.
+- `fastifly migrate up` applies generated Drizzle migrations for SQLite or PostgreSQL.
+- The CLI requires `DATABASE_DRIVER=sqlite|postgres` and `DATABASE_URL`.
+- Built `packages/db/dist` now includes generated migration SQL folders.
+- Docker migration services now run the first-class CLI instead of package migration scripts.

@@ -16,14 +16,12 @@ COPY packages/authz/package.json packages/authz/package.json
 COPY packages/common/package.json packages/common/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/db/bin packages/db/bin
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 FROM deps AS builder
 COPY . .
 RUN pnpm build
-
-FROM builder AS migrations
-CMD ["pnpm", "db:migrate:sqlite"]
 
 FROM builder AS prod-deps
 RUN pnpm --filter @fastifly/api deploy --prod --legacy /prod/api
@@ -35,9 +33,13 @@ ENV HOST=0.0.0.0
 ENV APP_PORT=3000
 
 COPY --from=prod-deps --chown=node:node /prod/api ./
+RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.APP_PORT || '3000') + '/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["node", "dist/server.js"]
+
+FROM production AS migrations
+CMD ["./node_modules/.bin/fastifly", "migrate", "up"]

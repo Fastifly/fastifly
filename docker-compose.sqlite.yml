@@ -30,8 +30,9 @@ services:
     profiles:
       - migrate
     environment:
+      DATABASE_DRIVER: sqlite
       DATABASE_URL: /app/data/fastifly.db
-    command: ["pnpm", "db:migrate:sqlite"]
+    command: ["./node_modules/.bin/fastifly", "migrate", "up"]
     volumes:
       - fastifly-sqlite-data:/app/data
 

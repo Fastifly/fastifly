@@ -54,12 +54,11 @@ change nullable behavior
 Commands:
 
 ```bash
-DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
-DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 ```
-
-The future first-class `fastifly migrate status/up` CLI is tracked in
-`docs/issues/first-class-maintenance-cli.md`.
 
 Production migrations are manual.
 
@@ -182,8 +181,10 @@ fastifly correction recurring
 fastifly maintenance recalculate-balances
 fastifly maintenance recalculate-reporting-amounts
 
-DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
-DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status
+DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 
 fastifly backup create
 fastifly backup restore
@@ -197,8 +198,7 @@ fastifly user create-recovery-codes <username>
 
 ## CLI requirements
 
-The first-class CLI should be available in Docker and non-Docker deployments once
-`docs/issues/first-class-maintenance-cli.md` is resolved.
+The first-class CLI should be available in Docker and non-Docker deployments.
 
 Docker examples:
 
@@ -212,7 +212,7 @@ docker compose exec fastifly fastifly backup create
 Local examples:
 
 ```bash
-DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
 fastifly integrity report
 ```
 
@@ -427,8 +427,8 @@ Rules:
 
 ## Migration commands
 
-This section defines the planned first-class CLI behavior. Until that CLI exists, use the
-package scripts and Docker migration services from `docs/specs/deployment.md`.
+This section defines the first-class migration CLI behavior. Docker migration services use this
+same command through `./node_modules/.bin/fastifly`.
 
 ### Status
 

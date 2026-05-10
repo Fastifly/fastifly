@@ -50,8 +50,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      DATABASE_DRIVER: postgres
       DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
-    command: ["pnpm", "db:migrate:postgres"]
+    command: ["./node_modules/.bin/fastifly", "migrate", "up"]
 
 volumes:
   fastifly-postgres-data:

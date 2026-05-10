@@ -2,12 +2,15 @@
   "name": "@fastifly/db",
   "private": true,
   "type": "module",
+  "bin": {
+    "fastifly": "./bin/fastifly.js"
+  },
   "exports": {
     ".": "./dist/index.js"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && rm -rf dist/sqlite/migrations dist/postgres/migrations && mkdir -p dist/sqlite dist/postgres && cp -R src/sqlite/migrations dist/sqlite/migrations && cp -R src/postgres/migrations dist/postgres/migrations",
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
@@ -15,6 +18,7 @@
     "test:sqlite": "vitest run src/__tests__/sqlite-migrations.test.ts",
     "test:postgres": "vitest run src/__tests__/postgres-migrations.test.ts",
     "test:postgres:runtime": "vitest run src/__tests__/postgres-js-runtime.test.ts",
+    "fastifly": "node dist/cli.js",
     "db:generate:sqlite": "drizzle-kit generate --config=drizzle.sqlite.config.ts",
     "db:generate:postgres": "drizzle-kit generate --config=drizzle.postgres.config.ts",
     "db:migrate:sqlite": "node -e \"if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for SQLite migrations.'); process.exit(1); }\" && drizzle-kit migrate --config=drizzle.sqlite.config.ts",
