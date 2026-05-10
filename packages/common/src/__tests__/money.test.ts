@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatAmountMinor,
+  formatMoneyMinor,
   MAX_SIGNED_64,
   MIN_SIGNED_64,
   MoneyAmountSchema,
@@ -40,5 +41,12 @@ describe("money contracts", () => {
         currencyCode: "inr",
       }).success,
     ).toBe(false);
+  });
+
+  it("formats integer minor-unit money for display with narrow currency symbols", () => {
+    expect(formatMoneyMinor(12550n, "INR")).toBe("₹125.50");
+    expect(formatMoneyMinor(-12550n, "INR")).toBe("-₹125.50");
+    expect(formatMoneyMinor("123456789", "INR")).toBe("₹12,34,567.89");
+    expect(formatMoneyMinor(12550n, "USD", { locale: "en-US" })).toBe("$125.50");
   });
 });

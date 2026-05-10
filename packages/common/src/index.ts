@@ -1,9 +1,19 @@
-export type { AuthCredentials, AuthResponse, MeContextResponse } from "./api/auth.js";
+export type {
+  AuthCredentials,
+  AuthResponse,
+  CsrfTokenResponse,
+  LoginCredentials,
+  MeContextResponse,
+  RegisterCredentials,
+} from "./api/auth.js";
 export {
   AuthCredentialsSchema,
   AuthResponseSchema,
   AuthUserSchema,
+  CsrfTokenResponseSchema,
+  LoginCredentialsSchema,
   MeContextResponseSchema,
+  RegisterCredentialsSchema,
 } from "./api/auth.js";
 export type { CreateDeviceRequest, DeviceResponse } from "./api/devices.js";
 export {
@@ -99,6 +109,13 @@ export {
   SyncStatusResponseSchema,
 } from "./api/sync.js";
 export {
+  ARGON2ID_ALGORITHM,
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_HASHING_OPTIONS,
+} from "./auth/password-policy.js";
+export { DEFAULT_DEMO_LOGIN, DEMO_LOGIN_CREDENTIALS } from "./demo-login.js";
+export {
   accountListFixture,
   emptyPaginatedMoneyFixture,
   forbiddenErrorFixture,
@@ -115,6 +132,7 @@ export {
   CURRENCY_CODE_PATTERN,
   CurrencyCodeSchema,
   formatAmountMinor,
+  formatMoneyMinor,
   isCurrencyCode,
   MAX_SIGNED_64,
   MIN_SIGNED_64,
