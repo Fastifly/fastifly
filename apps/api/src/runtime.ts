@@ -7,6 +7,7 @@ import {
   createInProcessLedgerWriteBoundary,
   createLedgerFinanceMutationService,
   createPostgresAccountRepository,
+  createPostgresBudgetQueryService,
   createPostgresClient,
   createPostgresDatabaseFromClient,
   createPostgresDeviceRepository,
@@ -16,6 +17,7 @@ import {
   createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
   createSqliteAccountRepository,
+  createSqliteBudgetQueryService,
   createSqliteDatabaseFromClient,
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
@@ -107,6 +109,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     return {
       appOptions: {
         accountRepository,
+        budgetQueryService: createSqliteBudgetQueryService(client),
         deviceRepository,
         financeMutationService,
         identityRepository,
@@ -162,6 +165,7 @@ async function createPostgresRuntimeDependencies(
     return {
       appOptions: {
         accountRepository,
+        budgetQueryService: createPostgresBudgetQueryService(db),
         deviceRepository,
         financeMutationService,
         identityRepository,

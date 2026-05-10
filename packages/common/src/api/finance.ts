@@ -57,6 +57,38 @@ export const GetAccountResponseSchema = z.strictObject({
   }),
 });
 
+export const BudgetPeriodSchema = z.enum([
+  "weekly",
+  "bi_weekly",
+  "semi_monthly",
+  "monthly",
+  "quarterly",
+  "yearly",
+  "custom",
+]);
+
+export const BudgetSummaryResponseSchema = z.strictObject({
+  archivedAt: z.string().nullable(),
+  createdAt: z.string(),
+  currencyCode: CurrencyCodeSchema,
+  id: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+  limit: MoneyAmountSchema,
+  name: z.string().min(1),
+  period: BudgetPeriodSchema,
+  remaining: MoneyAmountSchema,
+  rolloverEnabled: z.boolean(),
+  spent: MoneyAmountSchema,
+  updatedAt: z.string(),
+  workspaceId: SyncedIdSchema,
+});
+
+export const ListBudgetsQuerySchema = CursorPaginationQuerySchema.extend({
+  asOfDate: z.iso.date().optional(),
+});
+
+export const ListBudgetsResponseSchema = paginatedResponseSchema(BudgetSummaryResponseSchema);
+
 export const TransactionLineRequestSchema = z.strictObject({
   amountMinor: AmountMinorStringSchema,
   budgetId: SyncedIdSchema.nullable().optional(),
@@ -138,9 +170,13 @@ export const GetTransactionResponseSchema = z.strictObject({
   }),
 });
 
+export type BudgetSummaryResponse = z.infer<typeof BudgetSummaryResponseSchema>;
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
 export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSchema>;
 export type AccountWithBalanceResponse = z.infer<typeof AccountWithBalanceResponseSchema>;
 export type ListAccountsResponse = z.infer<typeof ListAccountsResponseSchema>;
+export type ListBudgetsQuery = z.infer<typeof ListBudgetsQuerySchema>;
+export type ListBudgetsResponse = z.infer<typeof ListBudgetsResponseSchema>;
+export type ListTransactionsQuery = z.infer<typeof ListTransactionsQuerySchema>;
 export type ListTransactionsResponse = z.infer<typeof ListTransactionsResponseSchema>;
 export type TransactionGroupResponse = z.infer<typeof TransactionGroupResponseSchema>;

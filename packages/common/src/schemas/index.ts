@@ -7,11 +7,19 @@ export {
   makeValidationError,
   ValidationErrorSchema,
 } from "../api/errors.js";
-export type { CreateAccountRequest, CreateTransactionRequest } from "../api/finance.js";
+export type {
+  BudgetSummaryResponse,
+  CreateAccountRequest,
+  CreateTransactionRequest,
+  ListBudgetsQuery,
+  ListTransactionsQuery,
+} from "../api/finance.js";
 export {
   AccountResponseSchema,
   AccountWithBalanceResponseSchema,
   ArchiveAccountResponseSchema,
+  BudgetPeriodSchema,
+  BudgetSummaryResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
   CreateTransactionRequestSchema,
@@ -19,6 +27,8 @@ export {
   GetAccountResponseSchema,
   GetTransactionResponseSchema,
   ListAccountsResponseSchema,
+  ListBudgetsQuerySchema,
+  ListBudgetsResponseSchema,
   ListTransactionsQuerySchema,
   ListTransactionsResponseSchema,
   TransactionGroupResponseSchema,

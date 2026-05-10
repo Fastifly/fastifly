@@ -11,6 +11,7 @@ export type CursorPaginationQuery = z.infer<typeof CursorPaginationQuerySchema>;
 
 export const FinanceCursorKindSchema = z.enum([
   "account.name.asc",
+  "budget.name.asc",
   "transaction.lastOccurredAt.desc",
 ]);
 

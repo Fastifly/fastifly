@@ -20,7 +20,17 @@ import {
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
+import { Field, FieldLabel } from "@ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@ui/sheet";
+import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -45,12 +55,22 @@ import { cn } from "@/lib/utils";
 import { apiClient } from "../api/client";
 import {
   useAccountsQuery,
+  useBudgetsQuery,
   useHealthQuery,
+  useInfiniteTransactionsQuery,
   useMeContextQuery,
   useTransactionsQuery,
 } from "../api/queries";
 import { type AuthSessionState, getAuthRedirect } from "../auth/flow";
 import { SESSION_EXPIRED_EVENT, shouldShowSessionExpiredDialog } from "../auth/session-events";
+import {
+  ALL_TRANSACTION_FILTER,
+  buildTransactionListQuery,
+  makeTransactionListFilterDefaults,
+  type TransactionListFilterState,
+  type TransactionStatusFilter,
+  type TransactionTypeFilter,
+} from "../finance/transaction-list";
 import { en } from "../i18n/en";
 import { registerServiceWorker } from "../pwa";
 import { readPendingOutboxCount } from "../sync/outbox";
@@ -69,6 +89,26 @@ import { TransactionCreatePanel } from "./transaction-create-panel";
 type Theme = "light" | "dark";
 type Tone = "danger" | "neutral" | "success" | "warning";
 type NavigationTestIdSlug = Parameters<typeof testIds.navigation.mobileNav>[0];
+
+const transactionTypeFilterOptions: readonly {
+  readonly label: string;
+  readonly value: TransactionTypeFilter;
+}[] = [
+  { label: en.transactions.filters.allTypes, value: "all" },
+  { label: en.transactions.types.expense, value: "expense" },
+  { label: en.transactions.types.income, value: "income" },
+  { label: en.transactions.types.transfer, value: "transfer" },
+];
+
+const transactionStatusFilterOptions: readonly {
+  readonly label: string;
+  readonly value: TransactionStatusFilter;
+}[] = [
+  { label: en.transactions.filters.allStatuses, value: "all" },
+  { label: en.transactions.statuses.pending, value: "pending" },
+  { label: en.transactions.statuses.cleared, value: "cleared" },
+  { label: en.transactions.statuses.reconciled, value: "reconciled" },
+];
 
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
@@ -298,7 +338,6 @@ export function AppShell({ children }: PropsWithChildren) {
           pendingOutboxCount={pendingOutboxCount}
           spending={spending}
           spendingRate={spendingRate}
-          transactions={transactions}
           transferCount={transferCount}
         />
       </main>
@@ -529,7 +568,6 @@ function PageBody({
   pendingOutboxCount,
   spending,
   spendingRate,
-  transactions,
   transferCount,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -550,17 +588,10 @@ function PageBody({
   readonly pendingOutboxCount: number;
   readonly spending: string;
   readonly spendingRate: string;
-  readonly transactions: readonly TransactionGroupResponse[];
   readonly transferCount: number;
 }) {
   if (pageSlug === "transactions") {
-    return (
-      <TransactionsPage
-        accounts={accounts}
-        ledgerContext={ledgerContext}
-        transactions={transactions}
-      />
-    );
+    return <TransactionsPage accounts={accounts} ledgerContext={ledgerContext} />;
   }
   if (pageSlug === "accounts") {
     return (
@@ -576,6 +607,7 @@ function PageBody({
       <BudgetPage
         cashflow={cashflow}
         income={income}
+        ledgerContext={ledgerContext}
         spending={spending}
         spendingRate={spendingRate}
       />
@@ -622,30 +654,154 @@ function PageBody({
 function TransactionsPage({
   accounts,
   ledgerContext,
-  transactions,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly ledgerContext: {
     readonly ledgerId: string;
     readonly workspaceId: string;
   } | null;
-  readonly transactions: readonly TransactionGroupResponse[];
 }) {
+  const [filters, setFilters] = useState<TransactionListFilterState>(() =>
+    makeTransactionListFilterDefaults(),
+  );
+  const transactionQueryFilters = useMemo(() => buildTransactionListQuery(filters), [filters]);
+  const transactionsQuery = useInfiniteTransactionsQuery(ledgerContext, transactionQueryFilters);
+  const transactions = transactionsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+
   return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.transactions.page}>
+    <section className="ff-single-page flex flex-col gap-4" data-testid={testIds.transactions.page}>
       <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
+      <TransactionFilters accounts={accounts} filters={filters} onChange={setFilters} />
       <TransactionsPanel
         descriptionTestId={testIds.transactions.listDescription}
         description={en.shell.transactionsBody}
         emptyBodyId={testIds.transactions.emptyBody}
         emptyStateId={testIds.transactions.emptyState}
         emptyTitleId={testIds.transactions.emptyTitle}
+        hasActiveFilters={hasActiveTransactionFilters(filters)}
+        hasNextPage={Boolean(transactionsQuery.hasNextPage)}
+        isFetchingNextPage={transactionsQuery.isFetchingNextPage}
+        onLoadMore={() => {
+          void transactionsQuery.fetchNextPage();
+        }}
         title={en.shell.allTransactions}
         titleTestId={testIds.transactions.listTitle}
         transactions={transactions}
-        transactionsError={false}
+        transactionsError={transactionsQuery.isError}
+        transactionsLoading={transactionsQuery.isPending}
       />
     </section>
+  );
+}
+
+function TransactionFilters({
+  accounts,
+  filters,
+  onChange,
+}: {
+  readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly filters: TransactionListFilterState;
+  readonly onChange: (filters: TransactionListFilterState) => void;
+}) {
+  return (
+    <Card className="ff-glass-panel" data-testid={testIds.transactions.filters.panel}>
+      <CardHeader>
+        <CardTitle>{en.transactions.filters.title}</CardTitle>
+        <CardAction>
+          <Button
+            data-testid={testIds.transactions.filters.resetButton}
+            onClick={() => onChange(makeTransactionListFilterDefaults())}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {en.transactions.filters.reset}
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Field>
+          <FieldLabel>{en.transactions.filters.types}</FieldLabel>
+          <ToggleGroup
+            className="flex w-full flex-wrap justify-start"
+            data-testid={testIds.transactions.filters.typeGroup}
+            onValueChange={(value) => {
+              if (value) {
+                onChange({ ...filters, type: value as TransactionTypeFilter });
+              }
+            }}
+            size="sm"
+            spacing={1}
+            type="single"
+            value={filters.type}
+            variant="outline"
+          >
+            {transactionTypeFilterOptions.map((option) => (
+              <ToggleGroupItem
+                data-testid={testIds.transactions.filters.typeOption(option.value)}
+                key={option.value}
+                value={option.value}
+              >
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel>{en.transactions.filters.account}</FieldLabel>
+            <Select
+              onValueChange={(accountId) => onChange({ ...filters, accountId })}
+              value={filters.accountId}
+            >
+              <SelectTrigger
+                className="w-full"
+                data-testid={testIds.transactions.filters.accountSelect}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={ALL_TRANSACTION_FILTER}>
+                    {en.transactions.filters.allAccounts}
+                  </SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>{en.transactions.filters.status}</FieldLabel>
+            <Select
+              onValueChange={(status) =>
+                onChange({ ...filters, status: status as TransactionStatusFilter })
+              }
+              value={filters.status}
+            >
+              <SelectTrigger
+                className="w-full"
+                data-testid={testIds.transactions.filters.statusSelect}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {transactionStatusFilterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -759,16 +915,24 @@ function AccountsPage({
 function BudgetPage({
   cashflow,
   income,
+  ledgerContext,
   spending,
   spendingRate,
 }: {
   readonly cashflow: string;
   readonly income: string;
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
   readonly spending: string;
   readonly spendingRate: string;
 }) {
+  const budgetsQuery = useBudgetsQuery(ledgerContext, { limit: 50 });
+  const budgets = budgetsQuery.data?.data ?? [];
+
   return (
-    <section className="ff-single-page" data-testid={testIds.budgets.page}>
+    <section className="ff-single-page space-y-4" data-testid={testIds.budgets.page}>
       <GlassSection title={en.shell.budgetWatch} description={en.shell.budgetWatchBody}>
         <div
           className="grid grid-cols-2 gap-3 lg:grid-cols-4"
@@ -802,7 +966,98 @@ function BudgetPage({
           />
         </div>
       </GlassSection>
+      <GlassSection title={en.budgets.listTitle} description={en.budgets.listDescription}>
+        <div className="grid gap-3 md:grid-cols-2" data-testid={testIds.budgets.list}>
+          {budgets.length > 0 ? (
+            budgets.map((budget) => <BudgetSummaryCard budget={budget} key={budget.id} />)
+          ) : (
+            <p
+              className="text-[14px] text-slate-600 dark:text-white/62"
+              data-testid={testIds.budgets.emptyState}
+            >
+              {budgetsQuery.isPending
+                ? en.shell.loadingData
+                : budgetsQuery.isError
+                  ? en.budgets.loadError
+                  : en.budgets.emptyState}
+            </p>
+          )}
+        </div>
+      </GlassSection>
     </section>
+  );
+}
+
+function BudgetSummaryCard({
+  budget,
+}: {
+  readonly budget: {
+    readonly id: string;
+    readonly limit: { readonly amountMinor: string; readonly currencyCode: string };
+    readonly name: string;
+    readonly period: string;
+    readonly remaining: { readonly amountMinor: string; readonly currencyCode: string };
+    readonly spent: { readonly amountMinor: string; readonly currencyCode: string };
+  };
+}) {
+  const limitMinor = BigInt(budget.limit.amountMinor);
+  const spentMinor = BigInt(budget.spent.amountMinor);
+  const remainingMinor = BigInt(budget.remaining.amountMinor);
+  const spentRatio = limitMinor > 0n ? Number((spentMinor * 100n) / limitMinor) : 0;
+
+  return (
+    <Card className="ff-glass-panel p-4" data-testid={testIds.budgets.card(budget.id)}>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-medium text-[15px]" data-testid={testIds.budgets.cardName(budget.id)}>
+          {budget.name}
+        </h3>
+        <Badge variant="outline" data-testid={testIds.budgets.cardPeriod(budget.id)}>
+          {formatBudgetPeriodLabel(budget.period)}
+        </Badge>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
+        <BudgetAmountCell
+          label={en.budgets.limit}
+          testId={testIds.budgets.cardLimit(budget.id)}
+          value={formatMoneyMinor(limitMinor, budget.limit.currencyCode)}
+        />
+        <BudgetAmountCell
+          label={en.budgets.spent}
+          testId={testIds.budgets.cardSpent(budget.id)}
+          value={formatMoneyMinor(spentMinor, budget.spent.currencyCode)}
+        />
+        <BudgetAmountCell
+          label={en.budgets.remaining}
+          testId={testIds.budgets.cardRemaining(budget.id)}
+          value={formatMoneyMinor(remainingMinor, budget.remaining.currencyCode)}
+        />
+      </div>
+      <p
+        className="mt-3 text-[12px] text-slate-600 dark:text-white/62"
+        data-testid={testIds.budgets.cardSpentRate(budget.id)}
+      >
+        {en.budgets.spentRate.replace("{value}", `${spentRatio}%`)}
+      </p>
+    </Card>
+  );
+}
+
+function BudgetAmountCell({
+  label,
+  testId,
+  value,
+}: {
+  readonly label: string;
+  readonly testId: string;
+  readonly value: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-slate-500 dark:text-white/50">{label}</span>
+      <span className="font-medium" data-testid={testId}>
+        {value}
+      </span>
+    </div>
   );
 }
 
@@ -1001,30 +1256,34 @@ function GlassSection({
 function TransactionsPanel({
   descriptionTestId,
   description,
-  limit,
   emptyBodyId,
   emptyStateId,
   emptyTitleId,
+  hasActiveFilters,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
   title,
   titleTestId,
   transactions,
   transactionsError,
-  withViewAll = false,
+  transactionsLoading,
 }: {
   readonly descriptionTestId?: string | undefined;
   readonly description: string | null;
-  readonly limit?: number;
   readonly emptyBodyId?: string | undefined;
   readonly emptyStateId?: string | undefined;
   readonly emptyTitleId?: string | undefined;
+  readonly hasActiveFilters: boolean;
+  readonly hasNextPage: boolean;
+  readonly isFetchingNextPage: boolean;
+  readonly onLoadMore: () => void;
   readonly title: string;
   readonly titleTestId?: string | undefined;
   readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionsError: boolean;
-  readonly withViewAll?: boolean;
+  readonly transactionsLoading: boolean;
 }) {
-  const visibleTransactions = limit ? transactions.slice(0, limit) : transactions;
-
   return (
     <Card className="ff-glass-panel overflow-hidden" data-testid={testIds.transactions.listPanel}>
       <CardHeader>
@@ -1034,44 +1293,57 @@ function TransactionsPanel({
             <CardDescription data-testid={descriptionTestId}>{description}</CardDescription>
           ) : null}
         </div>
-        {withViewAll ? (
-          <CardAction>
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              data-testid={testIds.transactions.viewAllButton}
-            >
-              <Link to="/transactions">
-                <ReceiptText aria-hidden="true" data-icon="inline-start" />
-                <span className="hidden sm:inline">{en.shell.viewAll}</span>
-              </Link>
-            </Button>
-          </CardAction>
-        ) : null}
       </CardHeader>
       <div
         className="min-w-0 divide-y divide-white/45 dark:divide-white/10"
         data-testid={testIds.transactions.list}
       >
-        {visibleTransactions.length > 0 ? (
-          visibleTransactions.map((transaction) => (
+        {transactions.length > 0 ? (
+          transactions.map((transaction) => (
             <TransactionRow key={transaction.id} transaction={transaction} />
           ))
         ) : (
           <div className="p-4" data-testid={emptyStateId}>
             <p className="font-medium text-[14px]" data-testid={emptyTitleId}>
-              {transactionsError ? en.shell.signInForDemoData : en.shell.noTransactionsTitle}
+              {transactionsLoading
+                ? en.shell.loadingData
+                : transactionsError
+                  ? en.transactions.listErrorTitle
+                  : en.shell.noTransactionsTitle}
             </p>
             <p
               className="mt-1 break-words text-[14px] text-slate-600 dark:text-white/62"
               data-testid={emptyBodyId}
             >
-              {en.shell.noTransactionsBody}
+              {transactionsError
+                ? en.transactions.listErrorBody
+                : hasActiveFilters
+                  ? en.transactions.noFilteredTransactionsBody
+                  : en.shell.noTransactionsBody}
             </p>
           </div>
         )}
       </div>
+      {transactions.length > 0 ? (
+        <div className="border-t border-white/45 p-3 dark:border-white/10">
+          {hasNextPage ? (
+            <Button
+              className="w-full"
+              data-testid={testIds.transactions.loadMoreButton}
+              disabled={isFetchingNextPage}
+              onClick={onLoadMore}
+              type="button"
+              variant="outline"
+            >
+              {isFetchingNextPage ? en.transactions.loadingMore : en.transactions.loadMore}
+            </Button>
+          ) : (
+            <p className="text-center text-[12px] text-slate-500 dark:text-white/50">
+              {en.transactions.listEnd}
+            </p>
+          )}
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -1609,6 +1881,35 @@ function formatPendingSyncMessage(count: number): string {
   return count === 1
     ? en.shell.pendingSyncOne
     : en.shell.pendingSyncMany.replace("{count}", count.toString());
+}
+
+function hasActiveTransactionFilters(filters: TransactionListFilterState): boolean {
+  return (
+    filters.accountId !== ALL_TRANSACTION_FILTER ||
+    filters.status !== ALL_TRANSACTION_FILTER ||
+    filters.type !== ALL_TRANSACTION_FILTER
+  );
+}
+
+function formatBudgetPeriodLabel(period: string): string {
+  switch (period) {
+    case "bi_weekly":
+      return en.budgets.periods.bi_weekly;
+    case "custom":
+      return en.budgets.periods.custom;
+    case "monthly":
+      return en.budgets.periods.monthly;
+    case "quarterly":
+      return en.budgets.periods.quarterly;
+    case "semi_monthly":
+      return en.budgets.periods.semi_monthly;
+    case "weekly":
+      return en.budgets.periods.weekly;
+    case "yearly":
+      return en.budgets.periods.yearly;
+    default:
+      return period;
+  }
 }
 
 function formatAccountArchiveTitle(accountName: string): string {

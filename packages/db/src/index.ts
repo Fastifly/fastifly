@@ -90,6 +90,16 @@ export {
   systemClock,
 } from "./repositories/base.js";
 export type {
+  BudgetPeriod,
+  BudgetQueryService,
+  BudgetSummaryRecord,
+  ListBudgetsInput,
+} from "./repositories/budgets.js";
+export {
+  createPostgresBudgetQueryService,
+  createSqliteBudgetQueryService,
+} from "./repositories/budgets.js";
+export type {
   DeviceRecord,
   DeviceRepository,
   DeviceRepositoryOptions,

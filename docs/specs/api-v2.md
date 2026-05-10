@@ -935,6 +935,18 @@ PATCH  /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/budgets/:budgetId
 DELETE /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/budgets/:budgetId
 ```
 
+`GET /budgets` supports:
+
+- `limit`, `cursor` (cursor pagination)
+- `asOfDate` (`YYYY-MM-DD`) to evaluate active budget limit windows
+
+`GET /budgets` list rows include:
+
+- budget identity and metadata (`id`, `name`, `period`, `rolloverEnabled`, timestamps)
+- `limit` money object (sum of active limits at `asOfDate`)
+- `spent` money object (sum of budget-linked postings within the active limit window)
+- `remaining` money object (`limit - spent`)
+
 ---
 
 ## Import endpoints

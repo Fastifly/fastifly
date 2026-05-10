@@ -34,9 +34,13 @@ export {
 } from "./api/errors.js";
 export type {
   AccountWithBalanceResponse,
+  BudgetSummaryResponse,
   CreateAccountRequest,
   CreateTransactionRequest,
   ListAccountsResponse,
+  ListBudgetsQuery,
+  ListBudgetsResponse,
+  ListTransactionsQuery,
   ListTransactionsResponse,
   TransactionGroupResponse,
 } from "./api/finance.js";
@@ -44,6 +48,8 @@ export {
   AccountResponseSchema,
   AccountWithBalanceResponseSchema,
   ArchiveAccountResponseSchema,
+  BudgetPeriodSchema,
+  BudgetSummaryResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
   CreateTransactionRequestSchema,
@@ -51,6 +57,8 @@ export {
   GetAccountResponseSchema,
   GetTransactionResponseSchema,
   ListAccountsResponseSchema,
+  ListBudgetsQuerySchema,
+  ListBudgetsResponseSchema,
   ListTransactionsQuerySchema,
   ListTransactionsResponseSchema,
   TransactionGroupResponseSchema,

@@ -1,5 +1,6 @@
 import {
   ArchiveAccountResponseSchema,
+  type BudgetSummaryResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
   CreateTransactionRequestSchema,
@@ -10,6 +11,8 @@ import {
   GetAccountResponseSchema,
   GetTransactionResponseSchema,
   ListAccountsResponseSchema,
+  ListBudgetsQuerySchema,
+  ListBudgetsResponseSchema,
   ListTransactionsQuerySchema,
   ListTransactionsResponseSchema,
   makeMoneyAmount,
@@ -27,6 +30,8 @@ import type {
   AccountBalanceRecord,
   AccountRecord,
   AccountRepository,
+  BudgetQueryService,
+  BudgetSummaryRecord,
   CreateTransactionLineInput,
   LedgerFinanceMutationService,
   LedgerMutationSideEffectFlags,
@@ -57,6 +62,7 @@ const TransactionParamsSchema = LedgerParamsSchema.extend({
 
 export type RegisterFinanceRoutesOptions = {
   readonly accountRepository?: AccountRepository | undefined;
+  readonly budgetQueryService?: BudgetQueryService | undefined;
   readonly financeMutationService?: LedgerFinanceMutationService | undefined;
   readonly transactionQueryService?: TransactionQueryService | undefined;
 };
@@ -65,7 +71,8 @@ export async function registerFinanceRoutes(
   app: FastifyInstance,
   options: RegisterFinanceRoutesOptions,
 ): Promise<void> {
-  const { accountRepository, financeMutationService, transactionQueryService } = options;
+  const { accountRepository, budgetQueryService, financeMutationService, transactionQueryService } =
+    options;
 
   if (accountRepository) {
     app.get(
@@ -152,6 +159,50 @@ export async function registerFinanceRoutes(
               await accountRepository.getAccountBalance({ ...scope, accountId }),
             ),
           },
+        };
+      },
+    );
+  }
+
+  if (budgetQueryService) {
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/budgets",
+      {
+        schema: {
+          params: LedgerParamsSchema,
+          querystring: ListBudgetsQuerySchema,
+          response: {
+            200: ListBudgetsResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request, reply) => {
+        requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Budget");
+        const query = ListBudgetsQuerySchema.parse(request.query);
+        const cursorError = validateFinanceCursorKind(
+          query.cursor,
+          "budget.name.asc",
+          String(request.id),
+        );
+        if (cursorError) {
+          return reply.status(400).send(cursorError);
+        }
+
+        const budgetPage = await budgetQueryService.listBudgets({
+          asOfDate: query.asOfDate ?? null,
+          cursor: query.cursor ?? null,
+          ledgerId: parseSyncedId(params.ledgerId),
+          limit: query.limit,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+
+        return {
+          data: budgetPage.items.map(toBudgetSummaryResponse),
+          pageInfo: toPageInfo(budgetPage),
         };
       },
     );
@@ -505,6 +556,26 @@ function toTransactionPostingResponse(
     id: posting.id,
     reportingAmountMinor: formatAmountMinor(posting.reportingAmountMinor),
     reportingCurrencyCode: posting.reportingCurrencyCode,
+  };
+}
+
+function toBudgetSummaryResponse(
+  budget: BudgetSummaryRecord,
+): z.infer<typeof BudgetSummaryResponseSchema> {
+  return {
+    archivedAt: budget.archivedAt,
+    createdAt: budget.createdAt,
+    currencyCode: budget.currencyCode,
+    id: budget.id,
+    ledgerId: budget.ledgerId,
+    limit: makeMoneyAmount(budget.limitMinor, budget.currencyCode),
+    name: budget.name,
+    period: budget.period,
+    remaining: makeMoneyAmount(budget.remainingMinor, budget.currencyCode),
+    rolloverEnabled: budget.rolloverEnabled,
+    spent: makeMoneyAmount(budget.spentMinor, budget.currencyCode),
+    updatedAt: budget.updatedAt,
+    workspaceId: budget.workspaceId,
   };
 }
 

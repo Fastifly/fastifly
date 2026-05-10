@@ -4,6 +4,7 @@ const routeDependency = {} as never;
 
 const app = await buildApiApp({
   accountRepository: routeDependency,
+  budgetQueryService: routeDependency,
   config: { logLevel: "silent", nodeEnv: "test" },
   deviceRepository: routeDependency,
   financeMutationService: routeDependency,

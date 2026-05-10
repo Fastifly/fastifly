@@ -625,6 +625,13 @@ linked accounts
 
 Use shared period service.
 
+Current v0.1 behavior:
+
+- budget screen shows summary metrics plus a budget card list
+- each budget card shows period, limit, spent, remaining, and used percentage
+- empty/error/loading states are explicit
+- mobile layout uses compact 2-column cards with no horizontal overflow
+
 ---
 
 ## Imports UI

@@ -11,6 +11,10 @@ import {
   CsrfTokenResponseSchema,
   type ListAccountsResponse,
   ListAccountsResponseSchema,
+  type ListBudgetsQuery,
+  type ListBudgetsResponse,
+  ListBudgetsResponseSchema,
+  type ListTransactionsQuery,
   type ListTransactionsResponse,
   ListTransactionsResponseSchema,
   type LoginCredentials,
@@ -42,7 +46,18 @@ export type ApiClient = {
   readonly getHealth: () => Promise<{ readonly status: string }>;
   readonly getMeContext: () => Promise<MeContextResponse>;
   readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
-  readonly listTransactions: (input: LedgerPathInput) => Promise<ListTransactionsResponse>;
+  readonly listBudgets: (
+    input: LedgerPathInput & Partial<Pick<ListBudgetsQuery, "asOfDate" | "cursor" | "limit">>,
+  ) => Promise<ListBudgetsResponse>;
+  readonly listTransactions: (
+    input: LedgerPathInput &
+      Partial<
+        Pick<
+          ListTransactionsQuery,
+          "accountId" | "cursor" | "fromOccurredAt" | "limit" | "status" | "toOccurredAt" | "type"
+        >
+      >,
+  ) => Promise<ListTransactionsResponse>;
   readonly login: (input: LoginCredentials) => Promise<AuthResponse>;
   readonly logout: () => Promise<void>;
   readonly register: (input: RegisterCredentials) => Promise<AuthResponse>;
@@ -159,6 +174,17 @@ export const apiClient: ApiClient = {
     );
   },
   async listTransactions(input) {
+    const {
+      accountId,
+      cursor,
+      fromOccurredAt,
+      ledgerId,
+      limit = 50,
+      status,
+      toOccurredAt,
+      type,
+      workspaceId,
+    } = input;
     return ListTransactionsResponseSchema.parse(
       await unwrapOpenApiResponse(
         await openApiClient.GET(
@@ -166,15 +192,41 @@ export const apiClient: ApiClient = {
           {
             params: {
               path: {
-                ledgerId: input.ledgerId,
-                workspaceId: input.workspaceId,
+                ledgerId,
+                workspaceId,
               },
               query: {
-                limit: 50,
+                ...(accountId ? { accountId } : {}),
+                ...(cursor ? { cursor } : {}),
+                ...(fromOccurredAt ? { fromOccurredAt } : {}),
+                limit,
+                ...(status ? { status } : {}),
+                ...(toOccurredAt ? { toOccurredAt } : {}),
+                ...(type ? { type } : {}),
               },
             },
           },
         ),
+      ),
+    );
+  },
+  async listBudgets(input) {
+    const { asOfDate, cursor, ledgerId, limit = 50, workspaceId } = input;
+    return ListBudgetsResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/budgets", {
+          params: {
+            path: {
+              ledgerId,
+              workspaceId,
+            },
+            query: {
+              ...(asOfDate ? { asOfDate } : {}),
+              ...(cursor ? { cursor } : {}),
+              limit,
+            },
+          },
+        }),
       ),
     );
   },

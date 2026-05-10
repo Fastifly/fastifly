@@ -6,6 +6,7 @@ import {
 } from "@fastifly/common";
 import type {
   AccountRepository,
+  BudgetQueryService,
   IdentityRepository,
   LedgerFinanceMutationService,
   LedgerMutationRunResult,
@@ -216,6 +217,7 @@ async function makeTransactionResult(): Promise<LedgerMutationRunResult> {
 
 type MakeAppServices = {
   readonly accountRepository?: AccountRepository;
+  readonly budgetQueryService?: BudgetQueryService;
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly transactionQueryService?: TransactionQueryService;
 };
@@ -229,6 +231,7 @@ async function makeApp(
   const financeMutationService = services?.financeMutationService ?? makeFinanceMutationService();
   const app = await buildApiApp({
     ...(services?.accountRepository ? { accountRepository: services.accountRepository } : {}),
+    ...(services?.budgetQueryService ? { budgetQueryService: services.budgetQueryService } : {}),
     config: { logLevel: "silent", nodeEnv: "test" },
     financeMutationService,
     identityRepository: makeIdentityRepository(state),
@@ -242,6 +245,7 @@ async function makeApp(
   return {
     accountRepository: services?.accountRepository,
     app,
+    budgetQueryService: services?.budgetQueryService,
     financeMutationService,
     state,
     transactionQueryService: services?.transactionQueryService,
@@ -411,6 +415,94 @@ describe("finance routes", () => {
         },
       },
     });
+  });
+
+  it("lists budgets with period totals for viewers", async () => {
+    const budgetId = createId();
+    const nextCursor = encodeFinanceCursor({
+      id: budgetId,
+      kind: "budget.name.asc",
+      sortKey: "Monthly food",
+      v: 1,
+    });
+    const { app, budgetQueryService, state } = await makeApp("viewer", ({ context }) => ({
+      budgetQueryService: {
+        listBudgets: vi.fn(async () => ({
+          hasNextPage: true,
+          items: [
+            {
+              archivedAt: null,
+              createdAt: "2026-05-09T00:00:00.000Z",
+              currencyCode: "INR",
+              id: budgetId,
+              ledgerId: context.activeLedger.id,
+              limitMinor: 25_000n,
+              name: "Monthly food",
+              period: "monthly",
+              remainingMinor: 7_000n,
+              rolloverEnabled: false,
+              spentMinor: 18_000n,
+              updatedAt: "2026-05-09T00:00:00.000Z",
+              workspaceId: context.activeWorkspace.id,
+            },
+          ],
+          nextCursor,
+        })),
+      } as BudgetQueryService,
+    }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/budgets?limit=25&asOfDate=2026-05-09`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: [
+        {
+          id: budgetId,
+          limit: { amountMinor: "25000", currencyCode: "INR" },
+          remaining: { amountMinor: "7000", currencyCode: "INR" },
+          spent: { amountMinor: "18000", currencyCode: "INR" },
+        },
+      ],
+      pageInfo: {
+        hasNextPage: true,
+        hasPreviousPage: false,
+        nextCursor,
+        previousCursor: null,
+      },
+    });
+    expect(budgetQueryService?.listBudgets).toHaveBeenCalledWith({
+      asOfDate: "2026-05-09",
+      cursor: null,
+      ledgerId: state.context.activeLedger.id,
+      limit: 25,
+      workspaceId: state.context.activeWorkspace.id,
+    });
+  });
+
+  it("rejects budget list cursors from another finance list", async () => {
+    const budgetQueryService = {
+      listBudgets: vi.fn(),
+    } as BudgetQueryService;
+    const { app, state } = await makeApp("viewer", () => ({ budgetQueryService }));
+    const wrongCursor = encodeFinanceCursor({
+      id: createId(),
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09T08:00:00.000Z",
+      v: 1,
+    });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/budgets?cursor=${encodeURIComponent(wrongCursor)}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(budgetQueryService.listBudgets).not.toHaveBeenCalled();
   });
 
   it("creates accounts through the finance mutation service with idempotency", async () => {

@@ -3,6 +3,7 @@ import { createUuidV7 } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
 import type {
   AccountRepository,
+  BudgetQueryService,
   DeviceRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
@@ -33,6 +34,7 @@ import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 
 export type BuildApiAppOptions = {
   readonly accountRepository?: AccountRepository;
+  readonly budgetQueryService?: BudgetQueryService;
   readonly config?: Partial<ApiConfig>;
   readonly deviceRepository?: DeviceRepository;
   readonly financeMutationService?: LedgerFinanceMutationService;
@@ -148,11 +150,13 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
 
   if (
     options.accountRepository ||
+    options.budgetQueryService ||
     options.financeMutationService ||
     options.transactionQueryService
   ) {
     await registerFinanceRoutes(app, {
       accountRepository: options.accountRepository,
+      budgetQueryService: options.budgetQueryService,
       financeMutationService: options.financeMutationService,
       transactionQueryService: options.transactionQueryService,
     });
