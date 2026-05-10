@@ -161,6 +161,18 @@ route/component
   -> Fastify API
 ```
 
+shadcn/ui foundation:
+
+```text
+apps/web/src/components/ui  -> generated shadcn primitives
+apps/web/src/ui             -> Fastifly product/composed UI
+@ui/*                       -> import alias for shadcn primitives
+@/*                         -> import alias for apps/web/src
+```
+
+Use the configured `radix-nova` shadcn style unless a future ADR changes it.
+Do not put Fastifly business logic inside generated shadcn primitive files.
+
 Shared contracts:
 
 ```text

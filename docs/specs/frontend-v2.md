@@ -25,6 +25,30 @@ i18n
 vite-plugin-pwa
 ```
 
+### UI component foundation
+
+Use shadcn/ui as the reusable primitive layer from the start.
+
+Project defaults:
+
+```text
+style: radix-nova
+physical path: apps/web/src/components/ui
+import alias: @ui/*
+utility alias: @/*
+CSS file: apps/web/src/styles.css
+```
+
+Rules:
+
+- generated shadcn/ui primitives live only in `apps/web/src/components/ui`
+- product-specific composed components live in `apps/web/src/ui`
+- application code may import primitives through `@ui/button`, `@ui/card`, and similar aliases
+- do not put Fastifly business logic inside generated primitive components
+- use shadcn/Tailwind theme tokens for reusable UI, then layer Fastifly product tokens only where the product shell needs a distinct surface
+- style presets such as `nova`, `vega`, and `luma` are developer-time source presets, not runtime user theme options
+- runtime user theme options are light/dark/system, and later may include accent color and density
+
 Do not use:
 
 ```text

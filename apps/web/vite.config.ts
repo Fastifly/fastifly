@@ -6,6 +6,12 @@ const apiProxyTarget = process.env.FASTIFLY_API_PROXY_TARGET ?? "http://localhos
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": new URL("./src", import.meta.url).pathname,
+      "@ui": new URL("./src/components/ui", import.meta.url).pathname,
+    },
+  },
   server: {
     port: 5173,
     proxy: {
