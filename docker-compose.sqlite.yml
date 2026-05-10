@@ -1,0 +1,39 @@
+services:
+  fastifly:
+    build:
+      context: .
+      target: production
+    image: fastifly:local
+    restart: unless-stopped
+    ports:
+      - "${FASTIFLY_PORT:-3000}:3000"
+    environment:
+      APP_ENV: production
+      HOST: 0.0.0.0
+      APP_PORT: 3000
+      APP_URL: "${APP_URL:-http://localhost:3000}"
+      DATABASE_DRIVER: sqlite
+      DATABASE_URL: /app/data/fastifly.db
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      AUTO_MIGRATE: "false"
+    volumes:
+      - fastifly-sqlite-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+
+  fastifly-migrate:
+    build:
+      context: .
+      target: migrations
+    image: fastifly:migrations
+    profiles:
+      - migrate
+    environment:
+      DATABASE_URL: /app/data/fastifly.db
+    command: ["pnpm", "db:migrate:sqlite"]
+    volumes:
+      - fastifly-sqlite-data:/app/data
+
+volumes:
+  fastifly-sqlite-data:

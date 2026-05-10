@@ -68,6 +68,16 @@ export function parseFinanceCursor(
   if (expectedKind && parsed.kind !== expectedKind) {
     throw new Error("Finance cursor does not match this list endpoint.");
   }
+  assertFinanceCursorSortKey(parsed);
 
   return parsed;
+}
+
+function assertFinanceCursorSortKey(payload: FinanceCursorPayload): void {
+  if (payload.kind === "transaction.lastOccurredAt.desc") {
+    const timestamp = new Date(payload.sortKey);
+    if (Number.isNaN(timestamp.valueOf()) || timestamp.toISOString() !== payload.sortKey) {
+      throw new Error("Transaction cursor sort key must be an ISO timestamp.");
+    }
+  }
 }

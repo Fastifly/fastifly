@@ -3,6 +3,7 @@ import { and, asc, eq, gt, isNull } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
+  pgAuditLog,
   pgLedgers,
   pgPasskeyChallenges,
   pgPasskeys,
@@ -13,8 +14,10 @@ import {
   pgWorkspaceMembers,
   pgWorkspaces,
 } from "../postgres/schema.js";
+import type { AuditAction, JsonObject } from "../schema-types.js";
 import type { SqliteDatabase } from "../sqlite/client.js";
 import {
+  sqliteAuditLog,
   sqliteLedgers,
   sqlitePasskeyChallenges,
   sqlitePasskeys,
@@ -190,6 +193,12 @@ export type FindActiveWorkspaceInvitationInput = {
   readonly now?: Date;
 };
 
+export type FindPendingWorkspaceInvitationInput = {
+  readonly workspaceId: SyncedId;
+  readonly inviteeIdentifier: string;
+  readonly now?: Date;
+};
+
 export type AcceptWorkspaceInvitationInput = {
   readonly invitationId: SyncedId;
   readonly userId: SyncedId;
@@ -213,6 +222,16 @@ export type UpdateWorkspaceMemberRoleInput = {
 export type RemoveWorkspaceMemberInput = {
   readonly workspaceId: SyncedId;
   readonly userId: SyncedId;
+};
+
+export type RecordWorkspaceAuditEventInput = {
+  readonly workspaceId?: SyncedId | null;
+  readonly ledgerId?: SyncedId | null;
+  readonly actorUserId?: SyncedId | null;
+  readonly action: AuditAction;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly metadataJson?: JsonObject;
 };
 
 export type CreatePasskeyChallengeInput = {
@@ -293,6 +312,9 @@ export type IdentityRepository = {
   readonly findActiveWorkspaceInvitationByTokenHash: (
     input: FindActiveWorkspaceInvitationInput,
   ) => Promise<WorkspaceInvitationRecord | null>;
+  readonly findPendingWorkspaceInvitationByInvitee: (
+    input: FindPendingWorkspaceInvitationInput,
+  ) => Promise<WorkspaceInvitationRecord | null>;
   readonly acceptWorkspaceInvitation: (
     input: AcceptWorkspaceInvitationInput,
   ) => Promise<WorkspaceMemberRecord | null>;
@@ -315,6 +337,7 @@ export type IdentityRepository = {
   readonly removeWorkspaceMember: (
     input: RemoveWorkspaceMemberInput,
   ) => Promise<WorkspaceMemberRecord | null>;
+  readonly recordWorkspaceAuditEvent: (input: RecordWorkspaceAuditEventInput) => Promise<void>;
   readonly createPasskeyChallenge: (
     input: CreatePasskeyChallengeInput,
   ) => Promise<PasskeyChallengeRecord>;
@@ -800,6 +823,27 @@ export function createSqliteIdentityRepository(
       return rows[0] ? toWorkspaceInvitationRecord(rows[0]) : null;
     },
 
+    async findPendingWorkspaceInvitationByInvitee(input) {
+      const rows = await db
+        .select()
+        .from(sqliteWorkspaceInvitations)
+        .where(
+          and(
+            eq(sqliteWorkspaceInvitations.workspaceId, input.workspaceId),
+            eq(sqliteWorkspaceInvitations.inviteeIdentifier, input.inviteeIdentifier.trim()),
+            isNull(sqliteWorkspaceInvitations.acceptedAt),
+            isNull(sqliteWorkspaceInvitations.revokedAt),
+            gt(
+              sqliteWorkspaceInvitations.expiresAt,
+              (input.now ?? resolved.clock.now()).toISOString(),
+            ),
+          ),
+        )
+        .limit(1);
+
+      return rows[0] ? toWorkspaceInvitationRecord(rows[0]) : null;
+    },
+
     async acceptWorkspaceInvitation(input) {
       return db.transaction((tx) => {
         const now = makeTimestamp(resolved.clock);
@@ -996,6 +1040,20 @@ export function createSqliteIdentityRepository(
         .returning();
 
       return rows[0] ? toWorkspaceMemberRecord(rows[0]) : null;
+    },
+
+    async recordWorkspaceAuditEvent(input) {
+      await db.insert(sqliteAuditLog).values({
+        id: resolved.createId(),
+        workspaceId: input.workspaceId ?? null,
+        ledgerId: input.ledgerId ?? null,
+        actorUserId: input.actorUserId ?? null,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadataJson: input.metadataJson ?? {},
+        createdAt: makeTimestamp(resolved.clock),
+      });
     },
 
     async createPasskeyChallenge(input) {
@@ -1381,6 +1439,24 @@ export function createPostgresIdentityRepository(
       return rows[0] ? toWorkspaceInvitationRecord(rows[0]) : null;
     },
 
+    async findPendingWorkspaceInvitationByInvitee(input) {
+      const rows = await db
+        .select()
+        .from(pgWorkspaceInvitations)
+        .where(
+          and(
+            eq(pgWorkspaceInvitations.workspaceId, input.workspaceId),
+            eq(pgWorkspaceInvitations.inviteeIdentifier, input.inviteeIdentifier.trim()),
+            isNull(pgWorkspaceInvitations.acceptedAt),
+            isNull(pgWorkspaceInvitations.revokedAt),
+            gt(pgWorkspaceInvitations.expiresAt, input.now ?? resolved.clock.now()),
+          ),
+        )
+        .limit(1);
+
+      return rows[0] ? toWorkspaceInvitationRecord(rows[0]) : null;
+    },
+
     async acceptWorkspaceInvitation(input) {
       return db.transaction(async (tx) => {
         const now = resolved.clock.now();
@@ -1569,6 +1645,20 @@ export function createPostgresIdentityRepository(
         .returning();
 
       return rows[0] ? toWorkspaceMemberRecord(rows[0]) : null;
+    },
+
+    async recordWorkspaceAuditEvent(input) {
+      await db.insert(pgAuditLog).values({
+        id: resolved.createId(),
+        workspaceId: input.workspaceId ?? null,
+        ledgerId: input.ledgerId ?? null,
+        actorUserId: input.actorUserId ?? null,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        metadataJson: input.metadataJson ?? {},
+        createdAt: resolved.clock.now(),
+      });
     },
 
     async createPasskeyChallenge(input) {

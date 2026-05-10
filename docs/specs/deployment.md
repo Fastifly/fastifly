@@ -103,29 +103,53 @@ Use it for:
 
 ### docker-compose.sqlite.yml
 
+The repository ships a local `docker-compose.sqlite.yml` for this mode. It builds the API
+image from the current checkout and keeps migrations as an explicit one-shot service.
+
 ```yaml
 services:
   fastifly:
-    image: ghcr.io/fastifly-hq/fastifly:latest
-    container_name: fastifly
+    build:
+      context: .
+      target: production
+    image: fastifly:local
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/app/data
+      - "${FASTIFLY_PORT:-3000}:3000"
     environment:
       APP_ENV: production
+      HOST: 0.0.0.0
       APP_PORT: 3000
-      APP_URL: https://fastifly.example.com
-
+      APP_URL: "${APP_URL:-http://localhost:3000}"
       DATABASE_DRIVER: sqlite
       DATABASE_URL: /app/data/fastifly.db
-
-      SESSION_SECRET: change-me-to-a-long-random-secret
-      COOKIE_SECURE: "true"
-
-      LOG_LEVEL: info
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       AUTO_MIGRATE: "false"
+    volumes:
+      - fastifly-sqlite-data:/app/data
+
+  fastifly-migrate:
+    build:
+      context: .
+      target: migrations
+    image: fastifly:migrations
+    profiles:
+      - migrate
+    environment:
+      DATABASE_URL: /app/data/fastifly.db
+    command: ["pnpm", "db:migrate:sqlite"]
+    volumes:
+      - fastifly-sqlite-data:/app/data
+
+volumes:
+  fastifly-sqlite-data:
+```
+
+Run migrations before the first start and before starting a new version:
+
+```bash
+docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
 ```
 
 Start:
@@ -151,10 +175,10 @@ docker compose -f docker-compose.sqlite.yml down
 The SQLite database is stored in:
 
 ```text
-./data/fastifly.db
+fastifly-sqlite-data:/app/data/fastifly.db
 ```
 
-Keep this directory backed up.
+Keep this volume backed up.
 
 ---
 
@@ -169,49 +193,71 @@ Use PostgreSQL for:
 
 ### docker-compose.postgres.yml
 
+The repository ships a local `docker-compose.postgres.yml` with a PostgreSQL health check and
+a separate migration service.
+
 ```yaml
 services:
-  fastifly:
-    image: ghcr.io/fastifly-hq/fastifly:latest
-    container_name: fastifly
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      APP_ENV: production
-      APP_PORT: 3000
-      APP_URL: https://fastifly.example.com
-
-      DATABASE_DRIVER: postgres
-      DATABASE_URL: postgres://fastifly:fastifly@postgres:5432/fastifly?sslmode=disable
-
-      SESSION_SECRET: change-me-to-a-long-random-secret
-      COOKIE_SECURE: "true"
-
-      LOG_LEVEL: info
-      AUTO_MIGRATE: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   postgres:
     image: postgres:18
-    container_name: fastifly-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: fastifly
-      POSTGRES_PASSWORD: fastifly
       POSTGRES_DB: fastifly
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_USER: fastifly
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fastifly -d fastifly"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
+    volumes:
+      - fastifly-postgres-data:/var/lib/postgresql/data
+
+  fastifly:
+    build:
+      context: .
+      target: production
+    image: fastifly:local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${FASTIFLY_PORT:-3000}:3000"
+    environment:
+      APP_ENV: production
+      HOST: 0.0.0.0
+      APP_PORT: 3000
+      APP_URL: "${APP_URL:-http://localhost:3000}"
+      DATABASE_DRIVER: postgres
+      DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      AUTO_MIGRATE: "false"
+
+  fastifly-migrate:
+    build:
+      context: .
+      target: migrations
+    image: fastifly:migrations
+    profiles:
+      - migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
+    command: ["pnpm", "db:migrate:postgres"]
 
 volumes:
-  postgres_data:
+  fastifly-postgres-data:
+```
+
+Run migrations before the first start and before starting a new version:
+
+```bash
+docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
 ```
 
 Start:
@@ -241,15 +287,15 @@ AUTO_MIGRATE=false
 Before starting a new version:
 
 ```bash
-fastifly migrate status
-fastifly migrate up
+DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
+DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
 ```
 
 With Docker:
 
 ```bash
-docker compose exec fastifly fastifly migrate status
-docker compose exec fastifly fastifly migrate up
+docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
+docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
 ```
 
 Required production upgrade order:

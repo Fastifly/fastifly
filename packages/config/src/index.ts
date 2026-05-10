@@ -1,7 +1,15 @@
 import { z } from "zod/v4";
 
+const EnvBooleanSchema = z
+  .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
+  .transform((value) => value === true || value === "true" || value === "1");
+
 export const ApiConfigSchema = z
   .strictObject({
+    autoMigrate: EnvBooleanSchema.default(false),
+    cookieSecure: EnvBooleanSchema.optional(),
+    databaseDriver: z.enum(["sqlite", "postgres"]).optional(),
+    databaseUrl: z.string().min(1).optional(),
     nodeEnv: z.enum(["development", "test", "production"]).default("development"),
     host: z.string().min(1).default("127.0.0.1"),
     port: z.coerce.number().int().min(1).max(65_535).default(3000),
@@ -32,18 +40,29 @@ export const ApiConfigSchema = z
         path: ["cookieSecret"],
       });
     }
+    if (config.nodeEnv === "production" && config.databaseDriver && !config.databaseUrl) {
+      ctx.addIssue({
+        code: "custom",
+        message: "DATABASE_URL is required when DATABASE_DRIVER is configured.",
+        path: ["databaseUrl"],
+      });
+    }
   });
 
 export type ApiConfig = z.infer<typeof ApiConfigSchema>;
 
 export function parseApiConfig(env: Record<string, string | undefined>): ApiConfig {
   return ApiConfigSchema.parse({
-    nodeEnv: env.NODE_ENV,
+    autoMigrate: env.AUTO_MIGRATE,
+    cookieSecure: env.COOKIE_SECURE,
+    databaseDriver: env.DATABASE_DRIVER,
+    databaseUrl: env.DATABASE_URL,
+    nodeEnv: env.APP_ENV ?? env.NODE_ENV,
     host: env.HOST,
-    port: env.PORT,
+    port: env.APP_PORT ?? env.PORT,
     logLevel: env.LOG_LEVEL,
-    openApiBaseUrl: env.OPENAPI_BASE_URL,
-    cookieSecret: env.COOKIE_SECRET,
+    openApiBaseUrl: env.APP_URL ?? env.OPENAPI_BASE_URL,
+    cookieSecret: env.SESSION_SECRET ?? env.COOKIE_SECRET,
     sessionCookieName: env.SESSION_COOKIE_NAME,
     sessionTtlDays: env.SESSION_TTL_DAYS,
     invitationTtlDays: env.INVITATION_TTL_DAYS,

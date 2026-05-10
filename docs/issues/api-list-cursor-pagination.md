@@ -41,4 +41,7 @@ Implemented on 2026-05-10.
 - Account lists cursor on `(name ASC, id ASC)`.
 - Transaction lists cursor on `(latest occurredAt DESC, transaction_group.id DESC)`.
 - API routes now pass cursor input into the repositories/query service and return real `pageInfo`.
+- Transaction cursor sort keys are validated as canonical ISO timestamps before repository queries.
+- Filtered transaction hydration now returns only journals matching the list filter instead of leaking
+  unrelated split journals into filtered list rows.
 - SQLite and PostgreSQL repository tests cover stable account cursor order and tied transaction timestamps.

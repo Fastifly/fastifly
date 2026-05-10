@@ -647,6 +647,21 @@ describe("finance routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(transactionQueryService.listTransactionGroups).not.toHaveBeenCalled();
+
+    const invalidSortKeyCursor = encodeFinanceCursor({
+      id: createId(),
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "not-a-date",
+      v: 1,
+    });
+    const invalidSortKeyResponse = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?cursor=${encodeURIComponent(invalidSortKeyCursor)}`,
+    });
+
+    expect(invalidSortKeyResponse.statusCode).toBe(400);
+    expect(transactionQueryService.listTransactionGroups).not.toHaveBeenCalled();
   });
 
   it("returns transaction group detail through the transaction query service", async () => {

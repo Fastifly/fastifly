@@ -8,7 +8,21 @@ import {
   type SyncedId,
   type UserFacingTransactionType,
 } from "@fastifly/common";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  ne,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -362,6 +376,7 @@ export function createSqliteTransactionQueryService(client: SqliteClient): Trans
         client,
         scope,
         groupCursorRows.map((row) => row.id),
+        input,
       );
       return makeTransactionGroupListPage(
         groups,
@@ -389,6 +404,7 @@ export function createPostgresTransactionQueryService(
         db,
         scope,
         groupCursorRows.map((row) => row.id),
+        input,
       );
       return makeTransactionGroupListPage(
         groups,
@@ -664,12 +680,15 @@ function readSqliteTransactionGroupsByIds(
   client: SqliteClient,
   scope: LedgerScope,
   groupIds: readonly SyncedId[],
+  filters?: ListTransactionsInput,
 ): readonly TransactionGroupRecord[] {
   if (groupIds.length === 0) {
     return [];
   }
 
   const placeholders = groupIds.map(() => "?").join(", ");
+  const params: unknown[] = [scope.workspaceId, scope.ledgerId, ...groupIds];
+  const filterConditions = buildSqliteHydrationFilterConditions(filters, params);
   const rows = prepareSqliteMoneyStatement<SqliteTransactionFlatRow>(
     client,
     `
@@ -699,9 +718,10 @@ function readSqliteTransactionGroupsByIds(
         AND transaction_groups.deleted_at IS NULL
         AND transaction_journals.deleted_at IS NULL
         AND transaction_groups.id IN (${placeholders})
+        ${filterConditions.length > 0 ? `AND ${filterConditions.join(" AND ")}` : ""}
       ORDER BY transaction_journals.occurred_at DESC, transaction_groups.id DESC, transaction_journals.id ASC, transaction_postings.id ASC
     `,
-  ).all(scope.workspaceId, scope.ledgerId, ...groupIds);
+  ).all(...params);
 
   return buildTransactionGroupsFromFlatRows(
     rows.map((row) => ({
@@ -725,6 +745,51 @@ function readSqliteTransactionGroupsByIds(
       postingReportingCurrencyCode: row.posting_reporting_currency_code,
     })),
   );
+}
+
+function buildSqliteHydrationFilterConditions(
+  input: ListTransactionsInput | undefined,
+  params: unknown[],
+): readonly string[] {
+  if (!input) {
+    return [];
+  }
+
+  const conditions: string[] = [];
+  if (input.accountId) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND posting_filter.account_id = ?)",
+    );
+    params.push(input.accountId);
+  }
+  const fromOccurredAt = normalizeOptionalTimestamp(
+    input.fromOccurredAt,
+    "Transaction query fromOccurredAt",
+  );
+  if (fromOccurredAt) {
+    conditions.push("transaction_journals.occurred_at >= ?");
+    params.push(fromOccurredAt);
+  }
+  const toOccurredAt = normalizeOptionalTimestamp(
+    input.toOccurredAt,
+    "Transaction query toOccurredAt",
+  );
+  if (toOccurredAt) {
+    conditions.push("transaction_journals.occurred_at <= ?");
+    params.push(toOccurredAt);
+  }
+  if (input.type) {
+    conditions.push("transaction_journals.type = ?");
+    params.push(input.type);
+  }
+  if (input.status) {
+    conditions.push("transaction_journals.status = ?");
+    params.push(input.status);
+  } else {
+    conditions.push("transaction_journals.status <> 'void'");
+  }
+
+  return conditions;
 }
 
 function assertSqliteLedgerScope(client: SqliteClient, scope: LedgerScope): void {
@@ -1031,10 +1096,19 @@ async function readPostgresTransactionGroupsByIds(
   db: PostgresDatabase,
   scope: LedgerScope,
   groupIds: readonly SyncedId[],
+  filters?: ListTransactionsInput,
 ): Promise<readonly TransactionGroupRecord[]> {
   if (groupIds.length === 0) {
     return [];
   }
+  const conditions: SQL[] = [
+    eq(pgTransactionGroups.workspaceId, scope.workspaceId),
+    eq(pgTransactionGroups.ledgerId, scope.ledgerId),
+    isNull(pgTransactionGroups.deletedAt),
+    isNull(pgTransactionJournals.deletedAt),
+    inArray(pgTransactionGroups.id, groupIds),
+    ...buildPostgresHydrationFilterConditions(filters),
+  ];
 
   const rows = await db
     .select({
@@ -1057,15 +1131,7 @@ async function readPostgresTransactionGroupsByIds(
     .from(pgTransactionGroups)
     .innerJoin(pgTransactionJournals, eq(pgTransactionJournals.groupId, pgTransactionGroups.id))
     .innerJoin(pgTransactionPostings, eq(pgTransactionPostings.journalId, pgTransactionJournals.id))
-    .where(
-      and(
-        eq(pgTransactionGroups.workspaceId, scope.workspaceId),
-        eq(pgTransactionGroups.ledgerId, scope.ledgerId),
-        isNull(pgTransactionGroups.deletedAt),
-        isNull(pgTransactionJournals.deletedAt),
-        inArray(pgTransactionGroups.id, groupIds),
-      ),
-    )
+    .where(and(...conditions))
     .orderBy(
       desc(pgTransactionJournals.occurredAt),
       desc(pgTransactionGroups.id),
@@ -1092,6 +1158,48 @@ async function readPostgresTransactionGroupsByIds(
       postingReportingCurrencyCode: row.postingReportingCurrencyCode,
     })),
   );
+}
+
+function buildPostgresHydrationFilterConditions(input: ListTransactionsInput | undefined): SQL[] {
+  if (!input) {
+    return [];
+  }
+
+  const conditions: SQL[] = [];
+  if (input.accountId) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND posting_filter.account_id = ${input.accountId}
+      )
+    `);
+  }
+  const fromOccurredAt = normalizeOptionalTimestamp(
+    input.fromOccurredAt,
+    "Transaction query fromOccurredAt",
+  );
+  if (fromOccurredAt) {
+    conditions.push(gte(pgTransactionJournals.occurredAt, new Date(fromOccurredAt)));
+  }
+  const toOccurredAt = normalizeOptionalTimestamp(
+    input.toOccurredAt,
+    "Transaction query toOccurredAt",
+  );
+  if (toOccurredAt) {
+    conditions.push(lte(pgTransactionJournals.occurredAt, new Date(toOccurredAt)));
+  }
+  if (input.type) {
+    conditions.push(eq(pgTransactionJournals.type, input.type));
+  }
+  if (input.status) {
+    conditions.push(eq(pgTransactionJournals.status, input.status));
+  } else {
+    conditions.push(ne(pgTransactionJournals.status, "void"));
+  }
+
+  return conditions;
 }
 
 type InsertTransactionJournalInput<TNow> = {

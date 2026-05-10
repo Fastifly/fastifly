@@ -13,10 +13,12 @@ import type {
   DeletePasskeyInput,
   FindActivePasskeyChallengeInput,
   FindActiveWorkspaceInvitationInput,
+  FindPendingWorkspaceInvitationInput,
   IdentityRepository,
   LedgerRecord,
   PasskeyChallengeRecord,
   PasskeyRecord,
+  RecordWorkspaceAuditEventInput,
   RecoveryCodeRecord,
   RemoveWorkspaceMemberInput,
   RenamePasskeyInput,
@@ -61,6 +63,7 @@ class FakeIdentityRepository implements IdentityRepository {
   readonly bootstrappedUsers: SyncedId[] = [];
   readonly contexts = new Map<SyncedId, UserWorkspaceContextRecord>();
   readonly invitations = new Map<SyncedId, WorkspaceInvitationRecord>();
+  readonly auditEvents: RecordWorkspaceAuditEventInput[] = [];
   readonly members = new Map<SyncedId, WorkspaceMemberRecord>();
   readonly passkeyChallenges = new Map<SyncedId, PasskeyChallengeRecord>();
   readonly passkeys = new Map<SyncedId, PasskeyRecord>();
@@ -250,6 +253,23 @@ class FakeIdentityRepository implements IdentityRepository {
     );
   }
 
+  async findPendingWorkspaceInvitationByInvitee(
+    input: FindPendingWorkspaceInvitationInput,
+  ): Promise<WorkspaceInvitationRecord | null> {
+    const now = input.now ?? new Date();
+    const inviteeIdentifier = input.inviteeIdentifier.trim();
+    return (
+      Array.from(this.invitations.values()).find(
+        (invitation) =>
+          invitation.workspaceId === input.workspaceId &&
+          invitation.inviteeIdentifier === inviteeIdentifier &&
+          invitation.acceptedAt === null &&
+          invitation.revokedAt === null &&
+          new Date(invitation.expiresAt) > now,
+      ) ?? null
+    );
+  }
+
   async acceptWorkspaceInvitation(
     input: AcceptWorkspaceInvitationInput,
   ): Promise<WorkspaceMemberRecord | null> {
@@ -410,6 +430,10 @@ class FakeIdentityRepository implements IdentityRepository {
     };
     this.members.set(member.id, removed);
     return removed;
+  }
+
+  async recordWorkspaceAuditEvent(input: RecordWorkspaceAuditEventInput): Promise<void> {
+    this.auditEvents.push(input);
   }
 
   async createPasskeyChallenge(
@@ -931,6 +955,26 @@ describe("auth routes", () => {
     const invitation = Array.from(identityRepository.invitations.values())[0];
     expect(invitation?.tokenHash).toMatch(/^[a-f0-9]{64}$/);
     expect(payload.data.inviteLink).not.toContain(invitation?.tokenHash ?? "");
+    expect(identityRepository.auditEvents).toContainEqual(
+      expect.objectContaining({
+        action: "workspace_member.invited",
+        actorUserId: invitation?.invitedByUserId,
+        entityId: invitation?.id,
+        workspaceId: context.activeWorkspace.id,
+      }),
+    );
+
+    const duplicate = await app.inject({
+      headers: { cookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "partner",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${context.activeWorkspace.id}/invitations`,
+    });
+    expect(duplicate.statusCode).toBe(409);
+    expect(identityRepository.invitations.size).toBe(1);
 
     identityRepository.contexts.set(
       invitation?.invitedByUserId ?? context.activeWorkspace.ownerUserId,
@@ -1034,6 +1078,19 @@ describe("auth routes", () => {
       },
     });
     expect(Array.from(identityRepository.invitations.values())[0]?.acceptedAt).not.toBeNull();
+    expect(identityRepository.auditEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "workspace_member.invited",
+          workspaceId: ownerContext.activeWorkspace.id,
+        }),
+        expect.objectContaining({
+          action: "workspace_member.joined",
+          actorUserId: inviteeUser.id,
+          workspaceId: ownerContext.activeWorkspace.id,
+        }),
+      ]),
+    );
 
     const members = await app.inject({
       headers: { cookie: ownerCookie },
@@ -1102,6 +1159,13 @@ describe("auth routes", () => {
       url: `/api/v1/invitations/${declineToken}/decline`,
     });
     expect(decline.statusCode).toBe(204);
+    expect(identityRepository.auditEvents).toContainEqual(
+      expect.objectContaining({
+        action: "workspace_member.invite_revoked",
+        metadataJson: { reason: "declined" },
+        workspaceId: ownerContext.activeWorkspace.id,
+      }),
+    );
 
     const revokeInvite = await app.inject({
       headers: { cookie: ownerCookie },
@@ -1121,6 +1185,14 @@ describe("auth routes", () => {
       url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations/${revokePayload.invitation.id}`,
     });
     expect(revoke.statusCode).toBe(204);
+    expect(identityRepository.auditEvents).toContainEqual(
+      expect.objectContaining({
+        action: "workspace_member.invite_revoked",
+        actorUserId: ownerContext.activeWorkspace.ownerUserId,
+        metadataJson: { reason: "revoked" },
+        workspaceId: ownerContext.activeWorkspace.id,
+      }),
+    );
 
     const revokedPreview = await app.inject({
       method: "GET",

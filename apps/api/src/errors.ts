@@ -67,6 +67,12 @@ function toLedgerMutationHttpError(error: LedgerMutationError): {
         message: "This ledger cannot be changed right now.",
         statusCode: 409,
       };
+    case "MUTATION_FORBIDDEN":
+      return {
+        code: "FORBIDDEN",
+        message: "You do not have permission to perform this action.",
+        statusCode: 403,
+      };
     case "INVALID_MUTATION_RESPONSE":
       return {
         code: "INTERNAL_SERVER_ERROR",

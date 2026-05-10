@@ -518,6 +518,20 @@ describe("transaction write repository", () => {
             type: "expense",
             workspaceId: workspaceState.workspace.id,
           });
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Mixed store run",
+            ledgerId: workspaceState.ledger.id,
+            lines: [
+              { amountMinor: 2_000n, destinationAccountId: accounts.groceries.id },
+              { amountMinor: 3_000n, destinationAccountId: accounts.household.id },
+            ],
+            occurredAt: "2026-05-07T10:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            status: "pending",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
 
           const filtered = await transactionQueryService.listTransactionGroups({
             accountId: accounts.groceries.id,
@@ -529,7 +543,12 @@ describe("transaction write repository", () => {
             workspaceId: workspaceState.workspace.id,
           });
 
-          expect(filtered.items.map((group) => group.title)).toEqual(["Groceries"]);
+          expect(filtered.items.map((group) => group.title)).toEqual([
+            "Mixed store run",
+            "Groceries",
+          ]);
+          expect(filtered.items[0]?.journals).toHaveLength(1);
+          expect(filtered.items[0]?.journals[0]?.description).toBe("Mixed store run");
           expect(filtered.items[0]?.journals[0]?.postings).toHaveLength(2);
         },
       );

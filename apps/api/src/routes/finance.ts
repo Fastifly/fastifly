@@ -114,7 +114,7 @@ export async function registerFinanceRoutes(
 
         return {
           data: accountsWithBalances,
-          pageInfo: toPageInfo(accountPage, query.cursor),
+          pageInfo: toPageInfo(accountPage),
         };
       },
     );
@@ -347,7 +347,7 @@ export async function registerFinanceRoutes(
 
         return {
           data: transactionPage.items.map(toTransactionGroupResponse),
-          pageInfo: toPageInfo(transactionPage, query.cursor),
+          pageInfo: toPageInfo(transactionPage),
         };
       },
     );
@@ -493,13 +493,13 @@ function toTransactionPostingResponse(
   };
 }
 
-function toPageInfo(
-  page: { readonly hasNextPage: boolean; readonly nextCursor: string | null },
-  requestCursor: string | undefined,
-): PageInfo {
+function toPageInfo(page: {
+  readonly hasNextPage: boolean;
+  readonly nextCursor: string | null;
+}): PageInfo {
   return {
     hasNextPage: page.hasNextPage,
-    hasPreviousPage: Boolean(requestCursor),
+    hasPreviousPage: false,
     nextCursor: page.nextCursor,
     previousCursor: null,
   };

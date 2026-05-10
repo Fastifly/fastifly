@@ -76,6 +76,19 @@ describe("API contract schemas", () => {
     );
   });
 
+  it("rejects transaction cursors without canonical ISO timestamp sort keys", () => {
+    const cursor = encodeFinanceCursor({
+      id: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+      kind: "transaction.lastOccurredAt.desc",
+      sortKey: "2026-05-09",
+      v: 1,
+    });
+
+    expect(() => parseFinanceCursor(cursor, "transaction.lastOccurredAt.desc")).toThrow(
+      "ISO timestamp",
+    );
+  });
+
   it("keeps idempotency headers and keys strict", () => {
     expect(IDEMPOTENCY_KEY_HEADER).toBe("idempotency-key");
     expect(IDEMPOTENCY_REPLAYED_HEADER).toBe("idempotency-replayed");

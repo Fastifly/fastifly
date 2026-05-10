@@ -168,6 +168,16 @@ describe("Fastifly API app", () => {
         throw new LedgerMutationError("Ledger scope is not writable.", "LEDGER_NOT_WRITABLE");
       },
     });
+    app.route({
+      method: "POST",
+      url: "/test/ledger/forbidden",
+      handler: () => {
+        throw new LedgerMutationError(
+          "Actor is not a member of this workspace.",
+          "MUTATION_FORBIDDEN",
+        );
+      },
+    });
 
     const conflict = await app.inject({
       method: "POST",
@@ -187,6 +197,15 @@ describe("Fastifly API app", () => {
       error: {
         code: "CONFLICT",
         message: "This ledger cannot be changed right now.",
+      },
+    });
+
+    const forbidden = await app.inject({ method: "POST", url: "/test/ledger/forbidden" });
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json()).toMatchObject({
+      error: {
+        code: "FORBIDDEN",
+        message: "You do not have permission to perform this action.",
       },
     });
   });

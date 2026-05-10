@@ -6,14 +6,20 @@ describe("API config contract", () => {
   it("parses defaults and coerces deployment env values", () => {
     expect(
       parseApiConfig({
+        APP_PORT: "8080",
+        APP_URL: "https://fastifly.example.com",
+        DATABASE_DRIVER: "sqlite",
+        DATABASE_URL: "/app/data/fastifly.db",
         HOST: "0.0.0.0",
         LOG_LEVEL: "warn",
-        PORT: "8080",
         SESSION_TTL_DAYS: "14",
       }),
     ).toMatchObject({
+      databaseDriver: "sqlite",
+      databaseUrl: "/app/data/fastifly.db",
       host: "0.0.0.0",
       logLevel: "warn",
+      openApiBaseUrl: "https://fastifly.example.com",
       port: 8080,
       sessionTtlDays: 14,
       sessionCookieName: "fastifly_session",
@@ -21,19 +27,33 @@ describe("API config contract", () => {
   });
 
   it("requires a signed cookie secret in production", () => {
-    expect(() => parseApiConfig({ NODE_ENV: "production" })).toThrow(
+    expect(() => parseApiConfig({ APP_ENV: "production" })).toThrow(
       "COOKIE_SECRET is required in production.",
     );
 
     expect(
       parseApiConfig({
-        COOKIE_SECRET: "x".repeat(32),
-        NODE_ENV: "production",
+        APP_ENV: "production",
+        COOKIE_SECURE: "true",
+        SESSION_SECRET: "x".repeat(32),
       }),
     ).toMatchObject({
+      cookieSecure: true,
       cookieSecret: "x".repeat(32),
       nodeEnv: "production",
     });
+  });
+
+  it("parses string booleans without treating false as true", () => {
+    expect(parseApiConfig({ AUTO_MIGRATE: "false", COOKIE_SECURE: "false" })).toMatchObject({
+      autoMigrate: false,
+      cookieSecure: false,
+    });
+    expect(parseApiConfig({ AUTO_MIGRATE: "1", COOKIE_SECURE: "true" })).toMatchObject({
+      autoMigrate: true,
+      cookieSecure: true,
+    });
+    expect(() => parseApiConfig({ COOKIE_SECURE: "yes" })).toThrow();
   });
 
   it("keeps test config creation explicit and valid", () => {

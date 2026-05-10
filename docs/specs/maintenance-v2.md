@@ -54,9 +54,12 @@ change nullable behavior
 Commands:
 
 ```bash
-fastifly migrate status
-fastifly migrate up
+DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
+DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
 ```
+
+The future first-class `fastifly migrate status/up` CLI is tracked in
+`docs/issues/first-class-maintenance-cli.md`.
 
 Production migrations are manual.
 
@@ -179,8 +182,8 @@ fastifly correction recurring
 fastifly maintenance recalculate-balances
 fastifly maintenance recalculate-reporting-amounts
 
-fastifly migrate status
-fastifly migrate up
+DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
+DATABASE_URL=postgres://fastifly:...@host:5432/fastifly pnpm db:migrate:postgres
 
 fastifly backup create
 fastifly backup restore
@@ -194,12 +197,14 @@ fastifly user create-recovery-codes <username>
 
 ## CLI requirements
 
-The CLI should be available in Docker and non-Docker deployments.
+The first-class CLI should be available in Docker and non-Docker deployments once
+`docs/issues/first-class-maintenance-cli.md` is resolved.
 
 Docker examples:
 
 ```bash
-docker compose exec fastifly fastifly migrate status
+docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
+docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
 docker compose exec fastifly fastifly integrity report
 docker compose exec fastifly fastifly backup create
 ```
@@ -207,7 +212,7 @@ docker compose exec fastifly fastifly backup create
 Local examples:
 
 ```bash
-fastifly migrate status
+DATABASE_URL=/path/to/fastifly.db pnpm db:migrate:sqlite
 fastifly integrity report
 ```
 
@@ -421,6 +426,9 @@ Rules:
 ---
 
 ## Migration commands
+
+This section defines the planned first-class CLI behavior. Until that CLI exists, use the
+package scripts and Docker migration services from `docs/specs/deployment.md`.
 
 ### Status
 

@@ -293,7 +293,7 @@ function setSessionCookie(
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: config.nodeEnv === "production",
+    secure: config.cookieSecure ?? config.nodeEnv === "production",
   });
 }
 
@@ -331,7 +331,7 @@ function setChallengeCookie(
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: config.nodeEnv === "production",
+    secure: config.cookieSecure ?? config.nodeEnv === "production",
   });
 }
 
@@ -863,6 +863,15 @@ export async function registerAuthRoutes(
       requireActiveWorkspace(request, params.workspaceId);
       requireAbility(request, "invite", "WorkspaceInvitation");
 
+      const pendingInvitation = await identityRepository.findPendingWorkspaceInvitationByInvitee({
+        inviteeIdentifier: input.inviteeIdentifier,
+        workspaceId: params.workspaceId,
+      });
+
+      if (pendingInvitation) {
+        throw makeHttpError(409, "A pending invitation already exists for this invitee.");
+      }
+
       const token = generateInvitationToken();
       const invitation = await identityRepository.createWorkspaceInvitation({
         expiresAt: createInvitationExpiry(config),
@@ -870,6 +879,17 @@ export async function registerAuthRoutes(
         inviteeIdentifier: input.inviteeIdentifier,
         role: input.role,
         tokenHash: hashInvitationToken(token),
+        workspaceId: params.workspaceId,
+      });
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace_member.invited",
+        actorUserId: userId,
+        entityId: invitation.id,
+        entityType: "workspace_invitation",
+        metadataJson: {
+          inviteeIdentifier: invitation.inviteeIdentifier,
+          role: invitation.role,
+        },
         workspaceId: params.workspaceId,
       });
 
@@ -964,6 +984,18 @@ export async function registerAuthRoutes(
         throw makeHttpError(409, "Invitation can no longer be accepted.");
       }
 
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace_member.joined",
+        actorUserId: userId,
+        entityId: member.id,
+        entityType: "workspace_member",
+        metadataJson: {
+          invitationId: invitation.id,
+          role: member.role,
+        },
+        workspaceId: member.workspaceId,
+      });
+
       return {
         data: {
           member: toWorkspaceMemberResponse({
@@ -998,6 +1030,14 @@ export async function registerAuthRoutes(
       }
 
       await identityRepository.declineWorkspaceInvitation({ invitationId: invitation.id });
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace_member.invite_revoked",
+        actorUserId: null,
+        entityId: invitation.id,
+        entityType: "workspace_invitation",
+        metadataJson: { reason: "declined" },
+        workspaceId: invitation.workspaceId,
+      });
 
       return reply.status(204).send();
     },
@@ -1011,7 +1051,7 @@ export async function registerAuthRoutes(
       },
     },
     async (request, reply) => {
-      requireAuthenticatedUser(request);
+      const userId = requireAuthenticatedUser(request);
       const params = WorkspaceInvitationParamsSchema.parse(request.params);
 
       requireActiveWorkspace(request, params.workspaceId);
@@ -1025,6 +1065,15 @@ export async function registerAuthRoutes(
       if (!invitation) {
         throw makeHttpError(404, "Invitation was not found.");
       }
+
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace_member.invite_revoked",
+        actorUserId: userId,
+        entityId: invitation.id,
+        entityType: "workspace_invitation",
+        metadataJson: { reason: "revoked" },
+        workspaceId: invitation.workspaceId,
+      });
 
       return reply.status(204).send();
     },

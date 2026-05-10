@@ -213,6 +213,23 @@ describe("identity repository", () => {
             tokenHash: "invite-token-hash",
           }),
         ).resolves.toMatchObject({ id: invitation.id });
+        await expect(
+          repo.findPendingWorkspaceInvitationByInvitee({
+            inviteeIdentifier: "partner",
+            now: new Date("2026-05-10T00:00:00.000Z"),
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject({ id: invitation.id });
+        await expect(
+          repo.recordWorkspaceAuditEvent({
+            action: "workspace_member.invited",
+            actorUserId: user.id,
+            entityId: invitation.id,
+            entityType: "workspace_invitation",
+            metadataJson: { role: invitation.role },
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toBeUndefined();
 
         const invitee = await repo.createUser({
           displayName: "Partner",
@@ -233,6 +250,13 @@ describe("identity repository", () => {
           repo.findActiveWorkspaceInvitationByTokenHash({
             now: new Date("2026-05-10T00:00:00.000Z"),
             tokenHash: "invite-token-hash",
+          }),
+        ).resolves.toBeNull();
+        await expect(
+          repo.findPendingWorkspaceInvitationByInvitee({
+            inviteeIdentifier: "partner",
+            now: new Date("2026-05-10T00:00:00.000Z"),
+            workspaceId: workspaceState.workspace.id,
           }),
         ).resolves.toBeNull();
         await expect(repo.listWorkspaceMembers(workspaceState.workspace.id)).resolves.toMatchObject(

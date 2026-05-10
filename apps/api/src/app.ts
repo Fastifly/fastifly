@@ -84,7 +84,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     cookieOpts: {
       httpOnly: true,
       sameSite: "strict",
-      secure: config.nodeEnv === "production",
+      secure: config.cookieSecure ?? config.nodeEnv === "production",
       path: "/",
     },
     getToken: (request) => request.headers["x-csrf-token"]?.toString(),

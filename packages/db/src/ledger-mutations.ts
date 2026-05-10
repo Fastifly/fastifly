@@ -222,6 +222,7 @@ export class LedgerMutationError extends Error {
       | "INVALID_SYNC_OPERATION"
       | "LEDGER_NOT_FOUND"
       | "LEDGER_NOT_WRITABLE"
+      | "MUTATION_FORBIDDEN"
       | "INVALID_MUTATION_RESPONSE",
   ) {
     super(message);
