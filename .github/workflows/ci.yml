@@ -12,6 +12,20 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: fastifly_ci
+          POSTGRES_USER: fastifly
+          POSTGRES_PASSWORD: fastifly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fastifly -d fastifly_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -36,6 +50,9 @@ jobs:
       - name: Typecheck with tsc
         run: pnpm typecheck:tsc
 
+      - name: Validate TypeScript project reference graph
+        run: pnpm typecheck:refs
+
       - name: Test
         run: pnpm test
 
@@ -44,3 +61,8 @@ jobs:
 
       - name: Test PostgreSQL lane
         run: pnpm test:postgres
+
+      - name: Test PostgreSQL runtime adapter lane
+        env:
+          FASTIFLY_TEST_POSTGRES_URL: postgres://fastifly:fastifly@127.0.0.1:5432/fastifly_ci
+        run: pnpm test:postgres:runtime

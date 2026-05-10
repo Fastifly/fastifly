@@ -148,6 +148,8 @@ pnpm start
 ```
 
 `pnpm start` runs Tilt on port `10360` and starts the default SQLite demo stack.
+It now performs a preflight check for the local `tilt` binary and fails with
+an install hint if Tilt is missing.
 Open Tilt at:
 
 ```text
@@ -348,6 +350,7 @@ pnpm lint:fix
 pnpm format
 pnpm typecheck
 pnpm typecheck:tsc
+pnpm typecheck:refs
 pnpm test
 
 pnpm db:generate:sqlite

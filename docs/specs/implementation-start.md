@@ -44,6 +44,7 @@ The repo must have:
 ```text
 package.json
 pnpm-workspace.yaml
+tsconfig.json
 tsconfig.base.json
 apps/api
 apps/web
@@ -333,7 +334,9 @@ Stop condition:
 - `pnpm lint`
 - `pnpm typecheck`
 - `pnpm typecheck:tsc`
+- `pnpm typecheck:refs`
 - `pnpm test`
+- `pnpm test:postgres:runtime`
 
 all run successfully, even if tests are minimal.
 
@@ -622,6 +625,7 @@ The first implementation commit should contain only foundation scaffolding:
 ```text
 package.json
 pnpm-workspace.yaml
+tsconfig.json
 tsconfig.base.json
 apps/api/package.json
 apps/web/package.json
