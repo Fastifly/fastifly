@@ -807,10 +807,30 @@ Rules:
 Auth forms must use the shared auth credential schema. Login and registration call:
 
 ```text
+GET /api/v1/auth/csrf
 POST /api/v1/auth/login
 POST /api/v1/auth/register
 GET /api/v1/me/context
 ```
+
+The frontend must fetch a CSRF token before cookie-auth unsafe requests, send it
+as `x-csrf-token`, keep `credentials: include`, and retry once with a fresh
+token only when the server returns a CSRF-specific forbidden error.
+
+The login screen may display seeded demo credentials for local development, but
+the demo username/password must come from `packages/common`, not duplicated
+inside React components, DB seeds, or tests.
+
+When a request returns `UNAUTHENTICATED` after the app has already established a
+valid user context, the frontend must keep the current screen visible and show a
+blocking re-authentication dialog. First-time unauthenticated visits still
+redirect to `/login`. The expired-session dialog must:
+
+- be non-dismissible except by successful login or switching accounts
+- use the existing username when known
+- refresh `/api/v1/me/context` after successful login
+- clear local query state and navigate to `/login` when switching accounts
+- work on mobile and dark theme
 
 The service worker registers only in production builds. Development builds must avoid service worker registration so stale app-shell caches do not hide frontend changes.
 

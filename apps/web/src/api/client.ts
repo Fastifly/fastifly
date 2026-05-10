@@ -1,17 +1,20 @@
 import {
   type ApiError,
   ApiErrorSchema,
-  type AuthCredentials,
   type AuthResponse,
   AuthResponseSchema,
+  CsrfTokenResponseSchema,
   type ListAccountsResponse,
   ListAccountsResponseSchema,
   type ListTransactionsResponse,
   ListTransactionsResponseSchema,
+  type LoginCredentials,
   type MeContextResponse,
   MeContextResponseSchema,
+  type RegisterCredentials,
 } from "@fastifly/common";
 import createClient from "openapi-fetch";
+import { notifySessionExpired } from "../auth/session-events";
 import { API_BASE_URL } from "../env";
 import type { paths } from "./generated/openapi";
 
@@ -30,8 +33,9 @@ export type ApiClient = {
   readonly getMeContext: () => Promise<MeContextResponse>;
   readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
   readonly listTransactions: (input: LedgerPathInput) => Promise<ListTransactionsResponse>;
-  readonly login: (input: AuthCredentials) => Promise<AuthResponse>;
-  readonly register: (input: AuthCredentials) => Promise<AuthResponse>;
+  readonly login: (input: LoginCredentials) => Promise<AuthResponse>;
+  readonly logout: () => Promise<void>;
+  readonly register: (input: RegisterCredentials) => Promise<AuthResponse>;
 };
 
 type LedgerPathInput = {
@@ -43,6 +47,8 @@ const openApiClient = createClient<paths>({
   baseUrl: API_BASE_URL,
   credentials: "include",
 });
+
+let csrfTokenPromise: Promise<string> | null = null;
 
 export const apiClient: ApiClient = {
   async getMeContext() {
@@ -91,20 +97,36 @@ export const apiClient: ApiClient = {
     );
   },
   async login(input) {
-    return AuthResponseSchema.parse(
-      await unwrapOpenApiResponse(
-        await openApiClient.POST("/api/v1/auth/login", {
-          body: input,
-        }),
+    return withCsrf(async (csrfToken) =>
+      AuthResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/login", {
+            body: input,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
       ),
     );
   },
-  async register(input) {
-    return AuthResponseSchema.parse(
-      await unwrapOpenApiResponse(
-        await openApiClient.POST("/api/v1/auth/register", {
-          body: input,
+  async logout() {
+    await withCsrf(async (csrfToken) => {
+      await unwrapOpenApiEmptyResponse(
+        await openApiClient.POST("/api/v1/auth/logout", {
+          headers: { "x-csrf-token": csrfToken },
         }),
+      );
+      csrfTokenPromise = null;
+    });
+  },
+  async register(input) {
+    return withCsrf(async (csrfToken) =>
+      AuthResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/register", {
+            body: input,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
       ),
     );
   },
@@ -120,6 +142,7 @@ async function unwrapOpenApiResponse<TData>(result: OpenApiFetchResult<TData>): 
   if (result.error !== undefined) {
     const parsed = ApiErrorSchema.safeParse(result.error);
     if (parsed.success) {
+      notifyIfSessionExpired(parsed.data);
       throw new FastiflyApiError(parsed.data);
     }
 
@@ -131,4 +154,61 @@ async function unwrapOpenApiResponse<TData>(result: OpenApiFetchResult<TData>): 
   }
 
   return result.data;
+}
+
+async function unwrapOpenApiEmptyResponse<TData>(result: OpenApiFetchResult<TData>): Promise<void> {
+  if (result.error !== undefined) {
+    const parsed = ApiErrorSchema.safeParse(result.error);
+    if (parsed.success) {
+      notifyIfSessionExpired(parsed.data);
+      throw new FastiflyApiError(parsed.data);
+    }
+
+    throw new Error(`Request failed with status ${result.response.status}.`);
+  }
+
+  if (!result.response.ok) {
+    throw new Error(`Request failed with status ${result.response.status}.`);
+  }
+}
+
+async function withCsrf<T>(request: (csrfToken: string) => Promise<T>): Promise<T> {
+  const csrfToken = await getCsrfToken();
+
+  try {
+    return await request(csrfToken);
+  } catch (error) {
+    if (!isCsrfFailure(error)) {
+      throw error;
+    }
+
+    csrfTokenPromise = null;
+    return request(await getCsrfToken());
+  }
+}
+
+async function getCsrfToken(): Promise<string> {
+  csrfTokenPromise ??= fetchCsrfToken();
+  return csrfTokenPromise;
+}
+
+async function fetchCsrfToken(): Promise<string> {
+  const response = CsrfTokenResponseSchema.parse(
+    await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/auth/csrf")),
+  );
+  return response.data.csrfToken;
+}
+
+function isCsrfFailure(error: unknown): boolean {
+  return (
+    error instanceof FastiflyApiError &&
+    error.response.error.code === "FORBIDDEN" &&
+    error.response.error.message.toLocaleLowerCase("en-US").includes("csrf")
+  );
+}
+
+function notifyIfSessionExpired(error: ApiError): void {
+  if (error.error.code === "UNAUTHENTICATED") {
+    notifySessionExpired();
+  }
 }

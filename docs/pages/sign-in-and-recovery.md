@@ -10,6 +10,14 @@ Users can create an account, sign in, and sign out.
 
 Fastifly keeps sessions in secure cookies so normal browser scripts cannot read the session token.
 
+## If Your Session Expires
+
+If your session expires while you are using Fastifly, the app should not throw away the screen you were on.
+
+Fastifly shows a sign-in dialog on top of the current page. After you sign in again, you can continue from the same place.
+
+You can also switch accounts, which clears the local app state and sends you back to sign in.
+
 ## Use Passkeys
 
 Fastifly supports passkeys.

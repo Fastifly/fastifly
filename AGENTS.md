@@ -768,6 +768,23 @@ All user-owned data must be scoped by workspace/ledger ownership.
 
 ## Testing rules
 
+### Browser and UI testing
+
+Use Playwright MCP for browser UI testing, manual visual QA, responsive checks,
+and page-flow verification.
+
+Do not run ad-hoc downloaded Playwright commands such as:
+
+```text
+pnpm dlx playwright ...
+npx playwright ...
+```
+
+Do not add Playwright dependencies or download Playwright browsers unless the
+user explicitly approves that change. If Playwright MCP is unavailable, report
+the blocker and use only existing repo-local verification commands until the
+MCP server is available.
+
 Required test types:
 
 ```text

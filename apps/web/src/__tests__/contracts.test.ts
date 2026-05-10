@@ -1,18 +1,39 @@
 import { describe, expect, it } from "vitest";
 
-import { webNavigationSmoke, webPwaSafetySmoke, webSharedContractSmoke } from "../index.js";
+import { FastiflyApiError } from "../api/client.js";
+import {
+  webAuthFlowSmoke,
+  webNavigationSmoke,
+  webPwaSafetySmoke,
+  webSharedContractSmoke,
+} from "../index.js";
 
 describe("web shared contract smoke", () => {
   it("uses package contracts instead of local duplicate schemas", () => {
     expect(
-      webSharedContractSmoke.authCredentialsSchema.parse({
-        password: "correct horse battery staple",
-        username: "priyanshu",
+      webSharedContractSmoke.registerCredentialsSchema.parse({
+        password: "register-password",
+        username: webSharedContractSmoke.defaultDemoLogin.username,
       }),
     ).toEqual({
-      password: "correct horse battery staple",
-      username: "priyanshu",
+      password: "register-password",
+      username: webSharedContractSmoke.defaultDemoLogin.username,
     });
+    expect(
+      webSharedContractSmoke.loginCredentialsSchema.parse({
+        password: "x",
+        username: webSharedContractSmoke.defaultDemoLogin.username,
+      }),
+    ).toEqual({
+      password: "x",
+      username: webSharedContractSmoke.defaultDemoLogin.username,
+    });
+    expect(() =>
+      webSharedContractSmoke.registerCredentialsSchema.parse({
+        password: "short",
+        username: webSharedContractSmoke.defaultDemoLogin.username,
+      }),
+    ).toThrow();
 
     expect(
       webSharedContractSmoke.moneySchema.parse({
@@ -71,5 +92,65 @@ describe("web shared contract smoke", () => {
     expect(webNavigationSmoke.getCurrentNavigationItem("/transactions/new").slug).toBe(
       "transactions",
     );
+  });
+
+  it("keeps auth redirects explicit for protected and login routes", () => {
+    expect(
+      webAuthFlowSmoke.getAuthRedirect({
+        pathname: "/transactions",
+        sessionState: "unauthenticated",
+      }),
+    ).toBe("/login");
+    expect(
+      webAuthFlowSmoke.getAuthRedirect({
+        pathname: "/login",
+        sessionState: "authenticated",
+      }),
+    ).toBe("/");
+    expect(
+      webAuthFlowSmoke.getAuthRedirect({
+        pathname: "/login",
+        sessionState: "unauthenticated",
+      }),
+    ).toBeNull();
+    expect(
+      webAuthFlowSmoke.getAuthRedirect({
+        pathname: "/accounts",
+        sessionState: "pending",
+      }),
+    ).toBeNull();
+  });
+
+  it("shows re-auth dialog only for expired known sessions", () => {
+    const unauthenticatedError = new FastiflyApiError({
+      error: {
+        code: "UNAUTHENTICATED",
+        details: {},
+        message: "Session expired.",
+        requestId: "req_test",
+      },
+    });
+
+    expect(
+      webAuthFlowSmoke.shouldShowSessionExpiredDialog({
+        error: unauthenticatedError,
+        hadAuthenticatedSession: true,
+        pathname: "/transactions",
+      }),
+    ).toBe(true);
+    expect(
+      webAuthFlowSmoke.shouldShowSessionExpiredDialog({
+        error: unauthenticatedError,
+        hadAuthenticatedSession: false,
+        pathname: "/transactions",
+      }),
+    ).toBe(false);
+    expect(
+      webAuthFlowSmoke.shouldShowSessionExpiredDialog({
+        error: unauthenticatedError,
+        hadAuthenticatedSession: true,
+        pathname: "/login",
+      }),
+    ).toBe(false);
   });
 });
