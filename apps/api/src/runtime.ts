@@ -9,6 +9,7 @@ import {
   createPostgresAccountRepository,
   createPostgresClient,
   createPostgresDatabaseFromClient,
+  createPostgresDeviceRepository,
   createPostgresIdentityRepository,
   createPostgresLedgerMutationStore,
   createPostgresSyncRepository,
@@ -16,6 +17,7 @@ import {
   createPostgresTransactionWriteRepository,
   createSqliteAccountRepository,
   createSqliteDatabaseFromClient,
+  createSqliteDeviceRepository,
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
   createSqliteSyncRepository,
@@ -86,6 +88,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     const db = createSqliteDatabaseFromClient(client);
     const createId = createUuidV7;
     const accountRepository = createSqliteAccountRepository(client, { createId });
+    const deviceRepository = createSqliteDeviceRepository(client, { createId });
     const identityRepository = createSqliteIdentityRepository(db, { createId });
     const syncRepository = createSqliteSyncRepository(client);
     const transactionRepository = createSqliteTransactionWriteRepository(client, { createId });
@@ -103,6 +106,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     return {
       appOptions: {
         accountRepository,
+        deviceRepository,
         financeMutationService,
         identityRepository,
         syncReplayService: createSyncReplayService({
@@ -132,6 +136,7 @@ async function createPostgresRuntimeDependencies(
     const db = createPostgresDatabaseFromClient(client);
     const createId = createUuidV7;
     const accountRepository = createPostgresAccountRepository(db, { createId });
+    const deviceRepository = createPostgresDeviceRepository(db, { createId });
     const identityRepository = createPostgresIdentityRepository(db, { createId });
     const syncRepository = createPostgresSyncRepository(db);
     const transactionRepository = createPostgresTransactionWriteRepository(db, { createId });
@@ -155,6 +160,7 @@ async function createPostgresRuntimeDependencies(
     return {
       appOptions: {
         accountRepository,
+        deviceRepository,
         financeMutationService,
         identityRepository,
         syncReplayService: createSyncReplayService({

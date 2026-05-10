@@ -1,3 +1,11 @@
+export type { CreateDeviceRequest, DeviceResponse } from "./api/devices.js";
+export {
+  CreateDeviceRequestSchema,
+  CreateDeviceResponseSchema,
+  DeviceResponseSchema,
+  ListDevicesResponseSchema,
+  RevokeDeviceResponseSchema,
+} from "./api/devices.js";
 export type { ApiError, ApiErrorCode, FieldErrorMap, ValidationError } from "./api/errors.js";
 export {
   ApiErrorCodeSchema,

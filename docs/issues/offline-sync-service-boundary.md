@@ -43,13 +43,15 @@ Implemented on 2026-05-10:
 - Added `POST /api/v1/sync/push` with shared request/response schemas and route-level `sync` auth.
 - Added tests for repository parity, replay idempotency, stale conflicts, revoked devices, and API
   route permission behavior.
+- Added device registration/list/revoke repositories and API routes so sync push no longer depends
+  on manually seeded devices.
 
 Remaining before offline write beta:
 
 - `category.create.v1` and `budget.assign_category_month.v1` need real domain services or must be
   removed from the approved offline command list. Tracked in
   `docs/issues/sync-category-budget-domain-services.md`.
-- Sync pull/status/device registration endpoints still need implementation.
+- Sync pull/status endpoints still need implementation.
 
 ## Blocking Milestone
 

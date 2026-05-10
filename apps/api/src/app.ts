@@ -3,6 +3,7 @@ import { createUuidV7 } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
 import type {
   AccountRepository,
+  DeviceRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
   SyncReplayService,
@@ -23,6 +24,7 @@ import { simpleWebAuthnAdapter, type WebAuthnAdapter } from "./auth/webauthn.js"
 import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
 import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";
+import { registerDeviceRoutes } from "./routes/devices.js";
 import { registerFinanceRoutes } from "./routes/finance.js";
 import { registerSyncRoutes } from "./routes/sync.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
@@ -30,6 +32,7 @@ import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
 export type BuildApiAppOptions = {
   readonly accountRepository?: AccountRepository;
   readonly config?: Partial<ApiConfig>;
+  readonly deviceRepository?: DeviceRepository;
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
   readonly readiness?: Partial<ReadinessState>;
@@ -122,6 +125,12 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       config,
       identityRepository: options.identityRepository,
       webAuthnAdapter: options.webAuthnAdapter ?? simpleWebAuthnAdapter,
+    });
+  }
+
+  if (options.deviceRepository) {
+    await registerDeviceRoutes(app, {
+      deviceRepository: options.deviceRepository,
     });
   }
 

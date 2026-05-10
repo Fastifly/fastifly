@@ -82,6 +82,17 @@ export {
   systemClock,
 } from "./repositories/base.js";
 export type {
+  DeviceRecord,
+  DeviceRepository,
+  DeviceRepositoryOptions,
+  RegisterDeviceInput,
+  RevokeDeviceInput,
+} from "./repositories/devices.js";
+export {
+  createPostgresDeviceRepository,
+  createSqliteDeviceRepository,
+} from "./repositories/devices.js";
+export type {
   AcceptWorkspaceInvitationInput,
   BootstrapDefaultWorkspaceInput,
   BootstrapDefaultWorkspaceResult,
