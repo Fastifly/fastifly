@@ -17,6 +17,7 @@ export const testIds = {
   shell: {
     root: "fastifly-root",
     app: "app-shell",
+    appBootstrap: "fastifly-app-bootstrap",
     main: "app-main",
     pendingSyncAlert: "pending-sync-alert",
     topBar: "top-bar",

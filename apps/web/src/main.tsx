@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { router } from "./router";
+import { testIds } from "./testing/testid-registry";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -23,7 +24,9 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <div data-testid={testIds.shell.appBootstrap}>
+        <RouterProvider router={router} />
+      </div>
     </QueryClientProvider>
   </StrictMode>,
 );
