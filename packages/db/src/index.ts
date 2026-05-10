@@ -152,6 +152,7 @@ export type {
 export {
   createPostgresIdentityRepository,
   createSqliteIdentityRepository,
+  normalizeInviteeIdentifier,
   normalizeUsername,
 } from "./repositories/identity.js";
 export type {

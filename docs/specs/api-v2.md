@@ -707,6 +707,12 @@ PATCH  /api/v1/workspaces/:workspaceId
 
 All workspace routes require membership unless creating a new workspace.
 
+Workspace selection rules:
+
+- routes with `:workspaceId` path params must resolve authorization context from that workspace
+- routes without `:workspaceId` may accept `x-fastifly-workspace-id` for explicit workspace selection
+- malformed workspace selection headers must return `400`
+
 ---
 
 ## Member and invitation endpoints
@@ -717,8 +723,8 @@ Invites use copyable links/tokens. No email delivery.
 
 ```text
 GET    /api/v1/workspaces/:workspaceId/members
-PATCH  /api/v1/workspaces/:workspaceId/members/:memberId
-DELETE /api/v1/workspaces/:workspaceId/members/:memberId
+PATCH  /api/v1/workspaces/:workspaceId/members/:userId
+DELETE /api/v1/workspaces/:workspaceId/members/:userId
 ```
 
 ### Invitations
@@ -738,6 +744,10 @@ Rules:
 - token is single-use
 - revoked token cannot be accepted
 - accepted token cannot be reused
+- accept/decline require an authenticated session
+- accept/decline are bound to the invited account identifier (normalized match)
+- invitation and member write routes require writable workspace lifecycle (`status=active` and not archived)
+- invitations cannot be accepted when the target workspace is not writable
 
 ---
 

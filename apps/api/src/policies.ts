@@ -51,3 +51,16 @@ export function requireActiveWorkspace(
 
   return context;
 }
+
+export function requireWritableWorkspace(
+  request: FastifyRequest,
+  workspaceId: string,
+): UserWorkspaceContextRecord {
+  const context = requireActiveWorkspace(request, workspaceId);
+
+  if (context.activeWorkspace.archivedAt !== null || context.activeWorkspace.status !== "active") {
+    throw makeHttpError(409, "This workspace cannot be changed right now.");
+  }
+
+  return context;
+}

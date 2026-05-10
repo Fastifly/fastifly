@@ -1,5 +1,5 @@
 import { defineWorkspaceAbility } from "@fastifly/authz";
-import { createUuidV7 } from "@fastifly/common";
+import { createUuidV7, parseSyncedId } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
 import type {
   AccountRepository,
@@ -90,6 +90,26 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     }
   });
 
+  app.addHook("preHandler", async (request) => {
+    if (!options.identityRepository || request.authContext.kind !== "user") {
+      return;
+    }
+
+    const preferredWorkspaceId = parsePreferredWorkspaceId(request);
+
+    if (!preferredWorkspaceId) {
+      return;
+    }
+
+    request.workspaceContext = await options.identityRepository.findDefaultWorkspaceContextForUser(
+      request.authContext.userId,
+      preferredWorkspaceId,
+    );
+    request.authzAbility = request.workspaceContext
+      ? defineWorkspaceAbility({ role: request.workspaceContext.activeWorkspace.role })
+      : denyAllAbility;
+  });
+
   await app.register(fastifyCsrfProtection, {
     cookieKey: config.csrfCookieName,
     cookieOpts: {
@@ -173,6 +193,45 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
 }
 
 function makeRateLimitError(message: string, statusCode: number): Error & { statusCode: number } {
+  const error = new Error(message) as Error & { statusCode: number };
+  error.statusCode = statusCode;
+  return error;
+}
+
+function parsePreferredWorkspaceId(request: {
+  readonly headers: Record<string, unknown>;
+  readonly params: unknown;
+}) {
+  const headerWorkspaceId = request.headers["x-fastifly-workspace-id"];
+
+  if (typeof headerWorkspaceId === "string" && headerWorkspaceId.trim().length > 0) {
+    try {
+      return parseSyncedId(headerWorkspaceId.trim());
+    } catch {
+      throw makeHttpError(400, "Workspace selection header is invalid.");
+    }
+  }
+
+  const params = request.params;
+
+  if (
+    params &&
+    typeof params === "object" &&
+    "workspaceId" in params &&
+    typeof params.workspaceId === "string" &&
+    params.workspaceId.trim().length > 0
+  ) {
+    try {
+      return parseSyncedId(params.workspaceId.trim());
+    } catch {
+      throw makeHttpError(400, "Workspace route parameter is invalid.");
+    }
+  }
+
+  return null;
+}
+
+function makeHttpError(statusCode: number, message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number };
   error.statusCode = statusCode;
   return error;

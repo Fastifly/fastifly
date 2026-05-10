@@ -8,7 +8,12 @@ import {
   RegisterCredentialsSchema,
 } from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
-import type { IdentityRepository, UserRecord, WorkspaceMemberWithUserRecord } from "@fastifly/db";
+import {
+  type IdentityRepository,
+  normalizeInviteeIdentifier,
+  type UserRecord,
+  type WorkspaceMemberWithUserRecord,
+} from "@fastifly/db";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod/v4";
@@ -23,7 +28,12 @@ import {
   hashSessionToken,
 } from "../auth/sessions.js";
 import type { WebAuthnAdapter } from "../auth/webauthn.js";
-import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
+import {
+  requireAbility,
+  requireActiveWorkspace,
+  requireAuthenticatedUser,
+  requireWritableWorkspace,
+} from "../policies.js";
 import { ErrorResponseSchemas } from "../schemas.js";
 
 const PasskeyOptionsResponseSchema = z
@@ -907,7 +917,7 @@ export async function registerAuthRoutes(
       const params = WorkspaceParamsSchema.parse(request.params);
       const input = CreateInvitationBodySchema.parse(request.body);
 
-      requireActiveWorkspace(request, params.workspaceId);
+      requireWritableWorkspace(request, params.workspaceId);
       requireAbility(request, "invite", "WorkspaceInvitation");
 
       const pendingInvitation = await identityRepository.findPendingWorkspaceInvitationByInvitee({
@@ -1025,8 +1035,15 @@ export async function registerAuthRoutes(
         throw makeHttpError(404, "Invitation was not found.");
       }
 
+      const normalizedInviteeIdentifier = normalizeInviteeIdentifier(invitation.inviteeIdentifier);
+
+      if (normalizedInviteeIdentifier !== user.usernameNormalized) {
+        throw makeHttpError(403, "This invitation is not for the current account.");
+      }
+
       const member = await identityRepository.acceptWorkspaceInvitation({
         invitationId: invitation.id,
+        inviteeIdentifierNormalized: normalizedInviteeIdentifier,
         userId,
       });
 
@@ -1075,19 +1092,29 @@ export async function registerAuthRoutes(
       },
     },
     async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
       const params = InvitationTokenParamsSchema.parse(request.params);
+      const user = await identityRepository.findUserById(userId);
       const invitation = await identityRepository.findActiveWorkspaceInvitationByTokenHash({
         tokenHash: hashInvitationToken(params.token),
       });
+
+      if (!user || user.disabledAt) {
+        throw makeHttpError(401, "Authentication is required.");
+      }
 
       if (!invitation) {
         throw makeHttpError(404, "Invitation was not found.");
       }
 
+      if (normalizeInviteeIdentifier(invitation.inviteeIdentifier) !== user.usernameNormalized) {
+        throw makeHttpError(403, "This invitation is not for the current account.");
+      }
+
       await identityRepository.declineWorkspaceInvitation({ invitationId: invitation.id });
       await identityRepository.recordWorkspaceAuditEvent({
         action: "workspace_member.invite_revoked",
-        actorUserId: null,
+        actorUserId: userId,
         entityId: invitation.id,
         entityType: "workspace_invitation",
         metadataJson: { reason: "declined" },
@@ -1114,7 +1141,7 @@ export async function registerAuthRoutes(
       const userId = requireAuthenticatedUser(request);
       const params = WorkspaceInvitationParamsSchema.parse(request.params);
 
-      requireActiveWorkspace(request, params.workspaceId);
+      requireWritableWorkspace(request, params.workspaceId);
       requireAbility(request, "revoke", "WorkspaceInvitation");
 
       const invitation = await identityRepository.revokeWorkspaceInvitation({
@@ -1181,7 +1208,7 @@ export async function registerAuthRoutes(
       const params = WorkspaceMemberParamsSchema.parse(request.params);
       const input = UpdateWorkspaceMemberBodySchema.parse(request.body);
 
-      requireActiveWorkspace(request, params.workspaceId);
+      requireWritableWorkspace(request, params.workspaceId);
       requireAbility(request, "update", "WorkspaceMember");
 
       const target = await identityRepository.findWorkspaceMember(
@@ -1240,7 +1267,7 @@ export async function registerAuthRoutes(
       requireAuthenticatedUser(request);
       const params = WorkspaceMemberParamsSchema.parse(request.params);
 
-      requireActiveWorkspace(request, params.workspaceId);
+      requireWritableWorkspace(request, params.workspaceId);
       requireAbility(request, "delete", "WorkspaceMember");
 
       const target = await identityRepository.findWorkspaceMember(

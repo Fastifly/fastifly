@@ -34,6 +34,7 @@ import type {
   WorkspaceMemberWithUserRecord,
   WorkspaceRecord,
 } from "@fastifly/db";
+import { normalizeInviteeIdentifier } from "@fastifly/db";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApiApp } from "../app.js";
@@ -66,6 +67,7 @@ class FakeIdentityRepository implements IdentityRepository {
   readonly invitations = new Map<SyncedId, WorkspaceInvitationRecord>();
   readonly auditEvents: RecordWorkspaceAuditEventInput[] = [];
   readonly members = new Map<SyncedId, WorkspaceMemberRecord>();
+  readonly ledgers = new Map<SyncedId, LedgerRecord>();
   readonly passkeyChallenges = new Map<SyncedId, PasskeyChallengeRecord>();
   readonly passkeys = new Map<SyncedId, PasskeyRecord>();
   readonly recoveryCodes = new Map<SyncedId, readonly RecoveryCodeRecord[]>();
@@ -186,6 +188,7 @@ class FakeIdentityRepository implements IdentityRepository {
     this.bootstrappedUsers.push(input.userId);
     this.workspaces.set(workspace.id, workspace);
     this.members.set(membership.id, membership);
+    this.ledgers.set(ledger.id, ledger);
     this.contexts.set(input.userId, {
       activeLedger: ledger,
       activeWorkspace: {
@@ -198,8 +201,50 @@ class FakeIdentityRepository implements IdentityRepository {
 
   async findDefaultWorkspaceContextForUser(
     userId: SyncedId,
+    preferredWorkspaceId?: SyncedId,
   ): Promise<UserWorkspaceContextRecord | null> {
-    return this.contexts.get(userId) ?? null;
+    const memberships = Array.from(this.members.values()).filter(
+      (member) => member.userId === userId && member.removedAt === null,
+    );
+
+    const preferredMembership = preferredWorkspaceId
+      ? memberships.find((member) => member.workspaceId === preferredWorkspaceId)
+      : null;
+    const membership = preferredMembership ?? memberships[0];
+
+    if (!membership) {
+      return this.contexts.get(userId) ?? null;
+    }
+
+    const workspace = this.workspaces.get(membership.workspaceId);
+
+    if (!workspace || workspace.archivedAt !== null) {
+      return null;
+    }
+
+    const ledger =
+      Array.from(this.ledgers.values()).find(
+        (candidate) =>
+          candidate.workspaceId === membership.workspaceId && candidate.archivedAt === null,
+      ) ??
+      Array.from(this.contexts.values())
+        .map((context) => context.activeLedger)
+        .find(
+          (candidate) =>
+            candidate.workspaceId === membership.workspaceId && candidate.archivedAt === null,
+        );
+
+    if (!ledger) {
+      return null;
+    }
+
+    return {
+      activeLedger: ledger,
+      activeWorkspace: {
+        ...workspace,
+        role: membership.role,
+      },
+    };
   }
 
   async replaceRecoveryCodes(
@@ -282,6 +327,18 @@ class FakeIdentityRepository implements IdentityRepository {
       invitation.revokedAt !== null ||
       new Date(invitation.expiresAt) <= new Date()
     ) {
+      return null;
+    }
+
+    if (
+      normalizeInviteeIdentifier(invitation.inviteeIdentifier) !== input.inviteeIdentifierNormalized
+    ) {
+      return null;
+    }
+
+    const workspace = this.workspaces.get(invitation.workspaceId);
+
+    if (!workspace || workspace.archivedAt !== null || workspace.status !== "active") {
       return null;
     }
 
@@ -1085,16 +1142,21 @@ describe("auth routes", () => {
     expect(duplicate.statusCode).toBe(409);
     expect(identityRepository.invitations.size).toBe(1);
 
-    identityRepository.contexts.set(
-      invitation?.invitedByUserId ?? context.activeWorkspace.ownerUserId,
-      {
-        ...context,
-        activeWorkspace: {
-          ...context.activeWorkspace,
-          role: "viewer",
-        },
-      },
+    const ownerMembership = Array.from(identityRepository.members.values()).find(
+      (member) =>
+        member.workspaceId === context.activeWorkspace.id &&
+        member.userId === context.activeWorkspace.ownerUserId,
     );
+
+    if (!ownerMembership) {
+      throw new Error("Expected owner membership to exist");
+    }
+
+    identityRepository.members.set(ownerMembership.id, {
+      ...ownerMembership,
+      role: "viewer",
+      updatedAt: "2026-05-09T12:00:00.000Z",
+    });
 
     const denied = await injectWithCsrf(app, {
       headers: { cookie },
@@ -1263,7 +1325,17 @@ describe("auth routes", () => {
     const declineToken = getInvitationToken(
       declineInvite.json<{ data: { inviteLink: string } }>().data.inviteLink,
     );
+    const declineRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Decline",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const declineCookie = getCookiePair(declineRegister);
     const decline = await injectWithCsrf(app, {
+      headers: { cookie: declineCookie },
       method: "POST",
       url: `/api/v1/invitations/${declineToken}/decline`,
     });
@@ -1308,6 +1380,269 @@ describe("auth routes", () => {
       url: `/api/v1/invitations/${getInvitationToken(revokePayload.inviteLink)}`,
     });
     expect(revokedPreview.statusCode).toBe(404);
+  });
+
+  it("rejects invitation accept and decline for a different authenticated user", async () => {
+    const { app, identityRepository } = await makeApp();
+    const ownerRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const ownerCookie = getCookiePair(ownerRegister);
+    const ownerContext = Array.from(identityRepository.contexts.values())[0];
+
+    if (!ownerContext) {
+      throw new Error("Expected owner registration to create a workspace context");
+    }
+
+    const invite = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "partner",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    const token = getInvitationToken(
+      invite.json<{ data: { inviteLink: string } }>().data.inviteLink,
+    );
+
+    const otherRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Other",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const otherCookie = getCookiePair(otherRegister);
+
+    const acceptAsOther = await injectWithCsrf(app, {
+      headers: { cookie: otherCookie },
+      method: "POST",
+      url: `/api/v1/invitations/${token}/accept`,
+    });
+    expect(acceptAsOther.statusCode).toBe(403);
+
+    const declineAsOther = await injectWithCsrf(app, {
+      headers: { cookie: otherCookie },
+      method: "POST",
+      url: `/api/v1/invitations/${token}/decline`,
+    });
+    expect(declineAsOther.statusCode).toBe(403);
+  });
+
+  it("requires an authenticated session for invitation decline", async () => {
+    const { app, identityRepository } = await makeApp();
+    const ownerRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const ownerCookie = getCookiePair(ownerRegister);
+    const ownerContext = Array.from(identityRepository.contexts.values())[0];
+
+    if (!ownerContext) {
+      throw new Error("Expected owner registration to create a workspace context");
+    }
+
+    const invite = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "partner",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    const token = getInvitationToken(
+      invite.json<{ data: { inviteLink: string } }>().data.inviteLink,
+    );
+
+    const declineWithoutSession = await injectWithCsrf(app, {
+      method: "POST",
+      url: `/api/v1/invitations/${token}/decline`,
+    });
+    expect(declineWithoutSession.statusCode).toBe(401);
+  });
+
+  it("rejects invitation accept when the workspace is no longer active", async () => {
+    const { app, identityRepository } = await makeApp();
+    const ownerRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const ownerCookie = getCookiePair(ownerRegister);
+    const ownerContext = Array.from(identityRepository.contexts.values())[0];
+
+    if (!ownerContext) {
+      throw new Error("Expected owner registration to create a workspace context");
+    }
+
+    const invite = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "partner",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    const token = getInvitationToken(
+      invite.json<{ data: { inviteLink: string } }>().data.inviteLink,
+    );
+
+    const workspace = identityRepository.workspaces.get(ownerContext.activeWorkspace.id);
+
+    if (!workspace) {
+      throw new Error("Expected workspace to exist");
+    }
+
+    identityRepository.workspaces.set(workspace.id, {
+      ...workspace,
+      status: "maintenance",
+      updatedAt: "2026-05-09T12:00:00.000Z",
+    });
+
+    const inviteeRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Partner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const inviteeCookie = getCookiePair(inviteeRegister);
+
+    const accept = await injectWithCsrf(app, {
+      headers: { cookie: inviteeCookie },
+      method: "POST",
+      url: `/api/v1/invitations/${token}/accept`,
+    });
+    expect(accept.statusCode).toBe(409);
+  });
+
+  it("rejects invite and membership writes when workspace is not writable", async () => {
+    const { app, identityRepository } = await makeApp();
+    const ownerRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const ownerCookie = getCookiePair(ownerRegister);
+    const ownerContext = Array.from(identityRepository.contexts.values())[0];
+
+    if (!ownerContext) {
+      throw new Error("Expected owner registration to create a workspace context");
+    }
+
+    const inviteeRegister = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Partner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const inviteeCookie = getCookiePair(inviteeRegister);
+    const inviteeUser = Array.from(identityRepository.users.values()).find(
+      (user) => user.username === "Partner",
+    );
+
+    if (!inviteeUser) {
+      throw new Error("Expected invitee registration to create a user");
+    }
+
+    const acceptedInvite = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "partner",
+        role: "editor",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    const acceptToken = getInvitationToken(
+      acceptedInvite.json<{ data: { inviteLink: string } }>().data.inviteLink,
+    );
+    const accept = await injectWithCsrf(app, {
+      headers: { cookie: inviteeCookie },
+      method: "POST",
+      url: `/api/v1/invitations/${acceptToken}/accept`,
+    });
+    expect(accept.statusCode).toBe(200);
+
+    const revokeInvite = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "revoke",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    const revokeInvitationId = revokeInvite.json<{ data: { invitation: { id: SyncedId } } }>().data
+      .invitation.id;
+
+    const workspace = identityRepository.workspaces.get(ownerContext.activeWorkspace.id);
+
+    if (!workspace) {
+      throw new Error("Expected workspace to exist");
+    }
+
+    identityRepository.workspaces.set(workspace.id, {
+      ...workspace,
+      status: "maintenance",
+      updatedAt: "2026-05-09T12:00:00.000Z",
+    });
+
+    const createBlocked = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "POST",
+      payload: {
+        inviteeIdentifier: "blocked",
+        role: "viewer",
+      },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations`,
+    });
+    expect(createBlocked.statusCode).toBe(409);
+
+    const revokeBlocked = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "DELETE",
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/invitations/${revokeInvitationId}`,
+    });
+    expect(revokeBlocked.statusCode).toBe(409);
+
+    const updateBlocked = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "PATCH",
+      payload: { role: "viewer" },
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/members/${inviteeUser.id}`,
+    });
+    expect(updateBlocked.statusCode).toBe(409);
+
+    const deleteBlocked = await injectWithCsrf(app, {
+      headers: { cookie: ownerCookie },
+      method: "DELETE",
+      url: `/api/v1/workspaces/${ownerContext.activeWorkspace.id}/members/${inviteeUser.id}`,
+    });
+    expect(deleteBlocked.statusCode).toBe(409);
   });
 
   it("revokes the current session on logout", async () => {

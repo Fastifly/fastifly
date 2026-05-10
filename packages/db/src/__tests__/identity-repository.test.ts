@@ -10,6 +10,7 @@ import {
   createPostgresIdentityRepository,
   createSqliteDatabaseFromClient,
   createSqliteIdentityRepository,
+  normalizeInviteeIdentifier,
   normalizeUsername,
 } from "../index.js";
 import {
@@ -122,6 +123,13 @@ describe("identity repository", () => {
           userId: user.id,
           workspaceName: "Personal",
         });
+        const secondaryWorkspaceState = await repo.bootstrapDefaultWorkspace({
+          baseCurrencyCode: "EUR",
+          firstDayOfWeek: 1,
+          ledgerName: "Secondary ledger",
+          userId: user.id,
+          workspaceName: "Secondary",
+        });
 
         expect(workspaceState.workspace.ownerUserId).toBe(user.id);
         await expect(repo.findWorkspaceById(workspaceState.workspace.id)).resolves.toMatchObject({
@@ -145,6 +153,18 @@ describe("identity repository", () => {
           },
           activeWorkspace: {
             id: workspaceState.workspace.id,
+            role: "owner",
+          },
+        });
+        await expect(
+          repo.findDefaultWorkspaceContextForUser(user.id, secondaryWorkspaceState.workspace.id),
+        ).resolves.toMatchObject({
+          activeLedger: {
+            id: secondaryWorkspaceState.ledger.id,
+            workspaceId: secondaryWorkspaceState.workspace.id,
+          },
+          activeWorkspace: {
+            id: secondaryWorkspaceState.workspace.id,
             role: "owner",
           },
         });
@@ -239,6 +259,14 @@ describe("identity repository", () => {
         await expect(
           repo.acceptWorkspaceInvitation({
             invitationId: invitation.id,
+            inviteeIdentifierNormalized: normalizeInviteeIdentifier("wrong-user"),
+            userId: invitee.id,
+          }),
+        ).resolves.toBeNull();
+        await expect(
+          repo.acceptWorkspaceInvitation({
+            invitationId: invitation.id,
+            inviteeIdentifierNormalized: normalizeInviteeIdentifier("partner"),
             userId: invitee.id,
           }),
         ).resolves.toMatchObject({
@@ -299,6 +327,7 @@ describe("identity repository", () => {
         await expect(
           repo.acceptWorkspaceInvitation({
             invitationId: reactivationInvitation.id,
+            inviteeIdentifierNormalized: normalizeInviteeIdentifier("partner"),
             userId: invitee.id,
           }),
         ).resolves.toMatchObject({

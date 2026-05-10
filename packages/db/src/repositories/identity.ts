@@ -202,6 +202,7 @@ export type FindPendingWorkspaceInvitationInput = {
 export type AcceptWorkspaceInvitationInput = {
   readonly invitationId: SyncedId;
   readonly userId: SyncedId;
+  readonly inviteeIdentifierNormalized: string;
 };
 
 export type RevokeWorkspaceInvitationInput = {
@@ -301,6 +302,7 @@ export type IdentityRepository = {
   ) => Promise<BootstrapDefaultWorkspaceResult>;
   readonly findDefaultWorkspaceContextForUser: (
     userId: SyncedId,
+    preferredWorkspaceId?: SyncedId,
   ) => Promise<UserWorkspaceContextRecord | null>;
   readonly replaceRecoveryCodes: (
     input: ReplaceRecoveryCodesInput,
@@ -391,6 +393,10 @@ function resolveOptions(
 
 export function normalizeUsername(username: string): string {
   return username.trim().toLocaleLowerCase("en-US");
+}
+
+export function normalizeInviteeIdentifier(inviteeIdentifier: string): string {
+  return inviteeIdentifier.trim().toLocaleLowerCase("en-US");
 }
 
 function assertCreated<T>(rows: readonly T[], entityName: string): T {
@@ -531,6 +537,10 @@ function toWorkspaceInvitationRecord(
     acceptedAt: toIsoString(row.acceptedAt),
     revokedAt: toIsoString(row.revokedAt),
   };
+}
+
+function isWorkspaceAcceptingMembership(workspace: WorkspaceRecord): boolean {
+  return workspace.archivedAt === null && workspace.status === "active";
 }
 
 function toUserWorkspaceContextRecord(
@@ -707,16 +717,8 @@ export function createSqliteIdentityRepository(
       });
     },
 
-    async findDefaultWorkspaceContextForUser(userId) {
-      const memberships = await db
-        .select()
-        .from(sqliteWorkspaceMembers)
-        .where(
-          and(eq(sqliteWorkspaceMembers.userId, userId), isNull(sqliteWorkspaceMembers.removedAt)),
-        )
-        .orderBy(asc(sqliteWorkspaceMembers.createdAt), asc(sqliteWorkspaceMembers.id));
-
-      for (const membershipRow of memberships) {
+    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId) {
+      const resolveContext = async (membershipRow: SqliteWorkspaceMemberRow) => {
         const workspaceRows = await db
           .select()
           .from(sqliteWorkspaces)
@@ -745,6 +747,47 @@ export function createSqliteIdentityRepository(
             toWorkspaceMemberRecord(membershipRow),
             toLedgerRecord(ledgerRows[0]),
           );
+        }
+
+        return null;
+      };
+
+      if (preferredWorkspaceId) {
+        const preferredMembershipRows = await db
+          .select()
+          .from(sqliteWorkspaceMembers)
+          .where(
+            and(
+              eq(sqliteWorkspaceMembers.userId, userId),
+              eq(sqliteWorkspaceMembers.workspaceId, preferredWorkspaceId),
+              isNull(sqliteWorkspaceMembers.removedAt),
+            ),
+          )
+          .limit(1);
+        const preferredMembership = preferredMembershipRows[0];
+
+        if (preferredMembership) {
+          const preferredContext = await resolveContext(preferredMembership);
+
+          if (preferredContext) {
+            return preferredContext;
+          }
+        }
+      }
+
+      const memberships = await db
+        .select()
+        .from(sqliteWorkspaceMembers)
+        .where(
+          and(eq(sqliteWorkspaceMembers.userId, userId), isNull(sqliteWorkspaceMembers.removedAt)),
+        )
+        .orderBy(asc(sqliteWorkspaceMembers.createdAt), asc(sqliteWorkspaceMembers.id));
+
+      for (const membershipRow of memberships) {
+        const context = await resolveContext(membershipRow);
+
+        if (context) {
+          return context;
         }
       }
 
@@ -863,6 +906,25 @@ export function createSqliteIdentityRepository(
         const invitation = invitationRows[0];
 
         if (!invitation) {
+          return null;
+        }
+
+        if (
+          normalizeInviteeIdentifier(invitation.inviteeIdentifier) !==
+          input.inviteeIdentifierNormalized
+        ) {
+          return null;
+        }
+
+        const workspaceRows = tx
+          .select()
+          .from(sqliteWorkspaces)
+          .where(eq(sqliteWorkspaces.id, invitation.workspaceId))
+          .limit(1)
+          .all();
+        const workspace = workspaceRows[0] ? toWorkspaceRecord(workspaceRows[0]) : null;
+
+        if (!workspace || !isWorkspaceAcceptingMembership(workspace)) {
           return null;
         }
 
@@ -1335,14 +1397,8 @@ export function createPostgresIdentityRepository(
       });
     },
 
-    async findDefaultWorkspaceContextForUser(userId) {
-      const memberships = await db
-        .select()
-        .from(pgWorkspaceMembers)
-        .where(and(eq(pgWorkspaceMembers.userId, userId), isNull(pgWorkspaceMembers.removedAt)))
-        .orderBy(asc(pgWorkspaceMembers.createdAt), asc(pgWorkspaceMembers.id));
-
-      for (const membershipRow of memberships) {
+    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId) {
+      const resolveContext = async (membershipRow: PostgresWorkspaceMemberRow) => {
         const workspaceRows = await db
           .select()
           .from(pgWorkspaces)
@@ -1365,6 +1421,45 @@ export function createPostgresIdentityRepository(
             toWorkspaceMemberRecord(membershipRow),
             toLedgerRecord(ledgerRows[0]),
           );
+        }
+
+        return null;
+      };
+
+      if (preferredWorkspaceId) {
+        const preferredMembershipRows = await db
+          .select()
+          .from(pgWorkspaceMembers)
+          .where(
+            and(
+              eq(pgWorkspaceMembers.userId, userId),
+              eq(pgWorkspaceMembers.workspaceId, preferredWorkspaceId),
+              isNull(pgWorkspaceMembers.removedAt),
+            ),
+          )
+          .limit(1);
+        const preferredMembership = preferredMembershipRows[0];
+
+        if (preferredMembership) {
+          const preferredContext = await resolveContext(preferredMembership);
+
+          if (preferredContext) {
+            return preferredContext;
+          }
+        }
+      }
+
+      const memberships = await db
+        .select()
+        .from(pgWorkspaceMembers)
+        .where(and(eq(pgWorkspaceMembers.userId, userId), isNull(pgWorkspaceMembers.removedAt)))
+        .orderBy(asc(pgWorkspaceMembers.createdAt), asc(pgWorkspaceMembers.id));
+
+      for (const membershipRow of memberships) {
+        const context = await resolveContext(membershipRow);
+
+        if (context) {
+          return context;
         }
       }
 
@@ -1475,6 +1570,24 @@ export function createPostgresIdentityRepository(
         const invitation = invitationRows[0];
 
         if (!invitation) {
+          return null;
+        }
+
+        if (
+          normalizeInviteeIdentifier(invitation.inviteeIdentifier) !==
+          input.inviteeIdentifierNormalized
+        ) {
+          return null;
+        }
+
+        const workspaceRows = await tx
+          .select()
+          .from(pgWorkspaces)
+          .where(eq(pgWorkspaces.id, invitation.workspaceId))
+          .limit(1);
+        const workspace = workspaceRows[0] ? toWorkspaceRecord(workspaceRows[0]) : null;
+
+        if (!workspace || !isWorkspaceAcceptingMembership(workspace)) {
           return null;
         }
 
