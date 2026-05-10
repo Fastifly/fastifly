@@ -772,6 +772,30 @@ API client should handle:
 - outbox operation submission
 - sync conflict errors
 
+Runtime configuration:
+
+```text
+VITE_FASTIFLY_API_BASE_URL
+```
+
+Rules:
+
+- empty value means same-origin API calls
+- non-empty value must not end with a slash after normalization
+- never hardcode localhost API URLs in components
+- authenticated requests use `credentials: include`
+- request and response contracts come from `packages/common`
+
+Auth forms must use the shared auth credential schema. Login and registration call:
+
+```text
+POST /api/v1/auth/login
+POST /api/v1/auth/register
+GET /api/v1/me/context
+```
+
+The service worker registers only in production builds. Development builds must avoid service worker registration so stale app-shell caches do not hide frontend changes.
+
 ---
 
 ## Testing

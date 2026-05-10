@@ -1,15 +1,16 @@
-import { parseSyncedId } from "@fastifly/common";
+import {
+  AuthCredentialsSchema,
+  AuthResponseSchema,
+  type AuthUserSchema,
+  MeContextResponseSchema,
+  parseSyncedId,
+} from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
 import type { IdentityRepository, UserRecord, WorkspaceMemberWithUserRecord } from "@fastifly/db";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod/v4";
-import {
-  hashPassword,
-  MAX_PASSWORD_LENGTH,
-  MIN_PASSWORD_LENGTH,
-  verifyPasswordHash,
-} from "../auth/passwords.js";
+import { hashPassword, verifyPasswordHash } from "../auth/passwords.js";
 import {
   DEFAULT_RECOVERY_CODE_COUNT,
   generateInvitationToken,
@@ -21,55 +22,6 @@ import {
 } from "../auth/sessions.js";
 import type { WebAuthnAdapter } from "../auth/webauthn.js";
 import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
-
-const AuthCredentialsSchema = z
-  .object({
-    username: z.string().trim().min(1).max(100),
-    password: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH),
-  })
-  .strict();
-
-const AuthUserSchema = z
-  .object({
-    id: z.uuidv7(),
-    username: z.string().min(1),
-    displayName: z.string().min(1),
-  })
-  .strict();
-
-const AuthResponseSchema = z
-  .object({
-    data: z
-      .object({
-        user: AuthUserSchema,
-      })
-      .strict(),
-  })
-  .strict();
-
-const MeContextResponseSchema = z
-  .object({
-    data: z
-      .object({
-        user: AuthUserSchema,
-        activeWorkspace: z
-          .object({
-            id: z.uuidv7(),
-            name: z.string().min(1),
-            role: z.enum(["owner", "admin", "editor", "viewer"]),
-          })
-          .strict(),
-        activeLedger: z
-          .object({
-            id: z.uuidv7(),
-            name: z.string().min(1),
-            baseCurrencyCode: z.string().length(3),
-          })
-          .strict(),
-      })
-      .strict(),
-  })
-  .strict();
 
 const PasskeyOptionsResponseSchema = z
   .object({

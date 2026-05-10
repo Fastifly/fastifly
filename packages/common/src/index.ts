@@ -1,3 +1,10 @@
+export type { AuthCredentials, AuthResponse, MeContextResponse } from "./api/auth.js";
+export {
+  AuthCredentialsSchema,
+  AuthResponseSchema,
+  AuthUserSchema,
+  MeContextResponseSchema,
+} from "./api/auth.js";
 export type { CreateDeviceRequest, DeviceResponse } from "./api/devices.js";
 export {
   CreateDeviceRequestSchema,
