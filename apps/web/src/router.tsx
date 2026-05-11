@@ -5,9 +5,14 @@ import {
   lazyRouteComponent,
   Outlet,
 } from "@tanstack/react-router";
+import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 
 const rootRoute = createRootRoute({
-  component: () => <Outlet />,
+  component: () => (
+    <NuqsAdapter>
+      <Outlet />
+    </NuqsAdapter>
+  ),
 });
 
 const appLayoutRoute = createRoute({
@@ -52,6 +57,27 @@ const budgetsRoute = createRoute({
   component: lazyRouteComponent(() => import("./ui/routes/budgets-route"), "BudgetsRouteComponent"),
 });
 
+const importsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/imports",
+  component: lazyRouteComponent(() => import("./ui/routes/imports-route"), "ImportsRouteComponent"),
+});
+
+const rulesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/rules",
+  component: lazyRouteComponent(() => import("./ui/routes/rules-route"), "RulesRouteComponent"),
+});
+
+const recurringRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/recurring",
+  component: lazyRouteComponent(
+    () => import("./ui/routes/recurring-route"),
+    "RecurringRouteComponent",
+  ),
+});
+
 const reportsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/reports",
@@ -85,6 +111,9 @@ const routeTree = rootRoute.addChildren([
     accountsRoute,
     transactionsRoute,
     budgetsRoute,
+    importsRoute,
+    rulesRoute,
+    recurringRoute,
     reportsRoute,
     syncRoute,
     settingsRoute,

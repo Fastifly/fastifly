@@ -1,5 +1,8 @@
 import type {
+  ImportJobResponse,
   ListBudgetsQuery,
+  RecurringTemplateResponse,
+  RuleResponse,
   ListTransactionsQuery,
   ListTransactionsResponse,
 } from "@fastifly/common";
@@ -115,6 +118,45 @@ export function useTransactionsQuery(
       return apiClient.listTransactions({ ...input, ...query });
     },
     queryKey: makeTransactionsQueryKey(input, query),
+  });
+}
+
+export function useImportJobsQuery(input: LedgerQueryInput) {
+  return useQuery<readonly ImportJobResponse[]>({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.listImportJobs(input);
+    },
+    queryKey: ["finance", "imports", input?.workspaceId, input?.ledgerId],
+  });
+}
+
+export function useRulesQuery(input: LedgerQueryInput) {
+  return useQuery<readonly RuleResponse[]>({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.listRules(input);
+    },
+    queryKey: ["finance", "rules", input?.workspaceId, input?.ledgerId],
+  });
+}
+
+export function useRecurringTemplatesQuery(input: LedgerQueryInput) {
+  return useQuery<readonly RecurringTemplateResponse[]>({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.listRecurringTemplates(input);
+    },
+    queryKey: ["finance", "recurring", input?.workspaceId, input?.ledgerId],
   });
 }
 

@@ -6,7 +6,10 @@ type NavigationSlug =
   | "accounts"
   | "budgets"
   | "dashboard"
+  | "imports"
+  | "recurring"
   | "reports"
+  | "rules"
   | "sync"
   | "settings"
   | "transactions";
@@ -38,6 +41,9 @@ export const testIds = {
     accountsRoute: "route-accounts",
     transactionsRoute: "route-transactions",
     budgetsRoute: "route-budgets",
+    importsRoute: "route-imports",
+    rulesRoute: "route-rules",
+    recurringRoute: "route-recurring",
     reportsRoute: "route-reports",
     syncRoute: "route-sync",
     settingsRoute: "route-settings",
@@ -198,6 +204,33 @@ export const testIds = {
     cardSpent: (id: string) => `budget-card-${id}-spent`,
     cardRemaining: (id: string) => `budget-card-${id}-remaining`,
     cardSpentRate: (id: string) => `budget-card-${id}-spent-rate`,
+  },
+  imports: {
+    page: "imports-page",
+    list: "imports-list",
+    emptyState: "imports-empty-state",
+    uploadButton: "imports-upload-button",
+    commitButton: (id: string) => `imports-commit-${id}`,
+    undoButton: (id: string) => `imports-undo-${id}`,
+    card: (id: string) => `imports-card-${id}`,
+    status: (id: string) => `imports-status-${id}`,
+  },
+  rules: {
+    page: "rules-page",
+    list: "rules-list",
+    emptyState: "rules-empty-state",
+    createButton: "rules-create-button",
+    testButton: (id: string) => `rules-test-${id}`,
+    applyButton: (id: string) => `rules-apply-${id}`,
+    card: (id: string) => `rules-card-${id}`,
+  },
+  recurring: {
+    page: "recurring-page",
+    list: "recurring-list",
+    emptyState: "recurring-empty-state",
+    createButton: "recurring-create-button",
+    generateButton: (id: string) => `recurring-generate-${id}`,
+    card: (id: string) => `recurring-card-${id}`,
   },
   reports: {
     page: "reports-page",

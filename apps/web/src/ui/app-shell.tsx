@@ -1,6 +1,7 @@
 import {
   type AccountWithBalanceResponse,
   formatMoneyMinor,
+  type RecurringTemplateResponse,
   type TransactionGroupResponse,
 } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { type PropsWithChildren, type ReactNode, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "../api/client";
@@ -58,8 +60,11 @@ import {
   useAccountsQuery,
   useBudgetsQuery,
   useHealthQuery,
+  useImportJobsQuery,
   useInfiniteTransactionsQuery,
   useMeContextQuery,
+  useRecurringTemplatesQuery,
+  useRulesQuery,
   useSyncConflictsQuery,
   useSyncStatusQuery,
   useTransactionsQuery,
@@ -116,6 +121,13 @@ const transactionStatusFilterOptions: readonly {
   { label: en.transactions.statuses.cleared, value: "cleared" },
   { label: en.transactions.statuses.reconciled, value: "reconciled" },
 ];
+
+const transactionFilterParsers = {
+  accountId: parseAsString.withDefault(ALL_TRANSACTION_FILTER),
+  limit: parseAsInteger.withDefault(10),
+  status: parseAsStringLiteral(["all", "pending", "cleared", "reconciled"]).withDefault("all"),
+  type: parseAsStringLiteral(["all", "expense", "income", "transfer"]).withDefault("all"),
+};
 
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
@@ -724,6 +736,15 @@ function PageBody({
       />
     );
   }
+  if (pageSlug === "imports") {
+    return <ImportsPage accounts={accounts} ledgerContext={ledgerContext} />;
+  }
+  if (pageSlug === "rules") {
+    return <RulesPage ledgerContext={ledgerContext} />;
+  }
+  if (pageSlug === "recurring") {
+    return <RecurringPage accounts={accounts} ledgerContext={ledgerContext} />;
+  }
   if (pageSlug === "reports") {
     return (
       <ReportsPage
@@ -786,8 +807,13 @@ function TransactionsPage({
     readonly workspaceId: string;
   } | null;
 }) {
-  const [filters, setFilters] = useState<TransactionListFilterState>(() =>
-    makeTransactionListFilterDefaults(),
+  const [urlFilters, setUrlFilters] = useQueryStates(transactionFilterParsers);
+  const filters = useMemo<TransactionListFilterState>(
+    () => ({
+      ...makeTransactionListFilterDefaults(),
+      ...urlFilters,
+    }),
+    [urlFilters],
   );
   const transactionQueryFilters = useMemo(() => buildTransactionListQuery(filters), [filters]);
   const transactionsQuery = useInfiniteTransactionsQuery(ledgerContext, transactionQueryFilters);
@@ -796,7 +822,17 @@ function TransactionsPage({
   return (
     <section className="ff-single-page flex flex-col gap-4" data-testid={testIds.transactions.page}>
       <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
-      <TransactionFilters accounts={accounts} filters={filters} onChange={setFilters} />
+      <TransactionFilters
+        accounts={accounts}
+        filters={filters}
+        onChange={(nextFilters) => {
+          void setUrlFilters({
+            accountId: nextFilters.accountId,
+            status: nextFilters.status,
+            type: nextFilters.type,
+          });
+        }}
+      />
       <TransactionsPanel
         descriptionTestId={testIds.transactions.listDescription}
         description={en.shell.transactionsBody}
@@ -1107,6 +1143,487 @@ function BudgetPage({
                   : en.budgets.emptyState}
             </p>
           )}
+        </div>
+      </GlassSection>
+    </section>
+  );
+}
+
+function ImportsPage({
+  accounts,
+  ledgerContext,
+}: {
+  readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
+}) {
+  const queryClient = useQueryClient();
+  const importJobsQuery = useImportJobsQuery(ledgerContext);
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      const sample = makeSampleImportCsv(accounts);
+      if (!sample) {
+        throw new Error(en.imports.createFailed);
+      }
+      return await apiClient.createImportCsv({
+        csvText: sample.csvText,
+        fileName: sample.fileName,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["finance", "imports", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      });
+    },
+  });
+  const commitMutation = useMutation({
+    mutationFn: async (importJobId: string) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      return await apiClient.commitImportJob({
+        importJobId,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "imports", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+      ]);
+    },
+  });
+  const undoMutation = useMutation({
+    mutationFn: async (importJobId: string) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      return await apiClient.undoImportJob({
+        importJobId,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "imports", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+      ]);
+    },
+  });
+  const importJobs = importJobsQuery.data ?? [];
+
+  return (
+    <section className="ff-single-page space-y-4" data-testid={testIds.imports.page}>
+      <GlassSection title={en.shell.importsTitle} description={en.shell.importsBody}>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button
+              data-testid={testIds.imports.uploadButton}
+              disabled={createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+              size="sm"
+              type="button"
+            >
+              {createMutation.isPending ? en.imports.uploading : en.imports.upload}
+            </Button>
+          </div>
+          <div className="grid gap-3" data-testid={testIds.imports.list}>
+            {importJobs.length > 0 ? (
+              importJobs.map((importJob) => (
+                <Card
+                  className="ff-glass-panel"
+                  data-testid={testIds.imports.card(importJob.id)}
+                  key={importJob.id}
+                >
+                  <CardContent className="space-y-3 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-[15px]">{importJob.fileName ?? importJob.id}</p>
+                      <Badge data-testid={testIds.imports.status(importJob.id)} variant="outline">
+                        {importJob.status}
+                      </Badge>
+                    </div>
+                    <p className="text-[13px] text-slate-600 dark:text-white/62">
+                      {en.imports.previewRows}: {importJob.previewRows.length}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        data-testid={testIds.imports.commitButton(importJob.id)}
+                        disabled={
+                          importJob.status !== "preview_ready" ||
+                          (commitMutation.isPending && commitMutation.variables === importJob.id)
+                        }
+                        onClick={() => commitMutation.mutate(importJob.id)}
+                        size="sm"
+                        type="button"
+                      >
+                        {en.imports.commit}
+                      </Button>
+                      <Button
+                        data-testid={testIds.imports.undoButton(importJob.id)}
+                        disabled={
+                          importJob.status !== "committed" ||
+                          (undoMutation.isPending && undoMutation.variables === importJob.id)
+                        }
+                        onClick={() => undoMutation.mutate(importJob.id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {en.imports.undo}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <p
+                className="text-[14px] text-slate-600 dark:text-white/62"
+                data-testid={testIds.imports.emptyState}
+              >
+                {importJobsQuery.isPending
+                  ? en.shell.loadingData
+                  : importJobsQuery.isError
+                    ? en.imports.createFailed
+                    : en.imports.noImports}
+              </p>
+            )}
+          </div>
+          {createMutation.isError ? (
+            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
+              <AlertDescription>{en.imports.createFailed}</AlertDescription>
+            </Alert>
+          ) : null}
+          {commitMutation.isError ? (
+            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
+              <AlertDescription>{en.imports.commitFailed}</AlertDescription>
+            </Alert>
+          ) : null}
+          {undoMutation.isError ? (
+            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
+              <AlertDescription>{en.imports.undoFailed}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+      </GlassSection>
+    </section>
+  );
+}
+
+function RulesPage({
+  ledgerContext,
+}: {
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
+}) {
+  const queryClient = useQueryClient();
+  const rulesQuery = useRulesQuery(ledgerContext);
+  const [testCounts, setTestCounts] = useState<Record<string, number>>({});
+  const [applyCounts, setApplyCounts] = useState<Record<string, number>>({});
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      return await apiClient.createRule({
+        action: { status: "cleared", type: "set_transaction_status" },
+        condition: { type: "expense" },
+        enabled: true,
+        name: "Auto clear expenses",
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["finance", "rules", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      });
+    },
+  });
+  const testMutation = useMutation({
+    mutationFn: async (ruleId: string) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      const matches = await apiClient.testRule({
+        limit: 50,
+        ruleId,
+        ...ledgerContext,
+      });
+      return { matches, ruleId };
+    },
+    onSuccess: ({ matches, ruleId }) => {
+      setTestCounts((current) => ({ ...current, [ruleId]: matches.length }));
+    },
+  });
+  const applyMutation = useMutation({
+    mutationFn: async (ruleId: string) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      return await apiClient.applyRule({
+        limit: 50,
+        ruleId,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async (result, ruleId) => {
+      setApplyCounts((current) => ({ ...current, [ruleId]: result.updatedTransactionGroupIds.length }));
+      if (!ledgerContext) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      });
+    },
+  });
+  const rules = rulesQuery.data ?? [];
+
+  return (
+    <section className="ff-single-page space-y-4" data-testid={testIds.rules.page}>
+      <GlassSection title={en.shell.rulesTitle} description={en.shell.rulesBody}>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button
+              data-testid={testIds.rules.createButton}
+              disabled={createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+              size="sm"
+              type="button"
+            >
+              {createMutation.isPending ? en.rules.creating : en.rules.create}
+            </Button>
+          </div>
+          <div className="grid gap-3" data-testid={testIds.rules.list}>
+            {rules.length > 0 ? (
+              rules.map((rule) => (
+                <Card className="ff-glass-panel" data-testid={testIds.rules.card(rule.id)} key={rule.id}>
+                  <CardContent className="space-y-3 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-[15px]">{rule.name}</p>
+                      <Badge variant="outline">{rule.action.status}</Badge>
+                    </div>
+                    <p className="text-[13px] text-slate-600 dark:text-white/62">
+                      {rule.enabled ? en.rules.enabled : en.rules.disabled}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        data-testid={testIds.rules.testButton(rule.id)}
+                        disabled={testMutation.isPending && testMutation.variables === rule.id}
+                        onClick={() => testMutation.mutate(rule.id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {en.rules.test}
+                      </Button>
+                      <Button
+                        data-testid={testIds.rules.applyButton(rule.id)}
+                        disabled={applyMutation.isPending && applyMutation.variables === rule.id}
+                        onClick={() => applyMutation.mutate(rule.id)}
+                        size="sm"
+                        type="button"
+                      >
+                        {applyMutation.isPending && applyMutation.variables === rule.id
+                          ? en.rules.applying
+                          : en.rules.apply}
+                      </Button>
+                    </div>
+                    {testCounts[rule.id] !== undefined ? (
+                      <p className="text-[12px] text-slate-600 dark:text-white/62">
+                        {en.rules.matches.replace("{count}", String(testCounts[rule.id]))}
+                      </p>
+                    ) : null}
+                    {applyCounts[rule.id] !== undefined ? (
+                      <p className="text-[12px] text-slate-600 dark:text-white/62">
+                        {en.rules.updated.replace("{count}", String(applyCounts[rule.id]))}
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <p
+                className="text-[14px] text-slate-600 dark:text-white/62"
+                data-testid={testIds.rules.emptyState}
+              >
+                {rulesQuery.isPending
+                  ? en.shell.loadingData
+                  : rulesQuery.isError
+                    ? en.rules.createFailed
+                    : en.rules.noRules}
+              </p>
+            )}
+          </div>
+          {createMutation.isError || applyMutation.isError ? (
+            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
+              <AlertDescription>
+                {createMutation.isError ? en.rules.createFailed : en.rules.applyFailed}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+      </GlassSection>
+    </section>
+  );
+}
+
+function RecurringPage({
+  accounts,
+  ledgerContext,
+}: {
+  readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly ledgerContext: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  } | null;
+}) {
+  const queryClient = useQueryClient();
+  const recurringQuery = useRecurringTemplatesQuery(ledgerContext);
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      const payload = makeSampleRecurringPayload(accounts);
+      if (!payload) {
+        throw new Error(en.recurring.createFailed);
+      }
+      return await apiClient.createRecurringTemplate({
+        cadence: "monthly",
+        intervalCount: 1,
+        nextRunAt: new Date().toISOString(),
+        payload,
+        status: "active",
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["finance", "recurring", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      });
+    },
+  });
+  const generateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      return await apiClient.generateRecurringTemplate({
+        templateId,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      if (!ledgerContext) {
+        return;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "recurring", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
+        }),
+      ]);
+    },
+  });
+  const templates = recurringQuery.data ?? [];
+
+  return (
+    <section className="ff-single-page space-y-4" data-testid={testIds.recurring.page}>
+      <GlassSection title={en.shell.recurringTitle} description={en.shell.recurringBody}>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button
+              data-testid={testIds.recurring.createButton}
+              disabled={createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+              size="sm"
+              type="button"
+            >
+              {createMutation.isPending ? en.recurring.creating : en.recurring.create}
+            </Button>
+          </div>
+          <div className="grid gap-3" data-testid={testIds.recurring.list}>
+            {templates.length > 0 ? (
+              templates.map((template) => (
+                <Card
+                  className="ff-glass-panel"
+                  data-testid={testIds.recurring.card(template.id)}
+                  key={template.id}
+                >
+                  <CardContent className="space-y-3 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium text-[15px]">{template.payload.title ?? template.payload.description}</p>
+                      <Badge variant="outline">{template.status}</Badge>
+                    </div>
+                    <p className="text-[13px] text-slate-600 dark:text-white/62">
+                      {en.recurring.nextRun.replace("{value}", template.nextRunAt)}
+                    </p>
+                    <Button
+                      data-testid={testIds.recurring.generateButton(template.id)}
+                      disabled={generateMutation.isPending && generateMutation.variables === template.id}
+                      onClick={() => generateMutation.mutate(template.id)}
+                      size="sm"
+                      type="button"
+                    >
+                      {generateMutation.isPending && generateMutation.variables === template.id
+                        ? en.recurring.generating
+                        : en.recurring.generate}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <p
+                className="text-[14px] text-slate-600 dark:text-white/62"
+                data-testid={testIds.recurring.emptyState}
+              >
+                {recurringQuery.isPending
+                  ? en.shell.loadingData
+                  : recurringQuery.isError
+                    ? en.recurring.createFailed
+                    : en.recurring.noTemplates}
+              </p>
+            )}
+          </div>
+          {createMutation.isError || generateMutation.isError ? (
+            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
+              <AlertDescription>
+                {createMutation.isError ? en.recurring.createFailed : en.recurring.generateFailed}
+              </AlertDescription>
+            </Alert>
+          ) : null}
         </div>
       </GlassSection>
     </section>
@@ -2084,6 +2601,54 @@ function StatusCapsule({
       <span>{label}</span>
     </Badge>
   );
+}
+
+function makeSampleImportCsv(
+  accounts: readonly AccountWithBalanceResponse[],
+): { readonly csvText: string; readonly fileName: string } | null {
+  const sourceAccount = accounts[0];
+  const destinationAccount = accounts[1];
+  if (!sourceAccount || !destinationAccount || sourceAccount.id === destinationAccount.id) {
+    return null;
+  }
+
+  const occurredAt = new Date().toISOString();
+  return {
+    csvText: [
+      "type,sourceAccountId,destinationAccountId,amountMinor,currencyCode,occurredAt,description",
+      `expense,${sourceAccount.id},${destinationAccount.id},12000,${sourceAccount.currencyCode},${occurredAt},Groceries`,
+    ].join("\n"),
+    fileName: "quick-import.csv",
+  };
+}
+
+function makeSampleRecurringPayload(
+  accounts: readonly AccountWithBalanceResponse[],
+): RecurringTemplateResponse["payload"] | null {
+  const sourceAccount = accounts[0];
+  const destinationAccount = accounts[1];
+  if (!sourceAccount || !destinationAccount || sourceAccount.id === destinationAccount.id) {
+    return null;
+  }
+
+  return {
+    currencyCode: sourceAccount.currencyCode,
+    description: "Monthly recurring entry",
+    lines: [
+      {
+        amountMinor: "10000",
+        budgetId: null,
+        categoryId: null,
+        description: "Recurring line",
+        destinationAccountId: destinationAccount.id,
+        reportingAmountMinor: null,
+        reportingCurrencyCode: null,
+      },
+    ],
+    sourceAccountId: sourceAccount.id,
+    title: "Recurring template",
+    type: "expense",
+  };
 }
 
 function sumAccountBalances(accounts: readonly AccountWithBalanceResponse[]): bigint {

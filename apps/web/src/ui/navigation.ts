@@ -1,9 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  FileUp,
+  GitBranch,
   Home,
   Landmark,
   PieChart,
+  Repeat,
   ReceiptText,
   RefreshCcw,
   Settings,
@@ -48,6 +51,27 @@ export const navigationItems = [
     mobileLabel: en.nav.budgetsShort,
     slug: "budgets",
     to: "/budgets",
+  },
+  {
+    icon: FileUp,
+    label: en.nav.imports,
+    mobileLabel: en.nav.importsShort,
+    slug: "imports",
+    to: "/imports",
+  },
+  {
+    icon: GitBranch,
+    label: en.nav.rules,
+    mobileLabel: en.nav.rulesShort,
+    slug: "rules",
+    to: "/rules",
+  },
+  {
+    icon: Repeat,
+    label: en.nav.recurring,
+    mobileLabel: en.nav.recurringShort,
+    slug: "recurring",
+    to: "/recurring",
   },
   {
     icon: BarChart3,
