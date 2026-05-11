@@ -153,10 +153,22 @@ export const CreateTransactionResponseSchema = z.strictObject({
   }),
 });
 
+const QueryBooleanSchema = z
+  .union([z.boolean(), z.literal("true"), z.literal("false")])
+  .transform((value) => value === true || value === "true");
+
 export const ListTransactionsQuerySchema = CursorPaginationQuerySchema.extend({
   accountId: SyncedIdSchema.optional(),
+  amountMax: AmountMinorStringSchema.optional(),
+  amountMin: AmountMinorStringSchema.optional(),
+  budgetId: SyncedIdSchema.optional(),
+  categoryId: SyncedIdSchema.optional(),
+  currencyCode: CurrencyCodeSchema.optional(),
   fromOccurredAt: IsoDateTimeSchema.optional(),
+  importJobId: SyncedIdSchema.optional(),
+  reconciled: QueryBooleanSchema.optional(),
   status: z.enum(["pending", "cleared", "reconciled", "void"]).optional(),
+  tagId: SyncedIdSchema.optional(),
   toOccurredAt: IsoDateTimeSchema.optional(),
   type: z.enum(["expense", "income", "transfer"]).optional(),
 });

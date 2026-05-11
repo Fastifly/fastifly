@@ -6136,8 +6136,16 @@ export interface paths {
           cursor?: string;
           limit?: number;
           accountId?: string;
+          amountMax?: string;
+          amountMin?: string;
+          budgetId?: string;
+          categoryId?: string;
+          currencyCode?: string;
           fromOccurredAt?: string;
+          importJobId?: string;
+          reconciled?: boolean | "true" | "false";
           status?: "pending" | "cleared" | "reconciled" | "void";
+          tagId?: string;
           toOccurredAt?: string;
           type?: "expense" | "income" | "transfer";
         };

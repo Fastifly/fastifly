@@ -20,6 +20,7 @@ import {
   type IdentityRepository,
   type SqliteClient,
   type TransactionQueryService,
+  type TransactionWriteError,
   type TransactionWriteRepository,
 } from "../index.js";
 import {
@@ -360,6 +361,65 @@ describe("transaction write repository", () => {
       );
     });
 
+    it(`rejects archived or unknown category and budget references on ${factory.name}`, async () => {
+      await factory.run(
+        async ({ accountRepository, identityRepository, rawDb, transactionRepository }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+
+          await expect(
+            Promise.resolve().then(() =>
+              transactionRepository.createTransaction({
+                currencyCode: "INR",
+                description: "Unknown category",
+                ledgerId: workspaceState.ledger.id,
+                lines: [
+                  {
+                    amountMinor: 1_000n,
+                    categoryId: createUuidV7(),
+                    destinationAccountId: accounts.groceries.id,
+                  },
+                ],
+                occurredAt: "2026-05-09T12:00:00.000Z",
+                sourceAccountId: accounts.bank.id,
+                type: "expense",
+                workspaceId: workspaceState.workspace.id,
+              }),
+            ),
+          ).rejects.toMatchObject<TransactionWriteError>({
+            code: "CATEGORY_NOT_FOUND_OR_ARCHIVED",
+          });
+
+          await expect(
+            Promise.resolve().then(() =>
+              transactionRepository.createTransaction({
+                currencyCode: "INR",
+                description: "Unknown budget",
+                ledgerId: workspaceState.ledger.id,
+                lines: [
+                  {
+                    amountMinor: 1_000n,
+                    budgetId: createUuidV7(),
+                    destinationAccountId: accounts.groceries.id,
+                  },
+                ],
+                occurredAt: "2026-05-09T12:10:00.000Z",
+                sourceAccountId: accounts.bank.id,
+                type: "expense",
+                workspaceId: workspaceState.workspace.id,
+              }),
+            ),
+          ).rejects.toMatchObject<TransactionWriteError>({
+            code: "BUDGET_NOT_FOUND_OR_ARCHIVED",
+          });
+
+          await expect(readTransactionGroupCount(rawDb)).resolves.toBe(0);
+        },
+      );
+    });
+
     it(`lists transaction groups with stable ordering and nested postings on ${factory.name}`, async () => {
       await factory.run(
         async ({
@@ -572,6 +632,114 @@ describe("transaction write repository", () => {
       );
     });
 
+    it(`filters transactions by amount, currency, category, budget, and reconciled on ${factory.name}`, async () => {
+      await factory.run(
+        async ({
+          accountRepository,
+          identityRepository,
+          rawDb,
+          transactionQueryService,
+          transactionRepository,
+        }) => {
+          const { accounts, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          const categoryId = createUuidV7();
+          const budgetId = createUuidV7();
+          const now = "2026-05-09T00:00:00.000Z";
+          await insertCategory(rawDb, {
+            id: categoryId,
+            ledgerId: workspaceState.ledger.id,
+            name: "Food",
+            now,
+            workspaceId: workspaceState.workspace.id,
+          });
+          await insertBudget(rawDb, {
+            currencyCode: "INR",
+            id: budgetId,
+            ledgerId: workspaceState.ledger.id,
+            name: "Food budget",
+            now,
+            period: "monthly",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Matching",
+            ledgerId: workspaceState.ledger.id,
+            lines: [
+              {
+                amountMinor: 5_000n,
+                budgetId,
+                categoryId,
+                destinationAccountId: accounts.groceries.id,
+              },
+            ],
+            occurredAt: "2026-05-07T09:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            status: "pending",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Too high amount",
+            ledgerId: workspaceState.ledger.id,
+            lines: [
+              {
+                amountMinor: 9_000n,
+                budgetId,
+                categoryId,
+                destinationAccountId: accounts.groceries.id,
+              },
+            ],
+            occurredAt: "2026-05-07T10:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            status: "pending",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+          await transactionRepository.createTransaction({
+            currencyCode: "INR",
+            description: "Reconciled",
+            ledgerId: workspaceState.ledger.id,
+            lines: [
+              {
+                amountMinor: 5_000n,
+                budgetId,
+                categoryId,
+                destinationAccountId: accounts.groceries.id,
+              },
+            ],
+            occurredAt: "2026-05-07T11:00:00.000Z",
+            sourceAccountId: accounts.bank.id,
+            status: "reconciled",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const filtered = await transactionQueryService.listTransactionGroups({
+            accountId: accounts.groceries.id,
+            amountMaxMinor: 6_000n,
+            amountMinMinor: 4_000n,
+            budgetId,
+            categoryId,
+            currencyCode: "INR",
+            fromOccurredAt: "2026-05-07T00:00:00.000Z",
+            ledgerId: workspaceState.ledger.id,
+            reconciled: false,
+            toOccurredAt: "2026-05-07T23:59:59.999Z",
+            type: "expense",
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          expect(filtered.items.map((group) => group.title)).toEqual(["Matching"]);
+        },
+      );
+    });
+
     it(`returns transaction detail scoped by workspace and ledger on ${factory.name}`, async () => {
       await factory.run(
         async ({
@@ -727,6 +895,125 @@ async function seedPostgresCurrency(client: QueryablePostgres): Promise<void> {
       '2026-05-09T00:00:00.000Z'
     )
     ON CONFLICT(code) DO NOTHING
+  `);
+}
+
+type InsertCategoryInput = {
+  readonly id: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly name: string;
+  readonly now: string;
+};
+
+async function insertCategory(
+  rawDb: SqliteClient | QueryablePostgres,
+  input: InsertCategoryInput,
+): Promise<void> {
+  if ("prepare" in rawDb) {
+    rawDb
+      .prepare(
+        `
+          INSERT INTO categories (
+            id,
+            workspace_id,
+            ledger_id,
+            name,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
+        `,
+      )
+      .run(input.id, input.workspaceId, input.ledgerId, input.name, input.now, input.now);
+    return;
+  }
+
+  await rawDb.query(`
+    INSERT INTO categories (
+      id,
+      workspace_id,
+      ledger_id,
+      name,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      '${input.id}',
+      '${input.workspaceId}',
+      '${input.ledgerId}',
+      '${input.name}',
+      '${input.now}',
+      '${input.now}'
+    )
+  `);
+}
+
+type InsertBudgetInput = {
+  readonly id: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly ledgerId: SyncedId;
+  readonly name: string;
+  readonly currencyCode: string;
+  readonly period: string;
+  readonly now: string;
+};
+
+async function insertBudget(rawDb: SqliteClient | QueryablePostgres, input: InsertBudgetInput) {
+  if ("prepare" in rawDb) {
+    rawDb
+      .prepare(
+        `
+          INSERT INTO budgets (
+            id,
+            workspace_id,
+            ledger_id,
+            name,
+            currency_code,
+            period,
+            rollover_enabled,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+        `,
+      )
+      .run(
+        input.id,
+        input.workspaceId,
+        input.ledgerId,
+        input.name,
+        input.currencyCode,
+        input.period,
+        input.now,
+        input.now,
+      );
+    return;
+  }
+
+  await rawDb.query(`
+    INSERT INTO budgets (
+      id,
+      workspace_id,
+      ledger_id,
+      name,
+      currency_code,
+      period,
+      rollover_enabled,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      '${input.id}',
+      '${input.workspaceId}',
+      '${input.ledgerId}',
+      '${input.name}',
+      '${input.currencyCode}',
+      '${input.period}',
+      false,
+      '${input.now}',
+      '${input.now}'
+    )
   `);
 }
 

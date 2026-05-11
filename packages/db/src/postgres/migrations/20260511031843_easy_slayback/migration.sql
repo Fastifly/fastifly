@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "accounts_opening_helper_active_unique" ON "accounts" ("ledger_id","currency_code") WHERE "kind" = 'equity' AND "subtype" = 'opening_helper' AND "archived_at" IS NULL;

@@ -447,6 +447,11 @@ export const pgAccounts = pgTable(
     index("accounts_currency_code_idx").on(table.currencyCode),
     index("accounts_archived_at_idx").on(table.archivedAt),
     uniqueIndex("accounts_ledger_name_unique").on(table.ledgerId, table.name),
+    uniqueIndex("accounts_opening_helper_active_unique")
+      .on(table.ledgerId, table.currencyCode)
+      .where(
+        sql`${table.kind} = 'equity' AND ${table.subtype} = 'opening_helper' AND ${table.archivedAt} IS NULL`,
+      ),
     check(
       "accounts_kind_check",
       sql`${table.kind} IN ('asset', 'liability', 'revenue', 'expense', 'equity')`,

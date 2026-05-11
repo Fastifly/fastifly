@@ -185,6 +185,7 @@ export {
   createPostgresTransactionWriteRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
+  TransactionWriteError,
 } from "./repositories/transactions.js";
 export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
 export { createSeedPasswordHash, SEED_CREDENTIALS, SEED_NOW } from "./seed/fixtures.js";

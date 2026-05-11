@@ -28,6 +28,8 @@ import type { PostgresDatabase } from "../postgres/client.js";
 import {
   pgAccounts,
   pgBalanceRecalculationQueue,
+  pgBudgets,
+  pgCategories,
   pgTransactionGroups,
   pgTransactionJournals,
   pgTransactionPostings,
@@ -106,6 +108,25 @@ export type TransactionWriteRepository = {
 
 type MaybePromise<T> = T | Promise<T>;
 
+type TransactionWriteErrorCode =
+  | "LEDGER_SCOPE_NOT_FOUND"
+  | "ACCOUNT_NOT_FOUND_OR_INACTIVE"
+  | "CATEGORY_NOT_FOUND_OR_ARCHIVED"
+  | "BUDGET_NOT_FOUND_OR_ARCHIVED"
+  | "INVALID_TRANSACTION_INPUT"
+  | "CROSS_CURRENCY_WRITE_NOT_SUPPORTED"
+  | "ACCOUNT_PAIR_MISMATCH";
+
+export class TransactionWriteError extends Error {
+  constructor(
+    message: string,
+    readonly code: TransactionWriteErrorCode,
+  ) {
+    super(message);
+    this.name = "TransactionWriteError";
+  }
+}
+
 export type TransactionQueryTypeFilter = Extract<
   UserFacingTransactionType,
   "expense" | "income" | "transfer"
@@ -115,8 +136,16 @@ export type TransactionQueryStatusFilter = "pending" | "cleared" | "reconciled" 
 
 export type ListTransactionsInput = LedgerScope & {
   readonly accountId?: SyncedId | null;
+  readonly amountMaxMinor?: bigint | null;
+  readonly amountMinMinor?: bigint | null;
+  readonly budgetId?: SyncedId | null;
+  readonly categoryId?: SyncedId | null;
   readonly cursor?: string | null;
+  readonly currencyCode?: string | null;
   readonly fromOccurredAt?: string | null;
+  readonly importJobId?: SyncedId | null;
+  readonly reconciled?: boolean | null;
+  readonly tagId?: SyncedId | null;
   readonly toOccurredAt?: string | null;
   readonly type?: TransactionQueryTypeFilter | null;
   readonly status?: TransactionQueryStatusFilter | null;
@@ -255,6 +284,7 @@ export function createSqliteTransactionWriteRepository(
             readSqliteAccountForTransaction(client, scope, line.destinationAccountId),
           );
           validateTransactionAccounts(normalized, sourceAccount, destinationAccounts);
+          assertSqliteTransactionReferences(client, scope, normalized);
 
           const group = createTransactionGroupRecord(scope, normalized, resolved.createId());
           insertSqliteTransactionGroup(client, { group, normalized, now });
@@ -315,6 +345,7 @@ export function createPostgresTransactionWriteRepository(
           ),
         );
         validateTransactionAccounts(normalized, sourceAccount, destinationAccounts);
+        await assertPostgresTransactionReferences(tx, scope, normalized);
 
         const group = createTransactionGroupRecord(scope, normalized, resolved.createId());
         await tx.insert(pgTransactionGroups).values({
@@ -429,7 +460,10 @@ function normalizeCreateTransactionInput(
 ): NormalizedCreateTransactionInput {
   const lines = input.lines.map((line) => normalizeTransactionLine(input, line));
   if (lines.length === 0) {
-    throw new Error("Transaction must contain at least one line.");
+    throw new TransactionWriteError(
+      "Transaction must contain at least one line.",
+      "INVALID_TRANSACTION_INPUT",
+    );
   }
 
   const description = normalizeText(input.description, "Transaction description");
@@ -453,7 +487,10 @@ function normalizeTransactionQueryLimit(limit: number | null | undefined): numbe
     return 50;
   }
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
-    throw new Error("Transaction query limit must be an integer from 1 to 200.");
+    throw new TransactionWriteError(
+      "Transaction query limit must be an integer from 1 to 200.",
+      "INVALID_TRANSACTION_INPUT",
+    );
   }
 
   return limit;
@@ -491,14 +528,20 @@ function normalizeTransactionLine(
   line: CreateTransactionLineInput,
 ): NormalizedTransactionLine {
   if (line.amountMinor <= 0n) {
-    throw new Error("Transaction line amount must be greater than zero.");
+    throw new TransactionWriteError(
+      "Transaction line amount must be greater than zero.",
+      "INVALID_TRANSACTION_INPUT",
+    );
   }
 
   const currencyCode = normalizeCurrencyCode(transaction.currencyCode);
   const reportingCurrencyCode = normalizeCurrencyCode(line.reportingCurrencyCode ?? currencyCode);
   const reportingAmountMinor = line.reportingAmountMinor ?? line.amountMinor;
   if (reportingCurrencyCode !== currencyCode || reportingAmountMinor !== line.amountMinor) {
-    throw new Error("Converted reporting amounts require cross-currency transaction support.");
+    throw new TransactionWriteError(
+      "Converted reporting amounts require cross-currency transaction support.",
+      "CROSS_CURRENCY_WRITE_NOT_SUPPORTED",
+    );
   }
   const categoryId = transaction.type === "transfer" ? null : (line.categoryId ?? null);
   const budgetId = transaction.type === "transfer" ? null : (line.budgetId ?? null);
@@ -519,7 +562,7 @@ function normalizeTransactionLine(
 function normalizeText(value: string, fieldName: string): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    throw new Error(`${fieldName} is required.`);
+    throw new TransactionWriteError(`${fieldName} is required.`, "INVALID_TRANSACTION_INPUT");
   }
 
   return trimmed;
@@ -533,16 +576,33 @@ function normalizeOptionalText(value: string | null | undefined): string | null 
 function normalizeCurrencyCode(currencyCode: string): string {
   const normalized = currencyCode.trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(normalized)) {
-    throw new Error("Currency code must be a three-letter uppercase code.");
+    throw new TransactionWriteError(
+      "Currency code must be a three-letter uppercase code.",
+      "INVALID_TRANSACTION_INPUT",
+    );
   }
 
   return normalized;
 }
 
+function normalizeNonNegativeAmount(value: bigint, fieldName: string): bigint {
+  if (value < 0n) {
+    throw new TransactionWriteError(
+      `${fieldName} must be greater than or equal to zero.`,
+      "INVALID_TRANSACTION_INPUT",
+    );
+  }
+
+  return value;
+}
+
 function normalizeTimestamp(value: string, fieldName: string): string {
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.valueOf())) {
-    throw new Error(`${fieldName} must be a valid timestamp.`);
+    throw new TransactionWriteError(
+      `${fieldName} must be a valid timestamp.`,
+      "INVALID_TRANSACTION_INPUT",
+    );
   }
 
   return timestamp.toISOString();
@@ -575,18 +635,145 @@ function validateTransactionAccounts(
   destinationAccounts: readonly AccountLookupRecord[],
 ): void {
   if (sourceAccount.currencyCode !== input.currencyCode) {
-    throw new Error("Source account currency must match the transaction currency.");
+    throw new TransactionWriteError(
+      "Source account currency must match the transaction currency.",
+      "ACCOUNT_PAIR_MISMATCH",
+    );
   }
 
   for (const destinationAccount of destinationAccounts) {
     if (destinationAccount.currencyCode !== input.currencyCode) {
-      throw new Error("Destination account currency must match the transaction currency.");
+      throw new TransactionWriteError(
+        "Destination account currency must match the transaction currency.",
+        "ACCOUNT_PAIR_MISMATCH",
+      );
     }
     const inferredType = inferTransactionType(sourceAccount, destinationAccount);
     if (inferredType !== input.type) {
-      throw new Error("Transaction accounts do not match the requested transaction type.");
+      throw new TransactionWriteError(
+        "Transaction accounts do not match the requested transaction type.",
+        "ACCOUNT_PAIR_MISMATCH",
+      );
     }
   }
+}
+
+function assertSqliteTransactionReferences(
+  client: SqliteClient,
+  scope: LedgerScope,
+  input: NormalizedCreateTransactionInput,
+): void {
+  const categoryIds = collectUniqueCategoryIds(input.lines);
+  for (const categoryId of categoryIds) {
+    const row = client
+      .prepare(
+        `
+          SELECT id
+          FROM categories
+          WHERE id = ?
+            AND workspace_id = ?
+            AND ledger_id = ?
+            AND archived_at IS NULL
+          LIMIT 1
+        `,
+      )
+      .get(categoryId, scope.workspaceId, scope.ledgerId);
+    if (!row) {
+      throw new TransactionWriteError(
+        "Category was not found or is archived.",
+        "CATEGORY_NOT_FOUND_OR_ARCHIVED",
+      );
+    }
+  }
+
+  const budgetIds = collectUniqueBudgetIds(input.lines);
+  for (const budgetId of budgetIds) {
+    const row = client
+      .prepare(
+        `
+          SELECT id
+          FROM budgets
+          WHERE id = ?
+            AND workspace_id = ?
+            AND ledger_id = ?
+            AND archived_at IS NULL
+          LIMIT 1
+        `,
+      )
+      .get(budgetId, scope.workspaceId, scope.ledgerId);
+    if (!row) {
+      throw new TransactionWriteError(
+        "Budget was not found or is archived.",
+        "BUDGET_NOT_FOUND_OR_ARCHIVED",
+      );
+    }
+  }
+}
+
+async function assertPostgresTransactionReferences(
+  db: PostgresExecutor,
+  scope: LedgerScope,
+  input: NormalizedCreateTransactionInput,
+): Promise<void> {
+  const categoryIds = collectUniqueCategoryIds(input.lines);
+  if (categoryIds.length > 0) {
+    const rows = await db
+      .select({ id: pgCategories.id })
+      .from(pgCategories)
+      .where(
+        and(
+          eq(pgCategories.workspaceId, scope.workspaceId),
+          eq(pgCategories.ledgerId, scope.ledgerId),
+          inArray(pgCategories.id, categoryIds),
+          isNull(pgCategories.archivedAt),
+        ),
+      );
+    if (rows.length !== categoryIds.length) {
+      throw new TransactionWriteError(
+        "Category was not found or is archived.",
+        "CATEGORY_NOT_FOUND_OR_ARCHIVED",
+      );
+    }
+  }
+
+  const budgetIds = collectUniqueBudgetIds(input.lines);
+  if (budgetIds.length > 0) {
+    const rows = await db
+      .select({ id: pgBudgets.id })
+      .from(pgBudgets)
+      .where(
+        and(
+          eq(pgBudgets.workspaceId, scope.workspaceId),
+          eq(pgBudgets.ledgerId, scope.ledgerId),
+          inArray(pgBudgets.id, budgetIds),
+          isNull(pgBudgets.archivedAt),
+        ),
+      );
+    if (rows.length !== budgetIds.length) {
+      throw new TransactionWriteError(
+        "Budget was not found or is archived.",
+        "BUDGET_NOT_FOUND_OR_ARCHIVED",
+      );
+    }
+  }
+}
+
+function collectUniqueCategoryIds(
+  lines: readonly NormalizedTransactionLine[],
+): readonly SyncedId[] {
+  return Array.from(
+    new Set(
+      lines.map((line) => line.categoryId).filter((value): value is SyncedId => value !== null),
+    ),
+  );
+}
+
+function collectUniqueBudgetIds(lines: readonly NormalizedTransactionLine[]): readonly SyncedId[] {
+  return Array.from(
+    new Set(
+      lines.map((line) => line.budgetId).filter((value): value is SyncedId => value !== null),
+    ),
+  );
 }
 
 function listSqliteTransactionGroupIds(
@@ -670,11 +857,58 @@ function appendSqliteQueryFilters(
     conditions.push("transaction_journals.type = ?");
     params.push(input.type);
   }
+  if (input.reconciled !== null && input.reconciled !== undefined) {
+    conditions.push(
+      input.reconciled
+        ? "transaction_journals.status = 'reconciled'"
+        : "transaction_journals.status <> 'reconciled'",
+    );
+  }
   if (input.status) {
     conditions.push("transaction_journals.status = ?");
     params.push(input.status);
   } else {
     conditions.push("transaction_journals.status <> 'void'");
+  }
+  if (input.amountMinMinor !== null && input.amountMinMinor !== undefined) {
+    conditions.push("ABS(CAST(transaction_postings.amount_minor AS INTEGER)) >= ?");
+    params.push(
+      bindSqliteMoneyMinor(
+        normalizeNonNegativeAmount(input.amountMinMinor, "amountMinMinor"),
+        "amount_minor",
+      ),
+    );
+  }
+  if (input.amountMaxMinor !== null && input.amountMaxMinor !== undefined) {
+    conditions.push("ABS(CAST(transaction_postings.amount_minor AS INTEGER)) <= ?");
+    params.push(
+      bindSqliteMoneyMinor(
+        normalizeNonNegativeAmount(input.amountMaxMinor, "amountMaxMinor"),
+        "amount_minor",
+      ),
+    );
+  }
+  if (input.currencyCode) {
+    conditions.push("transaction_postings.currency_code = ?");
+    params.push(normalizeCurrencyCode(input.currencyCode));
+  }
+  if (input.categoryId) {
+    conditions.push("transaction_postings.category_id = ?");
+    params.push(input.categoryId);
+  }
+  if (input.budgetId) {
+    conditions.push("transaction_postings.budget_id = ?");
+    params.push(input.budgetId);
+  }
+  if (input.tagId) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_tags AS tag_filter WHERE tag_filter.transaction_journal_id = transaction_journals.id AND tag_filter.tag_id = ?)",
+    );
+    params.push(input.tagId);
+  }
+  if (input.importJobId) {
+    conditions.push("transaction_journals.import_job_id = ?");
+    params.push(input.importJobId);
   }
 }
 
@@ -785,11 +1019,68 @@ function buildSqliteHydrationFilterConditions(
     conditions.push("transaction_journals.type = ?");
     params.push(input.type);
   }
+  if (input.reconciled !== null && input.reconciled !== undefined) {
+    conditions.push(
+      input.reconciled
+        ? "transaction_journals.status = 'reconciled'"
+        : "transaction_journals.status <> 'reconciled'",
+    );
+  }
   if (input.status) {
     conditions.push("transaction_journals.status = ?");
     params.push(input.status);
   } else {
     conditions.push("transaction_journals.status <> 'void'");
+  }
+  if (input.amountMinMinor !== null && input.amountMinMinor !== undefined) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND ABS(CAST(posting_filter.amount_minor AS INTEGER)) >= ?)",
+    );
+    params.push(
+      bindSqliteMoneyMinor(
+        normalizeNonNegativeAmount(input.amountMinMinor, "amountMinMinor"),
+        "amount_minor",
+      ),
+    );
+  }
+  if (input.amountMaxMinor !== null && input.amountMaxMinor !== undefined) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND ABS(CAST(posting_filter.amount_minor AS INTEGER)) <= ?)",
+    );
+    params.push(
+      bindSqliteMoneyMinor(
+        normalizeNonNegativeAmount(input.amountMaxMinor, "amountMaxMinor"),
+        "amount_minor",
+      ),
+    );
+  }
+  if (input.currencyCode) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND posting_filter.currency_code = ?)",
+    );
+    params.push(normalizeCurrencyCode(input.currencyCode));
+  }
+  if (input.categoryId) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND posting_filter.category_id = ?)",
+    );
+    params.push(input.categoryId);
+  }
+  if (input.budgetId) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND posting_filter.budget_id = ?)",
+    );
+    params.push(input.budgetId);
+  }
+  if (input.tagId) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM transaction_tags AS tag_filter WHERE tag_filter.transaction_journal_id = transaction_journals.id AND tag_filter.tag_id = ?)",
+    );
+    params.push(input.tagId);
+  }
+  if (input.importJobId) {
+    conditions.push("transaction_journals.import_job_id = ?");
+    params.push(input.importJobId);
   }
 
   return conditions;
@@ -810,7 +1101,7 @@ function assertSqliteLedgerScope(client: SqliteClient, scope: LedgerScope): void
     .get(scope.ledgerId, scope.workspaceId);
 
   if (!row) {
-    throw new Error("Ledger scope was not found.");
+    throw new TransactionWriteError("Ledger scope was not found.", "LEDGER_SCOPE_NOT_FOUND");
   }
 }
 
@@ -835,7 +1126,10 @@ function readSqliteAccountForTransaction(
     .get(accountId, scope.workspaceId, scope.ledgerId);
 
   if (!row) {
-    throw new Error("Transaction account was not found or active.");
+    throw new TransactionWriteError(
+      "Transaction account was not found or active.",
+      "ACCOUNT_NOT_FOUND_OR_INACTIVE",
+    );
   }
 
   return {
@@ -987,7 +1281,7 @@ async function assertPostgresLedgerScope(db: PostgresExecutor, scope: LedgerScop
   `);
 
   if (extractRows(rows).length === 0) {
-    throw new Error("Ledger scope was not found.");
+    throw new TransactionWriteError("Ledger scope was not found.", "LEDGER_SCOPE_NOT_FOUND");
   }
 }
 
@@ -1016,7 +1310,10 @@ async function readPostgresAccountForTransaction(
     .limit(1);
   const row = rows[0];
   if (!row) {
-    throw new Error("Transaction account was not found or active.");
+    throw new TransactionWriteError(
+      "Transaction account was not found or active.",
+      "ACCOUNT_NOT_FOUND_OR_INACTIVE",
+    );
   }
 
   return {
@@ -1059,10 +1356,51 @@ async function listPostgresTransactionGroupIds(
   if (input.type) {
     conditions.push(eq(pgTransactionJournals.type, input.type));
   }
+  if (input.reconciled !== null && input.reconciled !== undefined) {
+    conditions.push(
+      input.reconciled
+        ? eq(pgTransactionJournals.status, "reconciled")
+        : ne(pgTransactionJournals.status, "reconciled"),
+    );
+  }
   if (input.status) {
     conditions.push(eq(pgTransactionJournals.status, input.status));
   } else {
     conditions.push(ne(pgTransactionJournals.status, "void"));
+  }
+  if (input.amountMinMinor !== null && input.amountMinMinor !== undefined) {
+    conditions.push(
+      sql`ABS(${pgTransactionPostings.amountMinor}) >= ${normalizeNonNegativeAmount(input.amountMinMinor, "amountMinMinor")}`,
+    );
+  }
+  if (input.amountMaxMinor !== null && input.amountMaxMinor !== undefined) {
+    conditions.push(
+      sql`ABS(${pgTransactionPostings.amountMinor}) <= ${normalizeNonNegativeAmount(input.amountMaxMinor, "amountMaxMinor")}`,
+    );
+  }
+  if (input.currencyCode) {
+    conditions.push(
+      eq(pgTransactionPostings.currencyCode, normalizeCurrencyCode(input.currencyCode)),
+    );
+  }
+  if (input.categoryId) {
+    conditions.push(eq(pgTransactionPostings.categoryId, input.categoryId));
+  }
+  if (input.budgetId) {
+    conditions.push(eq(pgTransactionPostings.budgetId, input.budgetId));
+  }
+  if (input.tagId) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_tags AS tag_filter
+        WHERE tag_filter.transaction_journal_id = ${pgTransactionJournals.id}
+          AND tag_filter.tag_id = ${input.tagId}
+      )
+    `);
+  }
+  if (input.importJobId) {
+    conditions.push(eq(pgTransactionJournals.importJobId, input.importJobId));
   }
 
   const maxOccurredAt = sql<Date>`MAX(${pgTransactionJournals.occurredAt})`;
@@ -1198,10 +1536,80 @@ function buildPostgresHydrationFilterConditions(input: ListTransactionsInput | u
   if (input.type) {
     conditions.push(eq(pgTransactionJournals.type, input.type));
   }
+  if (input.reconciled !== null && input.reconciled !== undefined) {
+    conditions.push(
+      input.reconciled
+        ? eq(pgTransactionJournals.status, "reconciled")
+        : ne(pgTransactionJournals.status, "reconciled"),
+    );
+  }
   if (input.status) {
     conditions.push(eq(pgTransactionJournals.status, input.status));
   } else {
     conditions.push(ne(pgTransactionJournals.status, "void"));
+  }
+  if (input.amountMinMinor !== null && input.amountMinMinor !== undefined) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND ABS(posting_filter.amount_minor) >= ${normalizeNonNegativeAmount(input.amountMinMinor, "amountMinMinor")}
+      )
+    `);
+  }
+  if (input.amountMaxMinor !== null && input.amountMaxMinor !== undefined) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND ABS(posting_filter.amount_minor) <= ${normalizeNonNegativeAmount(input.amountMaxMinor, "amountMaxMinor")}
+      )
+    `);
+  }
+  if (input.currencyCode) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND posting_filter.currency_code = ${normalizeCurrencyCode(input.currencyCode)}
+      )
+    `);
+  }
+  if (input.categoryId) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND posting_filter.category_id = ${input.categoryId}
+      )
+    `);
+  }
+  if (input.budgetId) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
+          AND posting_filter.budget_id = ${input.budgetId}
+      )
+    `);
+  }
+  if (input.tagId) {
+    conditions.push(sql`
+      EXISTS (
+        SELECT 1
+        FROM transaction_tags AS tag_filter
+        WHERE tag_filter.transaction_journal_id = ${pgTransactionJournals.id}
+          AND tag_filter.tag_id = ${input.tagId}
+      )
+    `);
+  }
+  if (input.importJobId) {
+    conditions.push(eq(pgTransactionJournals.importJobId, input.importJobId));
   }
 
   return conditions;

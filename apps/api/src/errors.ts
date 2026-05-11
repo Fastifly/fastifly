@@ -4,7 +4,7 @@ import {
   makeApiError,
   makeValidationError,
 } from "@fastifly/common";
-import { FinanceMutationError, LedgerMutationError } from "@fastifly/db";
+import { FinanceMutationError, LedgerMutationError, TransactionWriteError } from "@fastifly/db";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 const DEFAULT_ERROR_MESSAGES = {
@@ -98,6 +98,57 @@ function toFinanceMutationHttpError(error: FinanceMutationError): {
   }
 }
 
+function toTransactionWriteHttpError(error: TransactionWriteError): {
+  readonly statusCode: number;
+  readonly code: ApiErrorCode;
+  readonly message: string;
+} {
+  switch (error.code) {
+    case "LEDGER_SCOPE_NOT_FOUND":
+      return {
+        code: "NOT_FOUND",
+        message: "The requested ledger was not found.",
+        statusCode: 404,
+      };
+    case "ACCOUNT_NOT_FOUND_OR_INACTIVE":
+      return {
+        code: "NOT_FOUND",
+        message: "The account was not found or is inactive.",
+        statusCode: 404,
+      };
+    case "CATEGORY_NOT_FOUND_OR_ARCHIVED":
+      return {
+        code: "NOT_FOUND",
+        message: "The category was not found or is archived.",
+        statusCode: 404,
+      };
+    case "BUDGET_NOT_FOUND_OR_ARCHIVED":
+      return {
+        code: "NOT_FOUND",
+        message: "The budget was not found or is archived.",
+        statusCode: 404,
+      };
+    case "INVALID_TRANSACTION_INPUT":
+      return {
+        code: "BAD_REQUEST",
+        message: error.message,
+        statusCode: 400,
+      };
+    case "CROSS_CURRENCY_WRITE_NOT_SUPPORTED":
+      return {
+        code: "BAD_REQUEST",
+        message: "Cross-currency transaction writes are not supported yet.",
+        statusCode: 400,
+      };
+    case "ACCOUNT_PAIR_MISMATCH":
+      return {
+        code: "BAD_REQUEST",
+        message: "The selected accounts do not match this transaction type.",
+        statusCode: 400,
+      };
+  }
+}
+
 function mapStatusToApiErrorCode(statusCode: number): ApiErrorCode {
   switch (statusCode) {
     case 401:
@@ -184,6 +235,21 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof FinanceMutationError) {
       const mappedError = toFinanceMutationHttpError(error);
+      sendError(
+        reply,
+        mappedError.statusCode,
+        makeApiError({
+          code: mappedError.code,
+          message: mappedError.message,
+          details: {},
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof TransactionWriteError) {
+      const mappedError = toTransactionWriteHttpError(error);
       sendError(
         reply,
         mappedError.statusCode,

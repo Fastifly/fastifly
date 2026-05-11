@@ -284,8 +284,12 @@ export function createSqliteAccountRepository(
           FROM accounts
           LEFT JOIN transaction_postings
             ON transaction_postings.account_id = accounts.id
+            AND transaction_postings.workspace_id = accounts.workspace_id
+            AND transaction_postings.ledger_id = accounts.ledger_id
           LEFT JOIN transaction_journals
             ON transaction_journals.id = transaction_postings.journal_id
+            AND transaction_journals.workspace_id = accounts.workspace_id
+            AND transaction_journals.ledger_id = accounts.ledger_id
           WHERE accounts.id = ?
             AND accounts.workspace_id = ?
             AND accounts.ledger_id = ?
@@ -446,10 +450,21 @@ export function createPostgresAccountRepository(
           reportingCurrencyCode: sql<string>`COALESCE(MAX(${pgTransactionPostings.reportingCurrencyCode}), ${pgAccounts.currencyCode})`,
         })
         .from(pgAccounts)
-        .leftJoin(pgTransactionPostings, eq(pgTransactionPostings.accountId, pgAccounts.id))
+        .leftJoin(
+          pgTransactionPostings,
+          and(
+            eq(pgTransactionPostings.accountId, pgAccounts.id),
+            eq(pgTransactionPostings.workspaceId, pgAccounts.workspaceId),
+            eq(pgTransactionPostings.ledgerId, pgAccounts.ledgerId),
+          ),
+        )
         .leftJoin(
           pgTransactionJournals,
-          eq(pgTransactionJournals.id, pgTransactionPostings.journalId),
+          and(
+            eq(pgTransactionJournals.id, pgTransactionPostings.journalId),
+            eq(pgTransactionJournals.workspaceId, pgAccounts.workspaceId),
+            eq(pgTransactionJournals.ledgerId, pgAccounts.ledgerId),
+          ),
         )
         .where(
           and(
@@ -767,18 +782,46 @@ function findOrCreateSqliteOpeningBalanceAccount(
     return toSqliteAccountRecord(existing);
   }
 
-  return insertSqliteAccount(client, {
-    currencyCode: input.account.currencyCode,
-    id: input.createId(),
-    kind: "equity",
-    ledgerId: input.account.ledgerId,
-    name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
-    now: input.now,
-    openingBalanceDate: null,
-    openingBalanceMinor: null,
-    subtype: "opening_helper",
-    workspaceId: input.account.workspaceId,
-  });
+  try {
+    return insertSqliteAccount(client, {
+      currencyCode: input.account.currencyCode,
+      id: input.createId(),
+      kind: "equity",
+      ledgerId: input.account.ledgerId,
+      name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
+      now: input.now,
+      openingBalanceDate: null,
+      openingBalanceMinor: null,
+      subtype: "opening_helper",
+      workspaceId: input.account.workspaceId,
+    });
+  } catch (error) {
+    if (!isSqliteUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const concurrentRow = prepareSqliteMoneyStatement<SqliteAccountRow>(
+      client,
+      `
+        SELECT *
+        FROM accounts
+        WHERE workspace_id = ?
+          AND ledger_id = ?
+          AND kind = 'equity'
+          AND subtype = 'opening_helper'
+          AND currency_code = ?
+          AND archived_at IS NULL
+        ORDER BY created_at, id
+        LIMIT 1
+      `,
+    ).get(input.account.workspaceId, input.account.ledgerId, input.account.currencyCode);
+
+    if (!concurrentRow) {
+      throw error;
+    }
+
+    return toSqliteAccountRecord(concurrentRow);
+  }
 }
 
 function insertSqlitePosting(
@@ -919,26 +962,71 @@ async function findOrCreatePostgresOpeningBalanceAccount(
     return toPostgresAccountRecord(existing[0]);
   }
 
-  const row = assertCreated(
-    await db
-      .insert(pgAccounts)
-      .values({
-        id: input.createId(),
-        workspaceId: input.account.workspaceId,
-        ledgerId: input.account.ledgerId,
-        name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
-        kind: "equity",
-        subtype: "opening_helper",
-        currencyCode: input.account.currencyCode,
-        isActive: true,
-        createdAt: input.now,
-        updatedAt: input.now,
-      })
-      .returning(),
-    "Opening balance helper account",
-  );
+  try {
+    const row = assertCreated(
+      await db
+        .insert(pgAccounts)
+        .values({
+          id: input.createId(),
+          workspaceId: input.account.workspaceId,
+          ledgerId: input.account.ledgerId,
+          name: `${OPENING_BALANCE_ACCOUNT_NAME_PREFIX} (${input.account.currencyCode})`,
+          kind: "equity",
+          subtype: "opening_helper",
+          currencyCode: input.account.currencyCode,
+          isActive: true,
+          createdAt: input.now,
+          updatedAt: input.now,
+        })
+        .returning(),
+      "Opening balance helper account",
+    );
 
-  return toPostgresAccountRecord(row);
+    return toPostgresAccountRecord(row);
+  } catch (error) {
+    if (!isPostgresUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const concurrentRows = await db
+      .select()
+      .from(pgAccounts)
+      .where(
+        and(
+          eq(pgAccounts.workspaceId, input.account.workspaceId),
+          eq(pgAccounts.ledgerId, input.account.ledgerId),
+          eq(pgAccounts.kind, "equity"),
+          eq(pgAccounts.subtype, "opening_helper"),
+          eq(pgAccounts.currencyCode, input.account.currencyCode),
+          isNull(pgAccounts.archivedAt),
+        ),
+      )
+      .orderBy(asc(pgAccounts.createdAt), asc(pgAccounts.id))
+      .limit(1);
+
+    if (!concurrentRows[0]) {
+      throw error;
+    }
+
+    return toPostgresAccountRecord(concurrentRows[0]);
+  }
+}
+
+function isSqliteUniqueConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? String(error.code) : "";
+  return code.startsWith("SQLITE_CONSTRAINT");
+}
+
+function isPostgresUniqueConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  return "code" in error && String(error.code) === "23505";
 }
 
 function toSqliteAccountRecord(row: SqliteAccountRow): AccountRecord {

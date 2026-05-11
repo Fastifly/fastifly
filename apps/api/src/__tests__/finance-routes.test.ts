@@ -15,6 +15,7 @@ import type {
   UserRecord,
   UserWorkspaceContextRecord,
 } from "@fastifly/db";
+import { TransactionWriteError } from "@fastifly/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
@@ -633,6 +634,10 @@ describe("finance routes", () => {
 
   it("lists transactions through the transaction query service", async () => {
     const accountId = createId();
+    const budgetId = createId();
+    const categoryId = createId();
+    const importJobId = createId();
+    const tagId = createId();
     const transactionGroupId = createId();
     const nextCursor = encodeFinanceCursor({
       id: transactionGroupId,
@@ -688,7 +693,7 @@ describe("finance routes", () => {
     const response = await app.inject({
       headers: { cookie: sessionCookie() },
       method: "GET",
-      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?accountId=${accountId}&type=expense&limit=25`,
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?accountId=${accountId}&amountMin=1000&amountMax=20000&budgetId=${budgetId}&categoryId=${categoryId}&currencyCode=INR&importJobId=${importJobId}&reconciled=true&tagId=${tagId}&type=expense&limit=25`,
     });
 
     expect(response.statusCode).toBe(200);
@@ -716,13 +721,48 @@ describe("finance routes", () => {
     expect(transactionQueryService?.listTransactionGroups).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId,
+        amountMaxMinor: 20_000n,
+        amountMinMinor: 1_000n,
+        budgetId,
+        categoryId,
         cursor: null,
+        currencyCode: "INR",
+        importJobId,
         ledgerId: state.context.activeLedger.id,
         limit: 25,
+        reconciled: true,
+        tagId,
         type: "expense",
         workspaceId: state.context.activeWorkspace.id,
       }),
     );
+  });
+
+  it("rejects reconciled and status filters used together before querying", async () => {
+    const transactionQueryService = {
+      getTransactionGroup: vi.fn(),
+      listTransactionGroups: vi.fn(),
+    } as TransactionQueryService;
+    const { app, state } = await makeApp("viewer", () => ({ transactionQueryService }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions?reconciled=true&status=cleared`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        details: {
+          fields: {
+            reconciled: ["The reconciled filter cannot be combined with status."],
+          },
+        },
+      },
+    });
+    expect(transactionQueryService.listTransactionGroups).not.toHaveBeenCalled();
   });
 
   it("rejects malformed transaction list cursors before querying", async () => {
@@ -837,5 +877,40 @@ describe("finance routes", () => {
 
     expect(response.statusCode).toBe(403);
     expect(financeMutationService.createAccount).not.toHaveBeenCalled();
+  });
+
+  it("maps transaction write domain errors to stable API errors", async () => {
+    const financeMutationService: LedgerFinanceMutationService = {
+      ...makeFinanceMutationService(),
+      createExpense: vi.fn(async () => {
+        throw new TransactionWriteError(
+          "Transaction account was not found or active.",
+          "ACCOUNT_NOT_FOUND_OR_INACTIVE",
+        );
+      }),
+    };
+    const { app, state } = await makeApp("editor", () => ({ financeMutationService }));
+
+    const response = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie() },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        description: "Groceries",
+        occurredAt: "2026-05-09T08:00:00.000Z",
+        sourceAccountId: createId(),
+        transactions: [{ amountMinor: "12000", destinationAccountId: createId() }],
+        type: "expense",
+      },
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/transactions`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "NOT_FOUND",
+        message: "The account was not found or is inactive.",
+      },
+    });
   });
 });

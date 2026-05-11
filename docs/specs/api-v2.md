@@ -292,6 +292,12 @@ search
 savedFilterId
 ```
 
+Filter contract notes:
+
+- `reconciled` accepts boolean `true`/`false` query values.
+- `reconciled` and `status` cannot be combined in the same request.
+- `amountMin` and `amountMax` are non-negative minor-unit amount strings.
+
 Common sorts:
 
 ```text
