@@ -2,15 +2,19 @@
   "name": "@fastifly/db",
   "private": true,
   "type": "module",
+  "types": "./dist/index.d.ts",
   "bin": {
     "fastifly": "./bin/fastifly.js"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch",
-    "build": "tsc -p tsconfig.json && rm -rf dist/sqlite/migrations dist/postgres/migrations && mkdir -p dist/sqlite dist/postgres && cp -R src/sqlite/migrations dist/sqlite/migrations && cp -R src/postgres/migrations dist/postgres/migrations",
+    "build": "tsc -b tsconfig.json --force && rm -rf dist/sqlite/migrations dist/postgres/migrations && mkdir -p dist/sqlite dist/postgres && cp -R src/sqlite/migrations dist/sqlite/migrations && cp -R src/postgres/migrations dist/postgres/migrations",
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "typecheck:tsc": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
