@@ -25,7 +25,7 @@
     "test:postgres:pglite": "pnpm --filter @fastifly/db test:postgres:pglite",
     "test:postgres": "pnpm --filter @fastifly/db test:postgres",
     "test:postgres:runtime": "pnpm --filter @fastifly/db test:postgres:runtime",
-    "ci:check": "pnpm lint && pnpm typecheck && pnpm typecheck:tsc && pnpm typecheck:refs && pnpm api:check && pnpm test && pnpm test:sqlite && FASTIFLY_TEST_POSTGRES_URL=${FASTIFLY_TEST_POSTGRES_URL:-postgres://fastifly:fastifly@127.0.0.1:55432/fastifly} pnpm test:postgres",
+    "ci:check": "pnpm lint && pnpm typecheck && pnpm typecheck:tsc && pnpm typecheck:refs && pnpm api:check && pnpm test && pnpm test:sqlite && pnpm test:postgres",
     "typecheck:tsc": "turbo run typecheck:tsc",
     "db:generate:sqlite": "pnpm --filter @fastifly/db db:generate:sqlite",
     "db:generate:postgres": "pnpm --filter @fastifly/db db:generate:postgres",
