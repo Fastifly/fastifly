@@ -800,10 +800,7 @@ function RuleEditorPanel({
   readonly title?: string;
 }) {
   return (
-    <div
-      className={className ?? "grid gap-2 rounded-md border border-border bg-muted/40 p-2 sm:p-2.5"}
-      data-testid={dataTestIds.form}
-    >
+    <div className={className ?? "grid gap-2 pt-3"} data-testid={dataTestIds.form}>
       {title ? (
         <div className="space-y-1 pt-0.5">
           <p className="font-semibold text-[14px] text-foreground">{title}</p>
