@@ -359,6 +359,7 @@ export function AppShell({ children }: PropsWithChildren) {
           theme={theme}
           transactionsCount={transactions.length}
         />
+        <DesktopNavigation currentSlug={currentNavigationItem.slug} />
         {children}
 
         {isUpdateReady ? (
@@ -2126,6 +2127,27 @@ function MobileNavLink({
         <span>{item.mobileLabel}</span>
       </Link>
     </Button>
+  );
+}
+
+function DesktopNavigation({ currentSlug }: { readonly currentSlug: string }) {
+  return (
+    <nav className="ff-desktop-nav" aria-label={en.shell.navigation}>
+      {navigationItems.map((item) => (
+        <Button
+          asChild
+          className="ff-desktop-nav-link"
+          data-testid={testIds.navigation.moreNav(toNavigationTestIdSlug(item.slug))}
+          key={item.slug}
+          variant={item.slug === currentSlug ? "secondary" : "ghost"}
+        >
+          <Link aria-current={item.slug === currentSlug ? "page" : undefined} to={item.to}>
+            <item.icon aria-hidden="true" />
+            <span>{item.label}</span>
+          </Link>
+        </Button>
+      ))}
+    </nav>
   );
 }
 
