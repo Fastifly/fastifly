@@ -5,3 +5,6 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
   msw: false
+peerDependencyRules:
+  allowedVersions:
+    "openapi-typescript>typescript": "6"

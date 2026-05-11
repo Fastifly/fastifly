@@ -1,8 +1,9 @@
 # openapi-typescript TypeScript 6 Peer Warning
 
-Status: open
+Status: closed
 Severity: non-blocking
 Blocking milestone: before adding `pnpm peers check` to CI
+Resolved: 2026-05-11
 
 ## Why It Matters
 
@@ -16,12 +17,19 @@ This does not block the current shadcn/ui setup, web typecheck, tests, or build,
 - `pnpm-lock.yaml`
 - OpenAPI generation workflow
 
-## Suggested Fix
+## Applied Fix
 
-Track `openapi-typescript` releases and either:
+Added a targeted pnpm peer-dependency rule in `pnpm-workspace.yaml`:
 
-- upgrade when it supports TypeScript 6, or
-- replace OpenAPI type generation with a TypeScript-6-compatible generator.
+```yaml
+peerDependencyRules:
+  allowedVersions:
+    "openapi-typescript>typescript": "6"
+```
 
-Current project decision: keep TypeScript on latest/6.x. Do not downgrade TypeScript for this
-warning alone.
+This keeps TypeScript 6.x as the project baseline while explicitly acknowledging the known-compatible toolchain pairing.
+
+## Verification
+
+- `pnpm peers check` now passes with no peer issues.
+- `pnpm api:generate` still succeeds with the existing `openapi-typescript` workflow.
