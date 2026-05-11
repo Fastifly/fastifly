@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import type { SyncedId, SyncOperationType } from "@fastifly/common";
 import { and, eq } from "drizzle-orm";
 
-import type { PostgresDatabase } from "./postgres/client.js";
+import type { PostgresClient, PostgresDatabase } from "./postgres/client.js";
 import { pgAuditLog, pgIdempotencyReceipts, pgLedgers, pgWorkspaces } from "./postgres/schema.js";
 import type {
   LedgerRecord,
@@ -195,6 +196,12 @@ export type LedgerWriteBoundary = {
     key: string,
     callback: () => Promise<TResult>,
   ) => Promise<TResult>;
+};
+
+export type PostgresAdvisoryLedgerWriteBoundaryOptions = {
+  readonly acquireTimeoutMs?: number;
+  readonly pollIntervalMs?: number;
+  readonly nowMs?: () => number;
 };
 
 export type LedgerMutationRunnerOptions<TTransaction> = {
@@ -546,6 +553,88 @@ export function createInProcessLedgerWriteBoundary(): LedgerWriteBoundary {
       }
     },
   };
+}
+
+const DEFAULT_POSTGRES_LOCK_ACQUIRE_TIMEOUT_MS = 15_000;
+const DEFAULT_POSTGRES_LOCK_POLL_INTERVAL_MS = 50;
+
+export function createPostgresAdvisoryLedgerWriteBoundary(
+  client: PostgresClient,
+  options: PostgresAdvisoryLedgerWriteBoundaryOptions = {},
+): LedgerWriteBoundary {
+  const acquireTimeoutMs = options.acquireTimeoutMs ?? DEFAULT_POSTGRES_LOCK_ACQUIRE_TIMEOUT_MS;
+  const pollIntervalMs = Math.max(
+    10,
+    options.pollIntervalMs ?? DEFAULT_POSTGRES_LOCK_POLL_INTERVAL_MS,
+  );
+  const nowMs = options.nowMs ?? (() => Date.now());
+
+  return {
+    async runExclusive(key, callback) {
+      const [keyPartOne, keyPartTwo] = makeAdvisoryLockKeyPair(key);
+      const reserved = await client.reserve();
+      let acquired = false;
+      const startedAt = nowMs();
+
+      try {
+        while (!acquired) {
+          const row = await reserved<{ readonly acquired: boolean }[]>`
+              select pg_try_advisory_lock(${keyPartOne}, ${keyPartTwo}) as acquired
+            `;
+          acquired = row[0]?.acquired === true;
+
+          if (acquired) {
+            break;
+          }
+
+          if (acquireTimeoutMs >= 0 && nowMs() - startedAt >= acquireTimeoutMs) {
+            throw new Error(
+              `Timed out while waiting for ledger write boundary lock after ${acquireTimeoutMs}ms.`,
+            );
+          }
+
+          await sleep(pollIntervalMs);
+        }
+
+        return await callback();
+      } finally {
+        if (acquired) {
+          await reserved`
+            select pg_advisory_unlock(${keyPartOne}, ${keyPartTwo})
+          `;
+        }
+        await reserved.release();
+      }
+    },
+  };
+}
+
+function makeAdvisoryLockKeyPair(input: string): readonly [number, number] {
+  const [workspaceId, ledgerId] = splitLockKey(input);
+  return [hashInt32(workspaceId), hashInt32(ledgerId)];
+}
+
+function splitLockKey(input: string): readonly [string, string] {
+  const separatorIndex = input.indexOf(":");
+  if (separatorIndex < 0) {
+    return [input, "default"];
+  }
+
+  const workspaceId = input.slice(0, separatorIndex);
+  const ledgerId = input.slice(separatorIndex + 1);
+
+  return [workspaceId || "default", ledgerId || "default"];
+}
+
+function hashInt32(value: string): number {
+  const digest = createHash("sha256").update(value).digest();
+  return digest.readInt32BE(0);
+}
+
+function sleep(durationMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, durationMs);
+  });
 }
 
 type SqliteTransaction = Parameters<Parameters<SqliteDatabase["transaction"]>[0]>[0];

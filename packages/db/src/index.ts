@@ -31,9 +31,11 @@ export type {
   LedgerMutationSyncOperationLog,
   LedgerMutationTransactionalStore,
   LedgerWriteBoundary,
+  PostgresAdvisoryLedgerWriteBoundaryOptions,
 } from "./ledger-mutations.js";
 export {
   createInProcessLedgerWriteBoundary,
+  createPostgresAdvisoryLedgerWriteBoundary,
   createPostgresLedgerMutationStore,
   createSqliteLedgerMutationStore,
   LedgerMutationError,

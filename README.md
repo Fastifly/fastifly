@@ -421,6 +421,15 @@ LOG_LEVEL=debug
 AUTO_MIGRATE=false
 ```
 
+Optional single-origin static serving (API serves built web assets):
+
+```env
+SERVE_WEB_STATIC=true
+WEB_STATIC_ROOT=/absolute/path/to/apps/web/dist
+```
+
+When disabled (default in local dev), the web app is served by Vite separately.
+
 ---
 
 ## Project structure

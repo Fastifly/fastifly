@@ -34,8 +34,6 @@ Approved offline commands are intentionally narrow:
 transaction_group.create_expense.v1
 transaction_group.create_income.v1
 transaction_group.create_transfer.v1
-category.create.v1
-budget.assign_category_month.v1
 ```
 
 Broad offline editing, CRDT collaboration, import commit, recurring generation, workspace/member changes, and maintenance commands remain out of v0.1 offline scope.

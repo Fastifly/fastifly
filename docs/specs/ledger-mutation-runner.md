@@ -219,16 +219,13 @@ The runner requires a `LedgerWriteBoundary`.
 Current implementation:
 
 ```text
-createInProcessLedgerWriteBoundary()
+SQLite runtime:   createInProcessLedgerWriteBoundary()
+Postgres runtime: createPostgresAdvisoryLedgerWriteBoundary()
 ```
 
-This serializes writes per ledger inside one API process. It is suitable for the current single-process self-hosted development and deployment shape.
+PostgreSQL runtime advisory locks serialize writes across API processes.
 
-Before horizontal API scaling, add a distributed adapter. See:
-
-```text
-docs/issues/distributed-ledger-write-boundary.md
-```
+SQLite runtime keeps the in-process lock and should run as single-writer deployment mode.
 
 ## Implementation Files
 

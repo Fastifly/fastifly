@@ -21,6 +21,8 @@ describe("API config contract", () => {
       logLevel: "warn",
       openApiBaseUrl: "https://fastifly.example.com",
       port: 8080,
+      postgresLedgerLockAcquireTimeoutMs: 15_000,
+      serveWebStatic: false,
       sessionTtlDays: 14,
       sessionCookieName: "fastifly_session",
     });
@@ -54,6 +56,38 @@ describe("API config contract", () => {
       cookieSecure: true,
     });
     expect(() => parseApiConfig({ COOKIE_SECURE: "yes" })).toThrow();
+  });
+
+  it("requires WEB_STATIC_ROOT when static serving is enabled", () => {
+    expect(() => parseApiConfig({ SERVE_WEB_STATIC: "true" })).toThrow(
+      "WEB_STATIC_ROOT is required when SERVE_WEB_STATIC is enabled.",
+    );
+
+    expect(
+      parseApiConfig({
+        SERVE_WEB_STATIC: "true",
+        WEB_STATIC_ROOT: "/app/web/dist",
+      }),
+    ).toMatchObject({
+      serveWebStatic: true,
+      webStaticRoot: "/app/web/dist",
+    });
+  });
+
+  it("parses Postgres ledger advisory lock acquisition timeout", () => {
+    expect(
+      parseApiConfig({
+        POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS: "25000",
+      }),
+    ).toMatchObject({
+      postgresLedgerLockAcquireTimeoutMs: 25_000,
+    });
+
+    expect(() =>
+      parseApiConfig({
+        POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS: "10",
+      }),
+    ).toThrow();
   });
 
   it("keeps test config creation explicit and valid", () => {

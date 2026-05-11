@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSyncReplayService,
   type LedgerFinanceMutationService,
+  LedgerMutationError,
   type ResolvedSyncConflictRecord,
   type ResolveSyncConflictInput,
   type SyncConflictRecord,
@@ -134,10 +135,133 @@ describe("sync replay service", () => {
       }),
     ).rejects.toBeInstanceOf(SyncReplayError);
   });
+
+  it("returns permission-denied operations as rejected and continues the batch", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 0 });
+    const financeMutationService = makeFinanceMutationService();
+    vi.mocked(financeMutationService.createExpense).mockRejectedValueOnce(
+      new LedgerMutationError("Forbidden.", "MUTATION_FORBIDDEN"),
+    );
+    vi.mocked(financeMutationService.createIncome).mockResolvedValueOnce({
+      body: { data: { transactionGroup: { id: createUuidV7() } } },
+      idempotencyReplayed: false,
+      status: 201,
+    });
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService,
+      now: () => new Date("2026-05-09T02:00:00.000Z"),
+      syncRepository,
+    });
+
+    const result = await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [
+        createOperation({
+          baseRevision: "0",
+          localSequence: "1",
+          operationId: "operation_forbidden",
+          operationType: "transaction_group.create_expense.v1",
+        }),
+        createOperation({
+          baseRevision: "0",
+          localSequence: "2",
+          operationId: "operation_allowed",
+          operationType: "transaction_group.create_income.v1",
+        }),
+      ],
+      workspaceId,
+    });
+
+    expect(result.rejected).toEqual([
+      { operationId: "operation_forbidden", reason: "permission_denied" },
+    ]);
+    expect(result.accepted).toEqual([{ operationId: "operation_allowed", serverRevision: "1" }]);
+    expect(syncRepository.operations.get("operation_forbidden")).toMatchObject({
+      serverRevision: null,
+      status: "rejected",
+    });
+    expect(syncRepository.operations.get("operation_allowed")).toMatchObject({
+      serverRevision: 1,
+      status: "accepted",
+    });
+  });
+
+  it("processes operations in localSequence order", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 0 });
+    const order: string[] = [];
+    const financeMutationService = makeFinanceMutationService();
+    vi.mocked(financeMutationService.createExpense).mockImplementation(async (input) => {
+      order.push(input.envelope.syncOperation?.localSequence ?? "missing");
+      return {
+        body: { data: { transactionGroup: { id: createUuidV7() } } },
+        idempotencyReplayed: false,
+        status: 201,
+      };
+    });
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService,
+      syncRepository,
+    });
+
+    await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [
+        createOperation({
+          baseRevision: null,
+          localSequence: "10",
+          operationId: "operation_10",
+          operationType: "transaction_group.create_expense.v1",
+        }),
+        createOperation({
+          baseRevision: null,
+          localSequence: "2",
+          operationId: "operation_2",
+          operationType: "transaction_group.create_expense.v1",
+        }),
+      ],
+      workspaceId,
+    });
+
+    expect(order).toEqual(["2", "10"]);
+  });
+
+  it("updates device last seen time after processing push", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 0 });
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService: makeFinanceMutationService(),
+      now: () => new Date("2026-05-09T05:00:00.000Z"),
+      syncRepository,
+    });
+
+    await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [
+        createOperation({
+          baseRevision: "0",
+          localSequence: "1",
+          operationId: "operation_seen",
+          operationType: "transaction_group.create_expense.v1",
+        }),
+      ],
+      workspaceId,
+    });
+
+    expect(syncRepository.lastSeenAt).toBe("2026-05-09T05:00:00.000Z");
+  });
 });
 
 class FakeSyncRepository implements SyncRepository {
   readonly operations = new Map<string, SyncOperationRecord>();
+  lastSeenAt: string | null = null;
   #currentRevision: number;
   readonly #revokedAt: string | null;
 
@@ -164,6 +288,10 @@ class FakeSyncRepository implements SyncRepository {
 
   async findOperation(operationId: string): Promise<SyncOperationRecord | null> {
     return this.operations.get(operationId) ?? null;
+  }
+
+  async touchDeviceLastSeen(_deviceId: SyncedId, _userId: SyncedId, seenAt: Date): Promise<void> {
+    this.lastSeenAt = seenAt.toISOString();
   }
 
   async findOperationByDeviceSequence(
@@ -261,15 +389,25 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: false,
       status: 201,
     })),
-    createIncome: vi.fn(),
+    createIncome: vi.fn(async () => ({
+      body: { data: { transactionGroup: { id: createUuidV7() } } },
+      idempotencyReplayed: false,
+      status: 201,
+    })),
     createTransaction: vi.fn(),
-    createTransfer: vi.fn(),
+    createTransfer: vi.fn(async () => ({
+      body: { data: { transactionGroup: { id: createUuidV7() } } },
+      idempotencyReplayed: false,
+      status: 201,
+    })),
   };
 }
 
-function createExpenseOperation(input: {
+function createOperation(input: {
   readonly operationId: string;
-  readonly baseRevision: string;
+  readonly baseRevision: string | null;
+  readonly localSequence: string;
+  readonly operationType: SyncOperationEnvelope["operationType"];
 }): SyncOperationEnvelope {
   return {
     baseRevision: input.baseRevision,
@@ -277,9 +415,9 @@ function createExpenseOperation(input: {
     deviceId,
     idempotencyKey: `idem_${input.operationId}`,
     ledgerId,
-    localSequence: "1",
+    localSequence: input.localSequence,
     operationId: input.operationId,
-    operationType: "transaction_group.create_expense.v1",
+    operationType: input.operationType,
     operationVersion: 1,
     payload: {
       currencyCode: "INR",
@@ -296,6 +434,17 @@ function createExpenseOperation(input: {
     payloadEncoding: "plaintext.v1",
     workspaceId,
   };
+}
+
+function createExpenseOperation(input: {
+  readonly operationId: string;
+  readonly baseRevision: string;
+}): SyncOperationEnvelope {
+  return createOperation({
+    ...input,
+    localSequence: "1",
+    operationType: "transaction_group.create_expense.v1",
+  });
 }
 
 function makeOperationRecord(operationId: string): SyncOperationRecord {

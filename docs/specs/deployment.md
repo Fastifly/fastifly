@@ -19,7 +19,10 @@ PostgreSQL 18
 
 Fastifly does not require Redis, BullMQ, Kafka, Elasticsearch, or any external queue service.
 
-Ledger-affecting writes are serialized by `LedgerMutationRunner`. The current write-boundary adapter is process-local, so the supported production shape is one writer API process per Fastifly instance. Do not horizontally scale API writers until the distributed ledger write boundary issue is resolved.
+Ledger-affecting writes are serialized by `LedgerMutationRunner`.
+
+- PostgreSQL runtime uses a distributed advisory-lock write boundary.
+- SQLite runtime keeps the in-process write boundary and should run as single-writer mode.
 
 ---
 
@@ -66,6 +69,13 @@ LOG_LEVEL=info
 AUTO_MIGRATE=false
 ```
 
+Single-origin API + web serving variables:
+
+```env
+SERVE_WEB_STATIC=true
+WEB_STATIC_ROOT=/app/web-dist
+```
+
 Database variables:
 
 ```env
@@ -78,6 +88,7 @@ or:
 ```env
 DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://fastifly:fastifly@postgres:5432/fastifly?sslmode=disable
+POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS=15000
 ```
 
 Important:
@@ -121,6 +132,8 @@ services:
       HOST: 0.0.0.0
       APP_PORT: 3000
       APP_URL: "${APP_URL:-http://localhost:3000}"
+      SERVE_WEB_STATIC: "true"
+      WEB_STATIC_ROOT: /app/web-dist
       DATABASE_DRIVER: sqlite
       DATABASE_URL: /app/data/fastifly.db
       SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"
@@ -231,6 +244,8 @@ services:
       HOST: 0.0.0.0
       APP_PORT: 3000
       APP_URL: "${APP_URL:-http://localhost:3000}"
+      SERVE_WEB_STATIC: "true"
+      WEB_STATIC_ROOT: /app/web-dist
       DATABASE_DRIVER: postgres
       DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
       SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"

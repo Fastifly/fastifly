@@ -102,6 +102,14 @@ describe("sync query service", () => {
       resolvedAt: "2026-05-09T03:00:00.000Z",
       status: "dismissed",
     });
+    expect(syncRepository.dismissConflict).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId,
+        conflictId: conflictId(),
+        ledgerId,
+        workspaceId,
+      }),
+    );
   });
 });
 
@@ -128,6 +136,7 @@ function makeSyncRepository(): SyncRepository {
       resolvedAt: input.resolvedAt.toISOString(),
       status: "dismissed",
     })),
+    touchDeviceLastSeen: vi.fn(async () => undefined),
     recordAcceptedOperation: vi.fn(),
     recordConflictOperation: vi.fn(),
     recordRejectedOperation: vi.fn(),

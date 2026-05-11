@@ -13,8 +13,6 @@ describe("sync operation contracts", () => {
       "transaction_group.create_expense.v1",
       "transaction_group.create_income.v1",
       "transaction_group.create_transfer.v1",
-      "category.create.v1",
-      "budget.assign_category_month.v1",
     ]);
   });
 

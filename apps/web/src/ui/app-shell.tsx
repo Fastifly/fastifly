@@ -39,6 +39,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Landmark,
+  Laptop,
   LogOut,
   Menu,
   Moon,
@@ -59,6 +60,8 @@ import {
   useHealthQuery,
   useInfiniteTransactionsQuery,
   useMeContextQuery,
+  useSyncConflictsQuery,
+  useSyncStatusQuery,
   useTransactionsQuery,
 } from "../api/queries";
 import { type AuthSessionState, getAuthRedirect } from "../auth/flow";
@@ -72,7 +75,11 @@ import {
   type TransactionTypeFilter,
 } from "../finance/transaction-list";
 import { en } from "../i18n/en";
-import { registerServiceWorker } from "../pwa";
+import {
+  activateServiceWorkerUpdate,
+  PWA_UPDATE_AVAILABLE_EVENT,
+  registerServiceWorker,
+} from "../pwa";
 import { readPendingOutboxCount } from "../sync/outbox";
 import { testIds } from "../testing/testid-registry";
 import { AccountCreatePanel } from "./account-create-panel";
@@ -86,7 +93,7 @@ import {
 import { SessionExpiredDialog } from "./session-expired-dialog";
 import { TransactionCreatePanel } from "./transaction-create-panel";
 
-type Theme = "light" | "dark";
+type Theme = "dark" | "light" | "system";
 type Tone = "danger" | "neutral" | "success" | "warning";
 type NavigationTestIdSlug = Parameters<typeof testIds.navigation.mobileNav>[0];
 
@@ -117,6 +124,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const isAuthRoute = location.pathname === "/login";
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [isUpdateReady, setIsUpdateReady] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [hadAuthenticatedSession, setHadAuthenticatedSession] = useState(false);
   const [sessionExpiredFromEvent, setSessionExpiredFromEvent] = useState(false);
@@ -142,6 +150,8 @@ export function AppShell({ children }: PropsWithChildren) {
       }
     : null;
   const accountsQuery = useAccountsQuery(ledgerContext);
+  const syncStatusQuery = useSyncStatusQuery(ledgerContext);
+  const syncConflictsQuery = useSyncConflictsQuery(ledgerContext);
   const transactionsQuery = useTransactionsQuery(ledgerContext);
   const latestAuthError = meContext.error ?? accountsQuery.error ?? transactionsQuery.error;
   const sessionExpired =
@@ -160,21 +170,40 @@ export function AppShell({ children }: PropsWithChildren) {
         : "unauthenticated";
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
+      document.documentElement.classList.toggle("dark", resolved === "dark");
+    };
+
+    applyTheme();
     window.localStorage.setItem("fastifly.theme", theme);
+
+    if (theme === "system") {
+      media.addEventListener("change", applyTheme);
+      return () => media.removeEventListener("change", applyTheme);
+    }
+
+    return undefined;
   }, [theme]);
 
   useEffect(() => {
     const onOnline = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);
+    const onUpdateReady = () => setIsUpdateReady(true);
+    const onControllerChange = () => window.location.reload();
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+    window.addEventListener(PWA_UPDATE_AVAILABLE_EVENT, onUpdateReady);
+    navigator.serviceWorker?.addEventListener("controllerchange", onControllerChange);
     setPendingOutboxCount(readPendingOutboxCount(window.localStorage));
     void registerServiceWorker();
 
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      window.removeEventListener(PWA_UPDATE_AVAILABLE_EVENT, onUpdateReady);
+      navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 
@@ -235,6 +264,11 @@ export function AppShell({ children }: PropsWithChildren) {
   const currentNavigationItem = getCurrentNavigationItem(location.pathname);
   const mobileTabs = getMobilePrimaryNavigation();
   const accounts = accountsQuery.data?.data ?? [];
+  const reportingCurrencyCode = meContext.data?.data.activeLedger.baseCurrencyCode ?? "INR";
+  const openConflictCount = syncStatusQuery.data?.data.openConflicts ?? 0;
+  const syncServerRevision = syncStatusQuery.data?.data.serverRevision ?? "0";
+  const syncLastOperationAt = syncStatusQuery.data?.data.lastOperationAt ?? null;
+  const syncConflicts = syncConflictsQuery.data?.data.conflicts ?? [];
   const transactions = transactionsQuery.data?.data ?? [];
   const assetAccounts = accounts.filter((account) => account.kind === "asset");
   const liabilityAccounts = accounts.filter((account) => account.kind === "liability");
@@ -244,12 +278,15 @@ export function AppShell({ children }: PropsWithChildren) {
     (transaction) => transaction.type === "transfer",
   ).length;
   const netWorthMinor = sumAccountBalances([...assetAccounts, ...liabilityAccounts]);
-  const netWorth = formatMoneyMinor(netWorthMinor, "INR");
-  const cashAndBank = formatMoneyMinor(sumAccountBalances(assetAccounts), "INR");
-  const liabilities = formatMoneyMinor(sumAccountBalances(liabilityAccounts), "INR");
-  const income = formatMoneyMinor(incomeMinor, "INR");
-  const spending = formatMoneyMinor(-expenseMinor, "INR");
-  const cashflow = formatMoneyMinor(incomeMinor - expenseMinor, "INR");
+  const netWorth = formatMoneyMinor(netWorthMinor, reportingCurrencyCode);
+  const cashAndBank = formatMoneyMinor(sumAccountBalances(assetAccounts), reportingCurrencyCode);
+  const liabilities = formatMoneyMinor(
+    sumAccountBalances(liabilityAccounts),
+    reportingCurrencyCode,
+  );
+  const income = formatMoneyMinor(incomeMinor, reportingCurrencyCode);
+  const spending = formatMoneyMinor(-expenseMinor, reportingCurrencyCode);
+  const cashflow = formatMoneyMinor(incomeMinor - expenseMinor, reportingCurrencyCode);
   const spendingRate =
     incomeMinor > 0n ? `${((expenseMinor * 100n) / incomeMinor).toString()}%` : "0%";
   const moneySummaryValue =
@@ -306,11 +343,49 @@ export function AppShell({ children }: PropsWithChildren) {
           accountsCount={accounts.length}
           currentNavigationItem={currentNavigationItem}
           isOnline={isOnline}
-          onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onToggleTheme={() => setTheme(cycleTheme(theme))}
           theme={theme}
           transactionsCount={transactions.length}
         />
         {children}
+
+        {isUpdateReady ? (
+          <Alert
+            className="mt-3 border-cyan-500/30 bg-cyan-500/10 text-cyan-800 dark:text-cyan-100"
+            data-testid={testIds.shell.updateAlert}
+          >
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+              <span>{en.shell.updateReady}</span>
+              <Button
+                className="h-7 px-2.5"
+                onClick={() => {
+                  setIsUpdateReady(false);
+                  void activateServiceWorkerUpdate();
+                }}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {en.shell.updateNow}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {openConflictCount > 0 ? (
+          <Alert
+            className="mt-3 border-rose-500/30 bg-rose-500/10 text-rose-800 dark:text-rose-200"
+            data-testid={testIds.shell.syncConflictAlert}
+          >
+            <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+              <span>{formatOpenConflictMessage(openConflictCount)}</span>
+              <Button asChild className="h-7 px-2.5" size="sm" type="button" variant="outline">
+                <Link to="/sync">{en.shell.reviewConflicts}</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {pendingOutboxCount > 0 ? (
           <Alert
@@ -336,9 +411,17 @@ export function AppShell({ children }: PropsWithChildren) {
           moneySummaryValue={moneySummaryValue}
           pageSlug={currentNavigationItem.slug}
           pendingOutboxCount={pendingOutboxCount}
+          openConflictCount={openConflictCount}
+          syncConflicts={syncConflicts}
+          syncLastOperationAt={syncLastOperationAt}
+          syncServerRevision={syncServerRevision}
           spending={spending}
           spendingRate={spendingRate}
+          theme={theme}
           transferCount={transferCount}
+          workspaceName={meContext.data.data.activeWorkspace.name}
+          workspaceRole={meContext.data.data.activeWorkspace.role}
+          ledgerName={meContext.data.data.activeLedger.name}
         />
       </main>
 
@@ -369,6 +452,7 @@ export function AppShell({ children }: PropsWithChildren) {
         onClose={() => setIsMoreOpen(false)}
         onLogout={() => logoutMutation.mutate()}
         open={isMoreOpen}
+        openConflictCount={openConflictCount}
         pendingOutboxCount={pendingOutboxCount}
       />
       <SessionExpiredDialog
@@ -444,9 +528,9 @@ function TopBar({
           size="icon"
           data-testid={testIds.shell.themeToggleButton}
           onClick={onToggleTheme}
-          aria-label={en.shell.toggleTheme}
+          aria-label={`${en.shell.toggleTheme}: ${formatThemeLabel(theme)}`}
         >
-          {theme === "dark" ? <Sun /> : <Moon />}
+          {theme === "dark" ? <Sun /> : theme === "light" ? <Moon /> : <Laptop />}
         </Button>
       </div>
     </header>
@@ -564,11 +648,19 @@ function PageBody({
   ledgerContext,
   liabilities,
   moneySummaryValue,
+  openConflictCount,
   pageSlug,
   pendingOutboxCount,
+  syncConflicts,
+  syncLastOperationAt,
+  syncServerRevision,
   spending,
   spendingRate,
+  theme,
   transferCount,
+  workspaceName,
+  workspaceRole,
+  ledgerName,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly accountPreview: readonly AccountWithBalanceResponse[];
@@ -584,11 +676,30 @@ function PageBody({
   } | null;
   readonly liabilities: string;
   readonly moneySummaryValue: string;
+  readonly openConflictCount: number;
   readonly pageSlug: string;
   readonly pendingOutboxCount: number;
+  readonly syncConflicts: readonly {
+    readonly id: string;
+    readonly incomingOperationId: string;
+    readonly conflictType:
+      | "delete_after_update"
+      | "duplicate_unique_value"
+      | "invalid_operation"
+      | "reconciled_record_blocked"
+      | "stale_update"
+      | "update_after_delete";
+    readonly status: "dismissed" | "open" | "resolved";
+  }[];
+  readonly syncLastOperationAt: string | null;
+  readonly syncServerRevision: string;
   readonly spending: string;
   readonly spendingRate: string;
+  readonly theme: Theme;
   readonly transferCount: number;
+  readonly workspaceName: string;
+  readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
+  readonly ledgerName: string;
 }) {
   if (pageSlug === "transactions") {
     return <TransactionsPage accounts={accounts} ledgerContext={ledgerContext} />;
@@ -631,7 +742,21 @@ function PageBody({
       <SettingsPage
         apiStatus={apiStatus}
         isOnline={isOnline}
+        ledgerName={ledgerName}
+        openConflictCount={openConflictCount}
         pendingOutboxCount={pendingOutboxCount}
+        theme={theme}
+        workspaceName={workspaceName}
+        workspaceRole={workspaceRole}
+      />
+    );
+  }
+  if (pageSlug === "sync") {
+    return (
+      <SyncPage
+        conflicts={syncConflicts}
+        lastOperationAt={syncLastOperationAt}
+        serverRevision={syncServerRevision}
       />
     );
   }
@@ -1141,11 +1266,21 @@ function ReportsPage({
 function SettingsPage({
   apiStatus,
   isOnline,
+  ledgerName,
+  openConflictCount,
   pendingOutboxCount,
+  theme,
+  workspaceName,
+  workspaceRole,
 }: {
   readonly apiStatus: string;
   readonly isOnline: boolean;
+  readonly ledgerName: string;
+  readonly openConflictCount: number;
   readonly pendingOutboxCount: number;
+  readonly theme: Theme;
+  readonly workspaceName: string;
+  readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
 }) {
   return (
     <section className="ff-page-grid" data-testid={testIds.settings.page}>
@@ -1159,15 +1294,22 @@ function SettingsPage({
             label={en.shell.workspace}
             labelTestId={testIds.settings.rowLabel("workspace")}
             rowTestId={testIds.settings.row("workspace")}
-            value={en.shell.demoWorkspace}
+            value={workspaceName}
             valueTestId={testIds.settings.rowValue("workspace")}
           />
           <SystemStatusRow
             label={en.shell.activeLedger}
             labelTestId={testIds.settings.rowLabel("active-ledger")}
             rowTestId={testIds.settings.row("active-ledger")}
-            value={en.shell.demoLedger}
+            value={ledgerName}
             valueTestId={testIds.settings.rowValue("active-ledger")}
+          />
+          <SystemStatusRow
+            label={en.shell.role}
+            labelTestId={testIds.settings.rowLabel("active-role")}
+            rowTestId={testIds.settings.row("active-role")}
+            value={workspaceRole}
+            valueTestId={testIds.settings.rowValue("active-role")}
           />
           <SystemStatusRow
             label={en.shell.syncMode}
@@ -1180,7 +1322,7 @@ function SettingsPage({
             label={en.shell.themePreference}
             labelTestId={testIds.settings.rowLabel("theme-preference")}
             rowTestId={testIds.settings.row("theme-preference")}
-            value={readInitialTheme() === "dark" ? en.shell.darkTheme : en.shell.lightTheme}
+            value={formatThemeLabel(theme)}
             valueTestId={testIds.settings.rowValue("theme-preference")}
           />
         </div>
@@ -1189,9 +1331,109 @@ function SettingsPage({
         <RuntimeStatusChips
           apiStatus={apiStatus}
           isOnline={isOnline}
+          openConflictCount={openConflictCount}
           pendingOutboxCount={pendingOutboxCount}
           surface="settings"
         />
+        <div className="mt-3">
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link to="/sync">{en.shell.syncCenter}</Link>
+          </Button>
+        </div>
+      </GlassSection>
+    </section>
+  );
+}
+
+function SyncPage({
+  conflicts,
+  lastOperationAt,
+  serverRevision,
+}: {
+  readonly conflicts: readonly {
+    readonly id: string;
+    readonly incomingOperationId: string;
+    readonly conflictType:
+      | "delete_after_update"
+      | "duplicate_unique_value"
+      | "invalid_operation"
+      | "reconciled_record_blocked"
+      | "stale_update"
+      | "update_after_delete";
+    readonly status: "dismissed" | "open" | "resolved";
+  }[];
+  readonly lastOperationAt: string | null;
+  readonly serverRevision: string;
+}) {
+  const openConflicts = conflicts.filter((conflict) => conflict.status === "open");
+  return (
+    <section className="ff-single-page space-y-4" data-testid={testIds.sync.page}>
+      <GlassSection
+        description={en.shell.syncCenterBody}
+        testId={testIds.sync.statusCard}
+        title={en.shell.syncCenter}
+      >
+        <div className="space-y-2">
+          <SystemStatusRow
+            label={en.shell.openConflicts}
+            value={openConflicts.length.toString()}
+            valueTestId={testIds.sync.openConflictCount}
+          />
+          <SystemStatusRow
+            label={en.shell.serverRevision}
+            value={serverRevision}
+            valueTestId={testIds.sync.serverRevision}
+          />
+          <SystemStatusRow
+            label={en.shell.lastOperationAt}
+            value={lastOperationAt ? formatDateTime(lastOperationAt) : "-"}
+            valueTestId={testIds.sync.lastOperationAt}
+          />
+        </div>
+      </GlassSection>
+      <GlassSection
+        description={en.shell.syncConflictsBody}
+        testId={testIds.sync.conflictsCard}
+        title={en.shell.syncConflicts}
+      >
+        {openConflicts.length > 0 ? (
+          <div className="grid gap-3">
+            {openConflicts.map((conflict) => (
+              <Card
+                className="ff-glass-panel p-4"
+                data-testid={testIds.sync.conflictRow(conflict.id)}
+                key={conflict.id}
+              >
+                <p
+                  className="font-medium text-[14px]"
+                  data-testid={testIds.sync.conflictType(conflict.id)}
+                >
+                  {conflict.conflictType}
+                </p>
+                <p
+                  className="mt-1 text-[12px] text-slate-600 dark:text-white/62"
+                  data-testid={testIds.sync.conflictOperation(conflict.id)}
+                >
+                  {conflict.incomingOperationId}
+                </p>
+                <Badge
+                  className="mt-3 w-fit"
+                  data-testid={testIds.sync.conflictStatus(conflict.id)}
+                  variant="outline"
+                >
+                  {conflict.status}
+                </Badge>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p
+            className="text-[14px] text-slate-600 dark:text-white/62"
+            data-testid={testIds.sync.emptyConflicts}
+          >
+            {en.shell.noSyncConflicts}
+          </p>
+        )}
       </GlassSection>
     </section>
   );
@@ -1668,11 +1910,13 @@ function SystemStatusRow({
 function RuntimeStatusChips({
   apiStatus,
   isOnline,
+  openConflictCount,
   pendingOutboxCount,
   surface,
 }: {
   readonly apiStatus: string;
   readonly isOnline: boolean;
+  readonly openConflictCount: number;
   readonly pendingOutboxCount: number;
   readonly surface: "drawer" | "settings";
 }) {
@@ -1697,6 +1941,12 @@ function RuntimeStatusChips({
           testId={testIds.runtimeStatus.savingChanges(surface)}
           tone={getPendingOutboxTone(pendingOutboxCount)}
         />
+        <StatusCapsule
+          icon={AlertTriangle}
+          label={`${en.shell.openConflicts}: ${openConflictCount}`}
+          testId={testIds.runtimeStatus.openConflicts(surface)}
+          tone={openConflictCount > 0 ? "danger" : "success"}
+        />
       </div>
     </div>
   );
@@ -1706,6 +1956,7 @@ function MobileMoreDrawer({
   apiStatus,
   isOnline,
   isLoggingOut,
+  openConflictCount,
   onClose,
   onLogout,
   open,
@@ -1714,6 +1965,7 @@ function MobileMoreDrawer({
   readonly apiStatus: string;
   readonly isOnline: boolean;
   readonly isLoggingOut: boolean;
+  readonly openConflictCount: number;
   readonly onClose: () => void;
   readonly onLogout: () => void;
   readonly open: boolean;
@@ -1746,6 +1998,7 @@ function MobileMoreDrawer({
         <RuntimeStatusChips
           apiStatus={apiStatus}
           isOnline={isOnline}
+          openConflictCount={openConflictCount}
           pendingOutboxCount={pendingOutboxCount}
           surface="drawer"
         />
@@ -1883,6 +2136,30 @@ function formatPendingSyncMessage(count: number): string {
     : en.shell.pendingSyncMany.replace("{count}", count.toString());
 }
 
+function formatOpenConflictMessage(count: number): string {
+  return `${count} ${en.shell.openConflicts.toLowerCase()} need review.`;
+}
+
+function cycleTheme(current: Theme): Theme {
+  if (current === "system") {
+    return "dark";
+  }
+  if (current === "dark") {
+    return "light";
+  }
+  return "system";
+}
+
+function formatThemeLabel(theme: Theme): string {
+  if (theme === "dark") {
+    return en.shell.darkTheme;
+  }
+  if (theme === "light") {
+    return en.shell.lightTheme;
+  }
+  return en.shell.systemTheme;
+}
+
 function hasActiveTransactionFilters(filters: TransactionListFilterState): boolean {
   return (
     filters.accountId !== ALL_TRANSACTION_FILTER ||
@@ -1974,6 +2251,17 @@ function formatDate(value: string | undefined): string {
   }).format(new Date(value));
 }
 
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 function readInitialTheme(): Theme {
-  return window.localStorage.getItem("fastifly.theme") === "light" ? "light" : "dark";
+  const value = window.localStorage.getItem("fastifly.theme");
+  return value === "dark" || value === "light" || value === "system" ? value : "system";
 }

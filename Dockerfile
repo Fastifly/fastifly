@@ -31,8 +31,11 @@ ENV APP_ENV=production
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV APP_PORT=3000
+ENV SERVE_WEB_STATIC=true
+ENV WEB_STATIC_ROOT=/app/web-dist
 
 COPY --from=prod-deps --chown=node:node /prod/api ./
+COPY --from=builder --chown=node:node /app/apps/web/dist /app/web-dist
 RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node

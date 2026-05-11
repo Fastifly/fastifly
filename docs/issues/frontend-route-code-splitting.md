@@ -1,29 +1,33 @@
 # Frontend Route Code Splitting
 
-Status: open
-Severity: non-blocking for current shadcn migration, blocking before mobile performance hardening
+Status: resolved
+Resolved in phase: 7
+Severity: closed
 
-## Why It Matters
+## Why It Mattered
 
-The web production build currently emits a Vite warning because the main client chunk is larger than 500 kB after minification. This can slow first load on mobile devices, especially when the app grows beyond the current dashboard/auth/transaction screens.
+The web build previously emitted a >500kB main chunk warning, which was a mobile performance risk.
 
-## Affected Docs/Code
+## Applied Fix
 
-- `apps/web/src/ui/app-shell.tsx`
-- `apps/web/src/ui/transaction-create-panel.tsx`
-- `apps/web/src/main.tsx`
-- `docs/specs/frontend-v2.md`
-- `docs/specs/pwa-mobile.md`
+- switched router to lazy route components with `lazyRouteComponent()` in
+  `apps/web/src/router.tsx`
+- introduced lazy route modules under `apps/web/src/ui/routes/`:
+  - `app-layout-route.tsx`
+  - `login-route.tsx`
+  - route marker modules for dashboard/accounts/transactions/budgets/reports/settings
 
-## Suggested Fix
+## Validation
 
-Introduce route-level and feature-level code splitting once the route tree stabilizes:
+`pnpm --filter @fastifly/web build` now outputs split chunks without the Vite large-chunk warning.
 
-- lazy-load non-primary screens such as reports/settings/advanced workflows
-- keep auth and dashboard startup paths small
-- split heavy form/report/import modules behind route boundaries
-- add a bundle-size check or documented budget before mobile hardening
+Notable output snapshot:
 
-## Blocking Milestone
+- `dist/assets/index-CE1e5lar.js` -> `273.00 kB`
+- `dist/assets/app-layout-route-CMcNHqzL.js` -> `166.63 kB`
+- `dist/assets/auth-components-C60StYIb.js` -> `191.37 kB`
 
-Resolve before declaring the PWA/mobile frontend performance-ready.
+## Acceptance
+
+- route-level lazy loading is in place for auth and primary navigation routes
+- mobile-first chunk pressure is reduced and no longer blocked by a single oversized main bundle

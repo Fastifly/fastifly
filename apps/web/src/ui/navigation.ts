@@ -1,5 +1,13 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, Home, Landmark, PieChart, ReceiptText, Settings } from "lucide-react";
+import {
+  BarChart3,
+  Home,
+  Landmark,
+  PieChart,
+  ReceiptText,
+  RefreshCcw,
+  Settings,
+} from "lucide-react";
 import { en } from "../i18n/en";
 
 export const MAX_MOBILE_TABS = 4;
@@ -47,6 +55,13 @@ export const navigationItems = [
     mobileLabel: en.nav.reports,
     slug: "reports",
     to: "/reports",
+  },
+  {
+    icon: RefreshCcw,
+    label: en.nav.sync,
+    mobileLabel: en.nav.sync,
+    slug: "sync",
+    to: "/sync",
   },
   {
     icon: Settings,

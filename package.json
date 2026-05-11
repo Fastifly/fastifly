@@ -11,7 +11,7 @@
     "dev:postgres:demo": "FASTIFLY_DEV_DB=postgres FASTIFLY_DEV_SEED=e2e node scripts/start.mjs",
     "dev:postgres:down": "docker compose -f docker-compose.dev-postgres.yml down",
     "build": "turbo run build",
-    "api:generate": "node scripts/generate-openapi.mjs",
+    "api:generate": "pnpm --filter @fastifly/api exec node --import tsx ../../scripts/generate-openapi.mjs && pnpm exec biome format --write apps/web/src/api/generated/openapi.ts",
     "api:check": "pnpm api:generate && git diff --exit-code -- apps/web/src/api/generated/openapi.ts",
     "check:testids": "node scripts/check-testid-literals.mjs",
     "typecheck": "turbo run typecheck",
@@ -38,11 +38,11 @@
     "db:seed:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.4.15",
     "@typescript/native-preview": "latest",
     "openapi-typescript": "^7.13.0",
     "turbo": "latest",
-    "typescript": "latest",
+    "typescript": "6.0.3",
     "vitest": "^4.1.5"
   }
 }

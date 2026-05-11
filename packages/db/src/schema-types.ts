@@ -27,4 +27,5 @@ export type AuditAction =
   | "account.created"
   | "account.updated"
   | "transaction.created"
+  | "sync_conflict.dismissed"
   | "job.enqueued";

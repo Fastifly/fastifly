@@ -1,6 +1,6 @@
 # Offline Sync Service Boundary
 
-Status: partially resolved
+Status: resolved
 Phase: 7
 Severity: blocking before offline write beta
 
@@ -50,13 +50,12 @@ Implemented on 2026-05-10:
 - Updated sync pull/status to match the canonical paginated contract with `hasMore`,
   `nextSinceRevision`, `openConflicts`, and `lastOperationAt`.
 - Added conflict list and dismiss endpoints backed by SQLite/PostgreSQL repository behavior.
+- On 2026-05-11, updated sync push to process operations in `localSequence` order, update device
+  `lastSeenAt` after successful processing, and persist actor-aware conflict-dismiss audit records.
 
-Remaining before offline write beta:
-
-- `category.create.v1` and `budget.assign_category_month.v1` need real domain services or must be
-  removed from the approved offline command list. Tracked in
-  `docs/issues/sync-category-budget-domain-services.md`.
+- On 2026-05-11, narrowed the v0.1 offline allowlist to transaction-group create commands only,
+  matching implemented replay service coverage and removing unsupported category/budget commands.
 
 ## Blocking Milestone
 
-Required before offline writes are enabled outside controlled development tests.
+Phase 7 offline sync foundation stop conditions are now satisfied for the approved v0.1 write set.

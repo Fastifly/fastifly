@@ -53,6 +53,34 @@ export function useAccountsQuery(input: LedgerQueryInput) {
   });
 }
 
+export function useSyncStatusQuery(input: LedgerQueryInput) {
+  return useQuery({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.getSyncStatus(input);
+    },
+    queryKey: ["sync", "status", input?.workspaceId, input?.ledgerId],
+    refetchInterval: 30_000,
+  });
+}
+
+export function useSyncConflictsQuery(input: LedgerQueryInput) {
+  return useQuery({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.getSyncConflicts(input);
+    },
+    queryKey: ["sync", "conflicts", input?.workspaceId, input?.ledgerId],
+    refetchInterval: 30_000,
+  });
+}
+
 export function useBudgetsQuery(input: LedgerQueryInput, query: BudgetListQueryInput = {}) {
   return useQuery({
     enabled: Boolean(input),

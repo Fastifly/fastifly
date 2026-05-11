@@ -7,6 +7,7 @@ import {
   createInProcessLedgerWriteBoundary,
   createLedgerFinanceMutationService,
   createPostgresAccountRepository,
+  createPostgresAdvisoryLedgerWriteBoundary,
   createPostgresBudgetQueryService,
   createPostgresClient,
   createPostgresDatabaseFromClient,
@@ -98,7 +99,7 @@ export async function createRuntimeDependencies(
 
   return config.databaseDriver === "sqlite"
     ? createSqliteRuntimeDependencies(config.databaseUrl)
-    : await createPostgresRuntimeDependencies(config.databaseUrl);
+    : await createPostgresRuntimeDependencies(config.databaseUrl, config);
 }
 
 function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependencyBundle {
@@ -151,6 +152,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
 
 async function createPostgresRuntimeDependencies(
   databaseUrl: string,
+  config: ApiConfig,
 ): Promise<RuntimeDependencyBundle> {
   const client = createPostgresClient({ url: databaseUrl });
 
@@ -166,7 +168,9 @@ async function createPostgresRuntimeDependencies(
     const runner = new LedgerMutationRunner({
       authorize: createRuntimeAuthorization(identityRepository),
       store: createPostgresLedgerMutationStore(db, { createId }),
-      writeBoundary: createInProcessLedgerWriteBoundary(),
+      writeBoundary: createPostgresAdvisoryLedgerWriteBoundary(client, {
+        acquireTimeoutMs: config.postgresLedgerLockAcquireTimeoutMs,
+      }),
     });
     const financeMutationService = createLedgerFinanceMutationService({
       accountRepository,

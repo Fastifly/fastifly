@@ -7,6 +7,7 @@ import type {
   UserRecord,
   UserWorkspaceContextRecord,
 } from "@fastifly/db";
+import { SyncReplayError } from "@fastifly/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
@@ -134,6 +135,41 @@ describe("sync routes", () => {
 
     expect(response.statusCode).toBe(403);
     expect(syncReplayService.push).not.toHaveBeenCalled();
+  });
+
+  it("maps sync replay device-not-found errors to 404", async () => {
+    const state = createUserWorkspaceContext("editor");
+    const app = await makeApp(state, {
+      syncReplayService: {
+        push: vi.fn(async () => {
+          throw new SyncReplayError("Sync device was not found.", "DEVICE_NOT_FOUND");
+        }),
+      },
+    });
+
+    const response = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie() },
+      method: "POST",
+      payload: {
+        deviceId: createId(),
+        ledgerId: state.context.activeLedger.id,
+        operations: [
+          {
+            createdAt: "2026-05-09T01:00:00.000Z",
+            idempotencyKey: "idem_operation_1",
+            localSequence: "1",
+            operationId: "operation_1",
+            operationType: "transaction_group.create_expense.v1",
+            operationVersion: 1,
+            payload: {},
+          },
+        ],
+        workspaceId: state.context.activeWorkspace.id,
+      },
+      url: "/api/v1/sync/push",
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("pulls accepted sync operations through the sync query service", async () => {

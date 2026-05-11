@@ -1,70 +1,94 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
-import { testIds } from "./testing/testid-registry";
-import { AppShell } from "./ui/app-shell";
-import { AuthPage } from "./ui/auth-page";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Outlet,
+} from "@tanstack/react-router";
 
 const rootRoute = createRootRoute({
-  component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+  component: () => <Outlet />,
+});
+
+const appLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "app-layout",
+  component: lazyRouteComponent(
+    () => import("./ui/routes/app-layout-route"),
+    "AppLayoutRouteComponent",
   ),
 });
 
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/",
-  component: () => <RouteMarker data-testid={testIds.routes.dashboardRoute} />,
+  component: lazyRouteComponent(
+    () => import("./ui/routes/dashboard-route"),
+    "DashboardRouteComponent",
+  ),
 });
 
 const accountsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/accounts",
-  component: () => <RouteMarker data-testid={testIds.routes.accountsRoute} />,
+  component: lazyRouteComponent(
+    () => import("./ui/routes/accounts-route"),
+    "AccountsRouteComponent",
+  ),
 });
 
 const transactionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/transactions",
-  component: () => <RouteMarker data-testid={testIds.routes.transactionsRoute} />,
+  component: lazyRouteComponent(
+    () => import("./ui/routes/transactions-route"),
+    "TransactionsRouteComponent",
+  ),
 });
 
 const budgetsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/budgets",
-  component: () => <RouteMarker data-testid={testIds.routes.budgetsRoute} />,
+  component: lazyRouteComponent(() => import("./ui/routes/budgets-route"), "BudgetsRouteComponent"),
 });
 
 const reportsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/reports",
-  component: () => <RouteMarker data-testid={testIds.routes.reportsRoute} />,
+  component: lazyRouteComponent(() => import("./ui/routes/reports-route"), "ReportsRouteComponent"),
+});
+
+const syncRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/sync",
+  component: lazyRouteComponent(() => import("./ui/routes/sync-route"), "SyncRouteComponent"),
 });
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/settings",
-  component: () => <RouteMarker data-testid={testIds.routes.settingsRoute} />,
+  component: lazyRouteComponent(
+    () => import("./ui/routes/settings-route"),
+    "SettingsRouteComponent",
+  ),
 });
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
-  component: () => (
-    <>
-      <AuthPage />
-      <div className="sr-only" data-testid={testIds.routes.loginRoute} />
-    </>
-  ),
+  component: lazyRouteComponent(() => import("./ui/routes/login-route"), "LoginRouteComponent"),
 });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  accountsRoute,
-  transactionsRoute,
-  budgetsRoute,
-  reportsRoute,
-  settingsRoute,
+  appLayoutRoute.addChildren([
+    indexRoute,
+    accountsRoute,
+    transactionsRoute,
+    budgetsRoute,
+    reportsRoute,
+    syncRoute,
+    settingsRoute,
+  ]),
   loginRoute,
 ]);
 
@@ -74,14 +98,4 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
-}
-
-function RouteMarker({
-  className = "sr-only",
-  "data-testid": testId,
-}: {
-  className?: string;
-  "data-testid": string;
-}) {
-  return <div className={className} data-testid={testId} aria-hidden="true" />;
 }

@@ -21,6 +21,7 @@ This does not block the current shadcn/ui setup, web typecheck, tests, or build,
 Track `openapi-typescript` releases and either:
 
 - upgrade when it supports TypeScript 6, or
-- pin TypeScript to a supported 5.x release if OpenAPI generation becomes unstable.
+- replace OpenAPI type generation with a TypeScript-6-compatible generator.
 
-Do not suppress the peer warning without proving OpenAPI generation works in CI.
+Current project decision: keep TypeScript on latest/6.x. Do not downgrade TypeScript for this
+warning alone.

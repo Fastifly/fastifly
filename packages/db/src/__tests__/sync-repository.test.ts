@@ -139,6 +139,14 @@ describe("sync repository", () => {
           id: deviceId,
           revokedAt: null,
         });
+        await syncRepository.touchDeviceLastSeen(
+          deviceId,
+          user.id,
+          new Date("2026-05-09T00:30:00.000Z"),
+        );
+        await expect(syncRepository.findDeviceForUser(deviceId, user.id)).resolves.toMatchObject({
+          lastSeenAt: "2026-05-09T00:30:00.000Z",
+        });
         await expect(
           syncRepository.recordAcceptedOperation({
             actorUserId: user.id,
@@ -274,6 +282,7 @@ describe("sync repository", () => {
           workspaceId: workspaceState.workspace.id,
         });
         const dismissed = await syncRepository.dismissConflict({
+          actorUserId: user.id,
           conflictId: conflict[0]?.id ?? createUuidV7(),
           ledgerId: workspaceState.ledger.id,
           resolvedAt: new Date("2026-05-09T02:00:00.000Z"),
@@ -291,6 +300,15 @@ describe("sync repository", () => {
             workspaceId: workspaceState.workspace.id,
           }),
         ).resolves.toBe(0);
+        await expect(
+          countAuditActions(
+            dialect,
+            rawDb,
+            workspaceState.workspace.id,
+            workspaceState.ledger.id,
+            "sync_conflict.dismissed",
+          ),
+        ).resolves.toBe(1);
       });
     });
   }
@@ -378,4 +396,43 @@ function createOperation(input: {
     payloadEncoding: "plaintext.v1",
     workspaceId: input.workspaceId,
   };
+}
+
+async function countAuditActions(
+  dialect: "sqlite" | "postgres",
+  rawDb: SqliteClient | QueryablePostgres,
+  workspaceId: SyncedId,
+  ledgerId: SyncedId,
+  action: string,
+): Promise<number> {
+  if (dialect === "sqlite" && "prepare" in rawDb) {
+    const row = rawDb
+      .prepare(
+        `
+        SELECT COUNT(*) AS count
+        FROM audit_log
+        WHERE workspace_id = ?
+          AND ledger_id = ?
+          AND action = ?
+      `,
+      )
+      .get(workspaceId, ledgerId, action) as { readonly count: number } | undefined;
+    return Number(row?.count ?? 0);
+  }
+
+  if ("query" in rawDb) {
+    const result = (await rawDb.query(`
+      SELECT COUNT(*)::int AS count
+      FROM audit_log
+      WHERE workspace_id = '${workspaceId}'
+        AND ledger_id = '${ledgerId}'
+        AND action = '${action}'
+    `)) as
+      | { readonly rows?: ReadonlyArray<{ readonly count: number | string }> }
+      | ReadonlyArray<{ readonly count: number | string }>;
+    const rows = Array.isArray(result) ? result : (result.rows ?? []);
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  throw new Error("Unsupported test database");
 }

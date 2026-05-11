@@ -20,6 +20,8 @@ export const ApiConfigSchema = z
     cookieSecret: z.string().min(32).optional(),
     sessionCookieName: z.string().min(1).default("fastifly_session"),
     sessionTtlDays: z.coerce.number().int().min(1).max(365).default(30),
+    serveWebStatic: EnvBooleanSchema.default(false),
+    webStaticRoot: z.string().min(1).optional(),
     invitationTtlDays: z.coerce.number().int().min(1).max(90).default(7),
     csrfCookieName: z.string().min(1).default("_fastifly_csrf"),
     passkeyRegistrationChallengeCookieName: z
@@ -31,6 +33,12 @@ export const ApiConfigSchema = z
     webAuthnRpId: z.string().min(1).optional(),
     webAuthnOrigin: z.url().optional(),
     webAuthnChallengeTtlMinutes: z.coerce.number().int().min(1).max(30).default(5),
+    postgresLedgerLockAcquireTimeoutMs: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(120_000)
+      .default(15_000),
   })
   .superRefine((config, ctx) => {
     if (config.nodeEnv === "production" && !config.cookieSecret) {
@@ -45,6 +53,13 @@ export const ApiConfigSchema = z
         code: "custom",
         message: "DATABASE_URL is required when DATABASE_DRIVER is configured.",
         path: ["databaseUrl"],
+      });
+    }
+    if (config.serveWebStatic && !config.webStaticRoot) {
+      ctx.addIssue({
+        code: "custom",
+        message: "WEB_STATIC_ROOT is required when SERVE_WEB_STATIC is enabled.",
+        path: ["webStaticRoot"],
       });
     }
   });
@@ -65,6 +80,8 @@ export function parseApiConfig(env: Record<string, string | undefined>): ApiConf
     cookieSecret: env.SESSION_SECRET ?? env.COOKIE_SECRET,
     sessionCookieName: env.SESSION_COOKIE_NAME,
     sessionTtlDays: env.SESSION_TTL_DAYS,
+    serveWebStatic: env.SERVE_WEB_STATIC,
+    webStaticRoot: env.WEB_STATIC_ROOT,
     invitationTtlDays: env.INVITATION_TTL_DAYS,
     csrfCookieName: env.CSRF_COOKIE_NAME,
     passkeyRegistrationChallengeCookieName: env.PASSKEY_REGISTRATION_CHALLENGE_COOKIE_NAME,
@@ -73,6 +90,7 @@ export function parseApiConfig(env: Record<string, string | undefined>): ApiConf
     webAuthnRpId: env.WEBAUTHN_RP_ID,
     webAuthnOrigin: env.WEBAUTHN_ORIGIN,
     webAuthnChallengeTtlMinutes: env.WEBAUTHN_CHALLENGE_TTL_MINUTES,
+    postgresLedgerLockAcquireTimeoutMs: env.POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS,
   });
 }
 

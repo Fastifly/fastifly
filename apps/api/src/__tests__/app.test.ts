@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   ApiErrorSchema,
   IDEMPOTENCY_REPLAYED_HEADER,
@@ -12,6 +16,7 @@ import { buildApiApp } from "../app.js";
 import { getRequestIdempotencyKey, sendLedgerMutationResult } from "../idempotency.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
+const tempDirs: string[] = [];
 
 async function makeApp() {
   const app = await buildApiApp({
@@ -24,6 +29,9 @@ async function makeApp() {
 
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { force: true, recursive: true });
+  }
 });
 
 describe("Fastifly API app", () => {
@@ -81,6 +89,55 @@ describe("Fastifly API app", () => {
     expect(document.openapi).toBe("3.1.0");
     expect(document.paths).toHaveProperty("/health");
     expect(document.paths).toHaveProperty("/ready");
+  });
+
+  it("serves frontend static assets and SPA fallback when enabled", async () => {
+    const webStaticRoot = makeStaticFixture();
+    const app = await buildApiApp({
+      config: {
+        logLevel: "silent",
+        nodeEnv: "test",
+        serveWebStatic: true,
+        webStaticRoot,
+      },
+      readiness: { migrations: "ok" },
+    });
+    apps.push(app);
+
+    const home = await app.inject({ method: "GET", url: "/" });
+    expect(home.statusCode).toBe(200);
+    expect(home.headers["content-type"]).toContain("text/html");
+    expect(home.body).toContain("Fastifly test shell");
+
+    const deepLink = await app.inject({ method: "GET", url: "/transactions" });
+    expect(deepLink.statusCode).toBe(200);
+    expect(deepLink.body).toContain("Fastifly test shell");
+
+    const sw = await app.inject({ method: "GET", url: "/sw.js" });
+    expect(sw.statusCode).toBe(200);
+    expect(sw.headers["cache-control"]).toContain("no-cache");
+
+    const apiMiss = await app.inject({ method: "GET", url: "/api/missing" });
+    expect(apiMiss.statusCode).toBe(404);
+    expect(apiMiss.json()).toMatchObject({
+      error: {
+        code: "NOT_FOUND",
+      },
+    });
+  });
+
+  it("fails startup if static serving is enabled with a missing web root", async () => {
+    await expect(
+      buildApiApp({
+        config: {
+          logLevel: "silent",
+          nodeEnv: "test",
+          serveWebStatic: true,
+          webStaticRoot: "/tmp/fastifly-missing-static-root",
+        },
+        readiness: { migrations: "ok" },
+      }),
+    ).rejects.toThrow("WEB_STATIC_ROOT does not exist");
   });
 
   it("returns standard not-found errors", async () => {
@@ -293,3 +350,15 @@ describe("Fastifly API app", () => {
     });
   });
 });
+
+function makeStaticFixture(): string {
+  const dir = mkdtempSync(join(tmpdir(), "fastifly-web-static-"));
+  tempDirs.push(dir);
+  writeFileSync(
+    join(dir, "index.html"),
+    "<!doctype html><html><body><div>Fastifly test shell</div></body></html>",
+  );
+  writeFileSync(join(dir, "sw.js"), "self.addEventListener('install', () => {});");
+  writeFileSync(join(dir, "manifest.webmanifest"), JSON.stringify({ name: "Fastifly" }));
+  return dir;
+}

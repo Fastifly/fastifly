@@ -7,6 +7,7 @@ import {
   type SyncOperationEnvelope,
 } from "@fastifly/common";
 import type { LedgerMutationRunResult } from "../ledger-mutations.js";
+import { LedgerMutationError } from "../ledger-mutations.js";
 import type { SyncRepository } from "../repositories/sync.js";
 import type { CreateTransactionLineInput } from "../repositories/transactions.js";
 import type { JsonObject, SyncConflictType } from "../schema-types.js";
@@ -84,8 +85,9 @@ export function createSyncReplayService(options: SyncReplayServiceOptions): Sync
       const accepted: SyncReplayAcceptedResult[] = [];
       const rejected: SyncReplayRejectedResult[] = [];
       const conflicts: SyncReplayConflictResult[] = [];
+      const orderedOperations = sortOperationsByLocalSequence(input.operations);
 
-      for (const operation of input.operations) {
+      for (const operation of orderedOperations) {
         assertOperationScope(input, operation);
 
         const replayed = await replayExistingOperation(options.syncRepository, operation);
@@ -162,6 +164,8 @@ export function createSyncReplayService(options: SyncReplayServiceOptions): Sync
           }),
         );
       }
+
+      await options.syncRepository.touchDeviceLastSeen(input.deviceId, input.actorUserId, now());
 
       const serverRevision = await options.syncRepository.getCurrentRevision({
         ledgerId: input.ledgerId,
@@ -256,41 +260,65 @@ async function applyOperation(
     transfer: financeMutationService.createTransfer,
   }[transactionType].bind(financeMutationService);
 
-  const result = await create({
-    envelope: {
-      actorUserId: input.actorUserId,
-      authorization: {
-        action: "create",
-        subject: "TransactionGroup",
+  try {
+    const result = await create({
+      envelope: {
+        actorUserId: input.actorUserId,
+        authorization: {
+          action: "create",
+          subject: "TransactionGroup",
+        },
+        baseRevision: parseOptionalRevision(input.operation.baseRevision),
+        deviceId: input.operation.deviceId,
+        dryRun: false,
+        idempotencyKey: input.operation.idempotencyKey,
+        ledgerId: input.operation.ledgerId,
+        requestId: input.operation.operationId,
+        sideEffectFlags: makeSyncSideEffectFlags(),
+        source: "sync",
+        syncOperation: {
+          localSequence: input.operation.localSequence,
+          operationId: input.operation.operationId,
+          operationType: input.operation.operationType,
+        },
+        workspaceId: input.operation.workspaceId,
       },
-      baseRevision: parseOptionalRevision(input.operation.baseRevision),
-      deviceId: input.operation.deviceId,
-      dryRun: false,
-      idempotencyKey: input.operation.idempotencyKey,
-      ledgerId: input.operation.ledgerId,
-      requestId: input.operation.operationId,
-      sideEffectFlags: makeSyncSideEffectFlags(),
-      source: "sync",
-      syncOperation: {
-        localSequence: input.operation.localSequence,
-        operationId: input.operation.operationId,
-        operationType: input.operation.operationType,
+      transaction: {
+        currencyCode: parsed.data.currencyCode,
+        description: parsed.data.description,
+        lines: parsed.data.transactions.map(toTransactionLineInput),
+        occurredAt: parsed.data.occurredAt,
+        source: "api",
+        sourceAccountId: parseSyncedId(parsed.data.sourceAccountId),
+        title: parsed.data.title ?? null,
+        ...(parsed.data.status ? { status: parsed.data.status } : {}),
       },
-      workspaceId: input.operation.workspaceId,
-    },
-    transaction: {
-      currencyCode: parsed.data.currencyCode,
-      description: parsed.data.description,
-      lines: parsed.data.transactions.map(toTransactionLineInput),
-      occurredAt: parsed.data.occurredAt,
-      source: "api",
-      sourceAccountId: parseSyncedId(parsed.data.sourceAccountId),
-      title: parsed.data.title ?? null,
-      ...(parsed.data.status ? { status: parsed.data.status } : {}),
-    },
-  });
+    });
 
-  return { result, status: "accepted" };
+    return { result, status: "accepted" };
+  } catch (error) {
+    if (isPermissionDeniedError(error)) {
+      return { status: "rejected", reason: "permission_denied" };
+    }
+    throw error;
+  }
+}
+
+function sortOperationsByLocalSequence(
+  operations: readonly SyncOperationEnvelope[],
+): readonly SyncOperationEnvelope[] {
+  return [...operations].sort((left, right) => {
+    const leftSequence = BigInt(left.localSequence);
+    const rightSequence = BigInt(right.localSequence);
+    if (leftSequence === rightSequence) {
+      return 0;
+    }
+    return leftSequence < rightSequence ? -1 : 1;
+  });
+}
+
+function isPermissionDeniedError(error: unknown): boolean {
+  return error instanceof LedgerMutationError && error.code === "MUTATION_FORBIDDEN";
 }
 
 function parseTransactionPayload(

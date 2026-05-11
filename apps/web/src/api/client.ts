@@ -21,6 +21,10 @@ import {
   type MeContextResponse,
   MeContextResponseSchema,
   type RegisterCredentials,
+  type SyncConflictsResponse,
+  SyncConflictsResponseSchema,
+  type SyncStatusResponse,
+  SyncStatusResponseSchema,
 } from "@fastifly/common";
 import createClient from "openapi-fetch";
 import { notifySessionExpired } from "../auth/session-events";
@@ -45,6 +49,8 @@ export type ApiClient = {
   readonly createTransaction: (input: LedgerPathInput & CreateTransactionRequest) => Promise<void>;
   readonly getHealth: () => Promise<{ readonly status: string }>;
   readonly getMeContext: () => Promise<MeContextResponse>;
+  readonly getSyncConflicts: (input: LedgerPathInput) => Promise<SyncConflictsResponse>;
+  readonly getSyncStatus: (input: LedgerPathInput) => Promise<SyncStatusResponse>;
   readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
   readonly listBudgets: (
     input: LedgerPathInput & Partial<Pick<ListBudgetsQuery, "asOfDate" | "cursor" | "limit">>,
@@ -155,6 +161,34 @@ export const apiClient: ApiClient = {
   },
   async getHealth() {
     return await unwrapOpenApiResponse(await openApiClient.GET("/health"));
+  },
+  async getSyncStatus(input) {
+    return SyncStatusResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/sync/status", {
+          params: {
+            query: {
+              ledgerId: input.ledgerId,
+              workspaceId: input.workspaceId,
+            },
+          },
+        }),
+      ),
+    );
+  },
+  async getSyncConflicts(input) {
+    return SyncConflictsResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/sync/conflicts", {
+          params: {
+            query: {
+              ledgerId: input.ledgerId,
+              workspaceId: input.workspaceId,
+            },
+          },
+        }),
+      ),
+    );
   },
   async listAccounts(input) {
     return ListAccountsResponseSchema.parse(

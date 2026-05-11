@@ -1,14 +1,14 @@
 # Sync Category And Budget Domain Services
 
-Status: open
+Status: resolved
 Phase: 7
-Severity: blocking before offline category or budget writes
+Severity: previously blocking before offline category or budget writes
 
 ## Why It Matters
 
-`docs/specs/sync-v1.md` lists `category.create.v1` and `budget.assign_category_month.v1` as
-approved offline commands, but the current implementation has no category-create or budget-assignment
-domain services yet.
+`docs/specs/sync-v1.md` previously listed `category.create.v1` and
+`budget.assign_category_month.v1` as approved offline commands, but the implementation had no
+category-create or budget-assignment domain services.
 
 The sync replay service must not write those tables directly or create sync-only business logic.
 
@@ -20,15 +20,17 @@ The sync replay service must not write those tables directly or create sync-only
 - future category and budget services/repositories
 - `packages/db/src/services/sync-replay.ts`
 
-## Suggested Fix
+## Resolution
 
-- Add normal online category and budget domain services first.
-- Add repository methods and API routes for those online writes.
-- Route the sync commands through those same services.
-- Add SQLite/PostgreSQL tests for replay idempotency, permission denial, and stale conflict behavior.
-- If those features are not in v0.1 scope, remove the two operation names from the approved sync
-  contracts before enabling offline writes.
+Implemented on 2026-05-11:
+
+- removed `category.create.v1` and `budget.assign_category_month.v1` from the approved v0.1
+  offline command allowlist in shared contracts and canonical docs
+- retained sync replay support only for transaction-group create operations that are fully routed
+  through the normal finance mutation service
+- documented category/budget offline writes as out of current v0.1 sync scope until domain services
+  and routes exist
 
 ## Blocking Milestone
 
-Required before offline category or budget writes are enabled.
+No longer blocking v0.1 offline write beta because those operation types are now out of scope.

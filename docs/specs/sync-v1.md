@@ -48,8 +48,6 @@ The client pushes domain commands:
 transaction_group.create_expense.v1
 transaction_group.create_income.v1
 transaction_group.create_transfer.v1
-category.create.v1
-budget.assign_category_month.v1
 ```
 
 The server applies commands through normal services:
@@ -122,11 +120,8 @@ v0.1 allows only:
 transaction_group.create_expense.v1
 transaction_group.create_income.v1
 transaction_group.create_transfer.v1
-category.create.v1
-budget.assign_category_month.v1
 ```
-
-These are allowed because they mostly create new state and can be validated independently.
+These are allowed because they create new transaction groups and can be validated independently.
 
 ---
 

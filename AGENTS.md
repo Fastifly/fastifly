@@ -730,8 +730,6 @@ Approved offline commands:
 transaction_group.create_expense.v1
 transaction_group.create_income.v1
 transaction_group.create_transfer.v1
-category.create.v1
-budget.assign_category_month.v1
 ```
 
 All other writes are online-only unless `docs/specs/sync-v1.md`, `docs/specs/api-v2.md`, and `docs/specs/database-v2.md` are updated.

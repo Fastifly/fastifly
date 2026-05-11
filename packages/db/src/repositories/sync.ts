@@ -1,4 +1,5 @@
 import {
+  createUuidV7,
   type SyncedId,
   type SyncOperationEnvelope,
   SyncOperationTypeSchema,
@@ -7,6 +8,7 @@ import { and, asc, eq, gt, isNotNull, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
+  pgAuditLog,
   pgDevices,
   pgSyncConflicts,
   pgSyncOperations,
@@ -69,6 +71,7 @@ export type SyncConflictRecord = {
 };
 
 export type ResolveSyncConflictInput = {
+  readonly actorUserId: SyncedId;
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
   readonly conflictId: SyncedId;
@@ -99,6 +102,11 @@ export type SyncRepository = {
     deviceId: SyncedId,
     userId: SyncedId,
   ) => Promise<SyncDeviceRecord | null>;
+  readonly touchDeviceLastSeen: (
+    deviceId: SyncedId,
+    userId: SyncedId,
+    seenAt: Date,
+  ) => Promise<void>;
   readonly findOperation: (operationId: string) => Promise<SyncOperationRecord | null>;
   readonly findOperationByDeviceSequence: (
     deviceId: SyncedId,
@@ -149,6 +157,18 @@ export function createSqliteSyncRepository(client: SqliteClient): SyncRepository
         .get(deviceId, userId) as SqliteDeviceRow | undefined;
 
       return row ? toSyncDeviceRecord(row) : null;
+    },
+
+    async touchDeviceLastSeen(deviceId, userId, seenAt) {
+      client
+        .prepare(
+          `
+          UPDATE devices
+          SET last_seen_at = ?
+          WHERE id = ? AND user_id = ?
+        `,
+        )
+        .run(seenAt.toISOString(), deviceId, userId);
     },
 
     async findOperation(operationId) {
@@ -276,19 +296,25 @@ export function createSqliteSyncRepository(client: SqliteClient): SyncRepository
 
     async dismissConflict(input) {
       const resolvedAt = input.resolvedAt.toISOString();
-      const result = client
-        .prepare(
-          `
-          UPDATE sync_conflicts
-          SET status = 'dismissed',
-              resolved_at = ?
-          WHERE id = ?
-            AND workspace_id = ?
-            AND ledger_id = ?
-            AND status = 'open'
-        `,
-        )
-        .run(resolvedAt, input.conflictId, input.workspaceId, input.ledgerId);
+      const result = client.transaction(() => {
+        const updateResult = client
+          .prepare(
+            `
+            UPDATE sync_conflicts
+            SET status = 'dismissed',
+                resolved_at = ?
+            WHERE id = ?
+              AND workspace_id = ?
+              AND ledger_id = ?
+              AND status = 'open'
+          `,
+          )
+          .run(resolvedAt, input.conflictId, input.workspaceId, input.ledgerId);
+        if (updateResult.changes === 1) {
+          insertSqliteConflictDismissAudit(client, input, resolvedAt);
+        }
+        return updateResult;
+      })();
 
       return result.changes === 1
         ? { conflictId: input.conflictId, resolvedAt, status: "dismissed" }
@@ -356,6 +382,13 @@ export function createPostgresSyncRepository(db: PostgresDatabase): SyncReposito
         .limit(1);
 
       return rows[0] ? toSyncDeviceRecord(rows[0]) : null;
+    },
+
+    async touchDeviceLastSeen(deviceId, userId, seenAt) {
+      await db
+        .update(pgDevices)
+        .set({ lastSeenAt: seenAt })
+        .where(and(eq(pgDevices.id, deviceId), eq(pgDevices.userId, userId)));
     },
 
     async findOperation(operationId) {
@@ -464,35 +497,52 @@ export function createPostgresSyncRepository(db: PostgresDatabase): SyncReposito
     },
 
     async dismissConflict(input) {
-      const rows = await db
-        .update(pgSyncConflicts)
-        .set({
-          resolvedAt: input.resolvedAt,
-          status: "dismissed",
-        })
-        .where(
-          and(
-            eq(pgSyncConflicts.id, input.conflictId),
-            eq(pgSyncConflicts.workspaceId, input.workspaceId),
-            eq(pgSyncConflicts.ledgerId, input.ledgerId),
-            eq(pgSyncConflicts.status, "open"),
-          ),
-        )
-        .returning({
-          conflictId: pgSyncConflicts.id,
-          resolvedAt: pgSyncConflicts.resolvedAt,
-          status: pgSyncConflicts.status,
-        });
-      const row = rows[0];
-      if (!row || row.status !== "dismissed" || !row.resolvedAt) {
-        return null;
-      }
+      return await db.transaction(async (tx) => {
+        const rows = await tx
+          .update(pgSyncConflicts)
+          .set({
+            resolvedAt: input.resolvedAt,
+            status: "dismissed",
+          })
+          .where(
+            and(
+              eq(pgSyncConflicts.id, input.conflictId),
+              eq(pgSyncConflicts.workspaceId, input.workspaceId),
+              eq(pgSyncConflicts.ledgerId, input.ledgerId),
+              eq(pgSyncConflicts.status, "open"),
+            ),
+          )
+          .returning({
+            conflictId: pgSyncConflicts.id,
+            resolvedAt: pgSyncConflicts.resolvedAt,
+            status: pgSyncConflicts.status,
+          });
+        const row = rows[0];
+        if (!row || row.status !== "dismissed" || !row.resolvedAt) {
+          return null;
+        }
 
-      return {
-        conflictId: row.conflictId as SyncedId,
-        resolvedAt: row.resolvedAt.toISOString(),
-        status: "dismissed",
-      };
+        await tx.insert(pgAuditLog).values({
+          action: "sync_conflict.dismissed",
+          actorUserId: input.actorUserId,
+          createdAt: input.resolvedAt,
+          entityId: row.conflictId,
+          entityType: "sync_conflict",
+          id: createUuidV7(),
+          ledgerId: input.ledgerId,
+          metadataJson: {
+            conflictId: row.conflictId,
+            resolution: "dismiss",
+          },
+          workspaceId: input.workspaceId,
+        });
+
+        return {
+          conflictId: row.conflictId as SyncedId,
+          resolvedAt: row.resolvedAt.toISOString(),
+          status: "dismissed",
+        };
+      });
     },
 
     async recordAcceptedOperation(input) {
@@ -739,6 +789,44 @@ function insertSqliteOperation(
       input.actorUserId,
       input.operation.createdAt,
       input.receivedAt.toISOString(),
+    );
+}
+
+function insertSqliteConflictDismissAudit(
+  client: SqliteClient,
+  input: ResolveSyncConflictInput,
+  resolvedAt: string,
+): void {
+  client
+    .prepare(
+      `
+      INSERT INTO audit_log (
+        id,
+        workspace_id,
+        ledger_id,
+        actor_user_id,
+        action,
+        entity_type,
+        entity_id,
+        metadata_json,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    )
+    .run(
+      createUuidV7(),
+      input.workspaceId,
+      input.ledgerId,
+      input.actorUserId,
+      "sync_conflict.dismissed",
+      "sync_conflict",
+      input.conflictId,
+      JSON.stringify({
+        conflictId: input.conflictId,
+        resolution: "dismiss",
+      }),
+      resolvedAt,
     );
 }
 

@@ -31,6 +31,8 @@ services:
       HOST: 0.0.0.0
       APP_PORT: 3000
       APP_URL: "${APP_URL:-http://localhost:3000}"
+      SERVE_WEB_STATIC: "true"
+      WEB_STATIC_ROOT: /app/web-dist
       DATABASE_DRIVER: postgres
       DATABASE_URL: "postgres://fastifly:${POSTGRES_PASSWORD}@postgres:5432/fastifly?sslmode=disable"
       SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}"

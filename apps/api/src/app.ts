@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineWorkspaceAbility } from "@fastifly/authz";
 import { createUuidV7, parseSyncedId } from "@fastifly/common";
 import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
@@ -14,6 +16,7 @@ import type {
 import fastifyCookie from "@fastify/cookie";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
 import fastifyRateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
 import fastifySwagger from "@fastify/swagger";
 import scalarApiReference from "@scalar/fastify-api-reference";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -189,7 +192,72 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     });
   }
 
+  if (config.serveWebStatic) {
+    await registerWebStatic(app, config.webStaticRoot);
+  }
+
   return app;
+}
+
+async function registerWebStatic(app: FastifyInstance, webStaticRoot: string | undefined) {
+  if (!webStaticRoot) {
+    throw new Error("WEB_STATIC_ROOT is required when static serving is enabled.");
+  }
+
+  const staticRoot = resolve(webStaticRoot);
+
+  if (!existsSync(staticRoot)) {
+    throw new Error(`WEB_STATIC_ROOT does not exist: ${staticRoot}`);
+  }
+
+  await app.register(fastifyStatic, {
+    root: staticRoot,
+    maxAge: "30d",
+    immutable: true,
+    index: false,
+    wildcard: false,
+    cacheControl: false,
+    setHeaders: (response, filePath) => {
+      response.setHeader("Cache-Control", resolveStaticCacheControl(filePath));
+    },
+  });
+
+  app.get("/", { schema: { hide: true } }, async (_request, reply) =>
+    reply.sendFile("index.html", {
+      immutable: false,
+      maxAge: 0,
+    }),
+  );
+
+  app.get("/*", { schema: { hide: true } }, async (request, reply) => {
+    const pathname = new URL(request.url, "http://localhost").pathname;
+
+    if (isBackendPath(pathname)) {
+      return reply.callNotFound();
+    }
+
+    return reply.sendFile("index.html", {
+      immutable: false,
+      maxAge: 0,
+    });
+  });
+}
+
+function isBackendPath(pathname: string): boolean {
+  return pathname === "/health" || pathname === "/ready" || pathname.startsWith("/api/");
+}
+
+function resolveStaticCacheControl(filePath: string): string {
+  const normalized = filePath.replaceAll("\\", "/");
+
+  if (normalized.endsWith("/index.html") || normalized.endsWith("/sw.js")) {
+    return "no-cache";
+  }
+  if (normalized.endsWith("/manifest.webmanifest")) {
+    return "public, max-age=3600";
+  }
+
+  return "public, max-age=2592000, immutable";
 }
 
 function makeRateLimitError(message: string, statusCode: number): Error & { statusCode: number } {

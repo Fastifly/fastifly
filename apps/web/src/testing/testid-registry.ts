@@ -7,9 +7,10 @@ type NavigationSlug =
   | "budgets"
   | "dashboard"
   | "reports"
+  | "sync"
   | "settings"
   | "transactions";
-type SettingsRow = "active-ledger" | "sync-mode" | "theme-preference" | "workspace";
+type SettingsRow = "active-ledger" | "active-role" | "sync-mode" | "theme-preference" | "workspace";
 type StatusSurface = "drawer" | "settings";
 type TransactionType = "expense" | "income" | "transfer";
 
@@ -20,6 +21,7 @@ export const testIds = {
     appBootstrap: "fastifly-app-bootstrap",
     main: "app-main",
     pendingSyncAlert: "pending-sync-alert",
+    syncConflictAlert: "sync-conflict-alert",
     topBar: "top-bar",
     topBarTitle: "top-bar-title",
     topBarStatus: "top-bar-status",
@@ -29,6 +31,7 @@ export const testIds = {
     themeToggleButton: "theme-toggle-button",
     authGate: "auth-gate-screen",
     authGateMessage: "auth-gate-message",
+    updateAlert: "app-update-alert",
   },
   routes: {
     dashboardRoute: "route-dashboard",
@@ -36,6 +39,7 @@ export const testIds = {
     transactionsRoute: "route-transactions",
     budgetsRoute: "route-budgets",
     reportsRoute: "route-reports",
+    syncRoute: "route-sync",
     settingsRoute: "route-settings",
     loginRoute: "route-login",
   },
@@ -206,6 +210,19 @@ export const testIds = {
     spendingMetric: "reports-spending-metric",
     transferCountMetric: "reports-transfer-count-metric",
   },
+  sync: {
+    page: "sync-page",
+    statusCard: "sync-status-card",
+    conflictsCard: "sync-conflicts-card",
+    openConflictCount: "sync-open-conflict-count",
+    serverRevision: "sync-server-revision",
+    lastOperationAt: "sync-last-operation-at",
+    emptyConflicts: "sync-empty-conflicts",
+    conflictRow: (id: string) => `sync-conflict-row-${id}`,
+    conflictType: (id: string) => `sync-conflict-row-${id}-type`,
+    conflictStatus: (id: string) => `sync-conflict-row-${id}-status`,
+    conflictOperation: (id: string) => `sync-conflict-row-${id}-operation`,
+  },
   settings: {
     page: "settings-page",
     overview: "settings-overview",
@@ -217,6 +234,7 @@ export const testIds = {
   runtimeStatus: {
     group: (surface: StatusSurface) => `runtime-status-${surface}`,
     internet: (surface: StatusSurface) => `runtime-status-${surface}-internet`,
+    openConflicts: (surface: StatusSurface) => `runtime-status-${surface}-open-conflicts`,
     server: (surface: StatusSurface) => `runtime-status-${surface}-server`,
     savingChanges: (surface: StatusSurface) => `runtime-status-${surface}-saving-changes`,
   },

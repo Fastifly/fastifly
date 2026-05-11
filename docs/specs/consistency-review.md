@@ -29,7 +29,7 @@ Useful content was promoted into latest-version docs before deletion.
 - v0.1 is server-first with limited offline command sync.
 - Full CRDT/local-first collaboration is not v0.1 scope.
 - Broad offline editing is blocked.
-- Approved offline commands are only simple transaction creates, simple category create, and monthly category budget assignment.
+- Approved offline commands are only simple transaction creates.
 - Synced domain objects use UUIDv7-compatible text IDs.
 - Money uses integer minor units, `bigint` internally, and string API amounts.
 - Ledger-affecting writes use one mutation envelope and runner.

@@ -177,6 +177,7 @@ export function createSyncQueryService(options: SyncQueryServiceOptions): SyncQu
 
     async dismissConflict(input) {
       return await options.syncRepository.dismissConflict({
+        actorUserId: input.actorUserId,
         conflictId: input.conflictId,
         ledgerId: input.ledgerId,
         resolvedAt: now(),

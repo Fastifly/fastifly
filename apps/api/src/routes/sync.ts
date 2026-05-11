@@ -68,7 +68,7 @@ export async function registerSyncRoutes(
           return { data: result };
         } catch (error) {
           if (error instanceof SyncReplayError) {
-            throw makeHttpError(403, error.message);
+            throw makeHttpError(mapSyncReplayStatusCode(error.code), error.message);
           }
 
           throw error;
@@ -200,4 +200,15 @@ function makeHttpError(statusCode: number, message: string): Error & { statusCod
   const error = new Error(message) as Error & { statusCode: number };
   error.statusCode = statusCode;
   return error;
+}
+
+function mapSyncReplayStatusCode(code: SyncReplayError["code"]): number {
+  switch (code) {
+    case "DEVICE_NOT_FOUND":
+      return 404;
+    case "DEVICE_REVOKED":
+      return 403;
+    case "OPERATION_SCOPE_MISMATCH":
+      return 400;
+  }
 }
