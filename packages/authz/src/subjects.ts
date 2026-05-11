@@ -15,6 +15,8 @@ export const AUTHZ_SUBJECTS = [
   "Payee",
   "TransactionGroup",
   "Import",
+  "Rule",
+  "RecurringTemplate",
   "Report",
   "Sync",
   "Backup",

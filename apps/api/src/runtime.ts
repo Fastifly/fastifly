@@ -17,6 +17,7 @@ import {
   createPostgresSyncRepository,
   createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
+  createPostgresWorkflowRepository,
   createSqliteAccountRepository,
   createSqliteBudgetQueryService,
   createSqliteDatabaseFromClient,
@@ -26,6 +27,7 @@ import {
   createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
+  createSqliteWorkflowRepository,
   createSyncQueryService,
   createSyncReplayService,
   type IdentityRepository,
@@ -39,6 +41,7 @@ import {
 import type { FastifyInstance } from "fastify";
 
 import { type BuildApiAppOptions, buildApiApp } from "./app.js";
+import { createFinanceWorkflowService } from "./services/finance-workflows.js";
 
 type RuntimeDependencyBundle = {
   readonly appOptions: BuildApiAppOptions;
@@ -63,6 +66,9 @@ const REQUIRED_CORE_TABLES = [
   "devices",
   "idempotency_receipts",
   "job_queue",
+  "import_jobs",
+  "rules",
+  "recurring_templates",
   "audit_log",
 ] as const;
 
@@ -114,6 +120,8 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     const identityRepository = createSqliteIdentityRepository(db, { createId });
     const syncRepository = createSqliteSyncRepository(client);
     const transactionRepository = createSqliteTransactionWriteRepository(client, { createId });
+    const transactionQueryService = createSqliteTransactionQueryService(client);
+    const workflowRepository = createSqliteWorkflowRepository(client, { createId });
     const runner = new LedgerMutationRunner({
       authorize: createRuntimeAuthorization(identityRepository),
       store: createSqliteLedgerMutationStore(db, { createId }),
@@ -123,6 +131,11 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
       accountRepository,
       runner,
       transactionRepository,
+    });
+    const workflowService = createFinanceWorkflowService({
+      financeMutationService,
+      transactionQueryService,
+      workflowRepository,
     });
 
     return {
@@ -138,7 +151,8 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
           syncRepository,
         }),
         syncQueryService: createSyncQueryService({ syncRepository }),
-        transactionQueryService: createSqliteTransactionQueryService(client),
+        transactionQueryService,
+        workflowService,
       },
       close: async () => {
         client.close();
@@ -165,6 +179,8 @@ async function createPostgresRuntimeDependencies(
     const identityRepository = createPostgresIdentityRepository(db, { createId });
     const syncRepository = createPostgresSyncRepository(db);
     const transactionRepository = createPostgresTransactionWriteRepository(db, { createId });
+    const transactionQueryService = createPostgresTransactionQueryService(db);
+    const workflowRepository = createPostgresWorkflowRepository(db, { createId });
     const runner = new LedgerMutationRunner({
       authorize: createRuntimeAuthorization(identityRepository),
       store: createPostgresLedgerMutationStore(db, { createId }),
@@ -183,6 +199,11 @@ async function createPostgresRuntimeDependencies(
       runner,
       transactionRepository,
     });
+    const workflowService = createFinanceWorkflowService({
+      financeMutationService,
+      transactionQueryService,
+      workflowRepository,
+    });
 
     return {
       appOptions: {
@@ -197,7 +218,8 @@ async function createPostgresRuntimeDependencies(
           syncRepository,
         }),
         syncQueryService: createSyncQueryService({ syncRepository }),
-        transactionQueryService: createPostgresTransactionQueryService(db),
+        transactionQueryService,
+        workflowService,
       },
       close: async () => {
         await closePostgresClient(client);

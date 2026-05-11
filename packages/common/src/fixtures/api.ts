@@ -1,5 +1,10 @@
 import { ApiErrorSchema, ValidationErrorSchema } from "../api/errors.js";
-import { ListAccountsResponseSchema, ListTransactionsResponseSchema } from "../api/finance.js";
+import {
+  ListAccountsResponseSchema,
+  ListTransactionsResponseSchema,
+  RecurringTemplateResponseSchema,
+  RuleResponseSchema,
+} from "../api/finance.js";
 import { encodeFinanceCursor, paginatedResponseSchema } from "../api/pagination.js";
 import { MoneyAmountSchema } from "../money.js";
 
@@ -120,4 +125,59 @@ export const transactionListFixture = ListTransactionsResponseSchema.parse({
     }),
     previousCursor: null,
   },
+});
+
+export const ruleResponseFixture = RuleResponseSchema.parse({
+  action: {
+    status: "cleared",
+    type: "set_transaction_status",
+  },
+  archivedAt: null,
+  condition: {
+    amountMinMinor: "5000",
+    type: "expense",
+  },
+  createdAt: "2026-05-09T00:00:00.000Z",
+  createdBy: "019dfbac-3319-7773-9a7d-52fb8d9b73e1",
+  enabled: true,
+  id: "019dfbac-3319-7773-9a7d-52fb8d9b73f1",
+  ledgerId: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+  name: "Auto clear larger expenses",
+  updatedAt: "2026-05-09T00:00:00.000Z",
+  updatedBy: "019dfbac-3319-7773-9a7d-52fb8d9b73e1",
+  workspaceId: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
+});
+
+export const recurringTemplateResponseFixture = RecurringTemplateResponseSchema.parse({
+  archivedAt: null,
+  cadence: "monthly",
+  createdAt: "2026-05-09T00:00:00.000Z",
+  createdBy: "019dfbac-3319-7773-9a7d-52fb8d9b73e1",
+  id: "019dfbac-3319-7773-9a7d-52fb8d9b73f2",
+  intervalCount: 1,
+  lastGeneratedAt: null,
+  ledgerId: "019dfbac-3319-7773-9a7d-52fb8d9b73e7",
+  nextRunAt: "2026-06-01T00:00:00.000Z",
+  payload: {
+    currencyCode: "INR",
+    description: "Rent",
+    lines: [
+      {
+        amountMinor: "35000",
+        budgetId: null,
+        categoryId: null,
+        description: "Rent",
+        destinationAccountId: "019dfbac-3319-7773-9a7d-52fb8d9b73f3",
+        reportingAmountMinor: null,
+        reportingCurrencyCode: null,
+      },
+    ],
+    sourceAccountId: "019dfbac-3319-7773-9a7d-52fb8d9b73e6",
+    title: "Monthly rent",
+    type: "expense",
+  },
+  status: "active",
+  updatedAt: "2026-05-09T00:00:00.000Z",
+  updatedBy: "019dfbac-3319-7773-9a7d-52fb8d9b73e1",
+  workspaceId: "019dfbac-3319-7773-9a7d-52fb8d9b73e8",
 });

@@ -1,18 +1,35 @@
 import {
   ArchiveAccountResponseSchema,
   type BudgetSummaryResponseSchema,
+  CommitImportJobRequestSchema,
+  CommitImportJobResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
+  CreateImportCsvRequestSchema,
+  CreateImportCsvResponseSchema,
+  CreateRecurringTemplateRequestSchema,
+  CreateRecurringTemplateResponseSchema,
+  CreateRuleRequestSchema,
+  CreateRuleResponseSchema,
   CreateTransactionRequestSchema,
   CreateTransactionResponseSchema,
   CursorPaginationQuerySchema,
   type FinanceCursorKind,
   formatAmountMinor,
+  GenerateRecurringTemplateRequestSchema,
+  GenerateRecurringTemplateResponseSchema,
   GetAccountResponseSchema,
+  GetImportJobResponseSchema,
+  GetRecurringTemplateResponseSchema,
+  GetRuleResponseSchema,
   GetTransactionResponseSchema,
+  ImportJobResponseSchema,
+  ListImportJobsResponseSchema,
   ListAccountsResponseSchema,
   ListBudgetsQuerySchema,
   ListBudgetsResponseSchema,
+  ListRecurringTemplatesResponseSchema,
+  ListRulesResponseSchema,
   ListTransactionsQuerySchema,
   ListTransactionsResponseSchema,
   makeMoneyAmount,
@@ -21,9 +38,18 @@ import {
   parseAmountMinor,
   parseFinanceCursor,
   parseSyncedId,
+  type RecurringTemplateResponseSchema,
+  RuleApplyRequestSchema,
+  RuleApplyResponseSchema,
+  RuleTestRequestSchema,
+  RuleTestResponseSchema,
+  type RuleResponseSchema,
   type TransactionGroupResponseSchema,
   type TransactionJournalResponseSchema,
   type TransactionPostingResponseSchema,
+  UndoImportJobResponseSchema,
+  UpdateRecurringTemplateRequestSchema,
+  UpdateRuleRequestSchema,
   type ValidationError,
 } from "@fastifly/common";
 import type {
@@ -33,8 +59,11 @@ import type {
   BudgetQueryService,
   BudgetSummaryRecord,
   CreateTransactionLineInput,
+  ImportJobRecord,
   LedgerFinanceMutationService,
   LedgerMutationSideEffectFlags,
+  RecurringTemplateRecord,
+  RuleRecord,
   TransactionGroupRecord,
   TransactionJournalRecord,
   TransactionPostingRecord,
@@ -46,6 +75,7 @@ import { z } from "zod/v4";
 import { getRequestIdempotencyKey, sendLedgerMutationResult } from "../idempotency.js";
 import { requireAbility, requireActiveWorkspace, requireAuthenticatedUser } from "../policies.js";
 import { ErrorResponseSchemas } from "../schemas.js";
+import type { FinanceWorkflowService } from "../services/finance-workflows.js";
 
 const LedgerParamsSchema = z.strictObject({
   ledgerId: z.uuidv7(),
@@ -60,19 +90,37 @@ const TransactionParamsSchema = LedgerParamsSchema.extend({
   transactionGroupId: z.uuidv7(),
 });
 
+const ImportParamsSchema = LedgerParamsSchema.extend({
+  importJobId: z.uuidv7(),
+});
+
+const RuleParamsSchema = LedgerParamsSchema.extend({
+  ruleId: z.uuidv7(),
+});
+
+const RecurringTemplateParamsSchema = LedgerParamsSchema.extend({
+  templateId: z.uuidv7(),
+});
+
 export type RegisterFinanceRoutesOptions = {
   readonly accountRepository?: AccountRepository | undefined;
   readonly budgetQueryService?: BudgetQueryService | undefined;
   readonly financeMutationService?: LedgerFinanceMutationService | undefined;
   readonly transactionQueryService?: TransactionQueryService | undefined;
+  readonly workflowService?: FinanceWorkflowService | undefined;
 };
 
 export async function registerFinanceRoutes(
   app: FastifyInstance,
   options: RegisterFinanceRoutesOptions,
 ): Promise<void> {
-  const { accountRepository, budgetQueryService, financeMutationService, transactionQueryService } =
-    options;
+  const {
+    accountRepository,
+    budgetQueryService,
+    financeMutationService,
+    transactionQueryService,
+    workflowService,
+  } = options;
 
   if (accountRepository) {
     app.get(
@@ -469,6 +517,649 @@ export async function registerFinanceRoutes(
       },
     );
   }
+
+  if (workflowService) {
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/csv",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: CreateImportCsvRequestSchema,
+          params: LedgerParamsSchema,
+          response: {
+            201: CreateImportCsvResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request, reply) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "import", "Import");
+        const body = CreateImportCsvRequestSchema.parse(request.body);
+
+        const importJob = await workflowService.createImportJobFromCsv({
+          actorUserId,
+          csvText: body.csvText,
+          fileName: body.fileName ?? null,
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return reply.status(201).send({
+          data: {
+            importJob: toImportJobResponse(importJob),
+          },
+        });
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports",
+      {
+        schema: {
+          params: LedgerParamsSchema,
+          response: {
+            200: ListImportJobsResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Import");
+
+        const importJobs = await workflowService.listImportJobs({
+          ledgerId: parseSyncedId(params.ledgerId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        return {
+          data: importJobs.map(toImportJobResponse),
+        };
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId",
+      {
+        schema: {
+          params: ImportParamsSchema,
+          response: {
+            200: GetImportJobResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = ImportParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Import");
+
+        const importJob = await workflowService.findImportJob({
+          importJobId: parseSyncedId(params.importJobId),
+          ledgerId: parseSyncedId(params.ledgerId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!importJob) {
+          throw makeHttpError(404, "Import job was not found.");
+        }
+        return {
+          data: {
+            importJob: toImportJobResponse(importJob),
+          },
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId/commit",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: CommitImportJobRequestSchema,
+          params: ImportParamsSchema,
+          response: {
+            200: CommitImportJobResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = ImportParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "import", "Import");
+        const body = CommitImportJobRequestSchema.parse(request.body);
+
+        const result = await workflowService.commitImportJob({
+          actorUserId,
+          applyRules: body.applyRules ?? false,
+          idempotencyKey: getRequestIdempotencyKey(request),
+          importJobId: parseSyncedId(params.importJobId),
+          requestId: String(request.id),
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return {
+          data: {
+            importJob: toImportJobResponse(result.importJob),
+          },
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId/undo",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          params: ImportParamsSchema,
+          response: {
+            200: UndoImportJobResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = ImportParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "import", "Import");
+
+        const result = await workflowService.undoImportJob({
+          actorUserId,
+          idempotencyKey: getRequestIdempotencyKey(request),
+          importJobId: parseSyncedId(params.importJobId),
+          requestId: String(request.id),
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return {
+          data: {
+            archivedGroupIds: result.archivedGroupIds,
+            importJob: toImportJobResponse(result.importJob),
+          },
+        };
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules",
+      {
+        schema: {
+          params: LedgerParamsSchema,
+          response: {
+            200: ListRulesResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Rule");
+
+        const rules = await workflowService.listRules({
+          ledgerId: parseSyncedId(params.ledgerId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        return {
+          data: rules.map(toRuleResponse),
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: CreateRuleRequestSchema,
+          params: LedgerParamsSchema,
+          response: {
+            201: CreateRuleResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request, reply) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "create", "Rule");
+        const body = CreateRuleRequestSchema.parse(request.body);
+
+        const rule = await workflowService.createRule({
+          action: body.action,
+          actorUserId,
+          condition: toRuleConditionInput(body.condition),
+          enabled: body.enabled,
+          ledgerId: parseSyncedId(params.ledgerId),
+          name: body.name,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        return reply.status(201).send({
+          data: {
+            rule: toRuleResponse(rule),
+          },
+        });
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules/:ruleId",
+      {
+        schema: {
+          params: RuleParamsSchema,
+          response: {
+            200: GetRuleResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = RuleParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Rule");
+
+        const rule = await workflowService.findRule({
+          ledgerId: parseSyncedId(params.ledgerId),
+          ruleId: parseSyncedId(params.ruleId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!rule) {
+          throw makeHttpError(404, "Rule was not found.");
+        }
+
+        return {
+          data: {
+            rule: toRuleResponse(rule),
+          },
+        };
+      },
+    );
+
+    app.patch(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules/:ruleId",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: UpdateRuleRequestSchema,
+          params: RuleParamsSchema,
+          response: {
+            200: GetRuleResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RuleParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "update", "Rule");
+        const body = UpdateRuleRequestSchema.parse(request.body);
+
+        const rule = await workflowService.updateRule({
+          action: body.action,
+          condition: toRuleConditionInput(body.condition),
+          enabled: body.enabled,
+          ledgerId: parseSyncedId(params.ledgerId),
+          name: body.name,
+          ruleId: parseSyncedId(params.ruleId),
+          updatedBy: actorUserId,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!rule) {
+          throw makeHttpError(404, "Rule was not found.");
+        }
+        return {
+          data: {
+            rule: toRuleResponse(rule),
+          },
+        };
+      },
+    );
+
+    app.delete(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules/:ruleId",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          params: RuleParamsSchema,
+          response: {
+            200: GetRuleResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RuleParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "delete", "Rule");
+
+        const rule = await workflowService.archiveRule({
+          ledgerId: parseSyncedId(params.ledgerId),
+          ruleId: parseSyncedId(params.ruleId),
+          updatedBy: actorUserId,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!rule) {
+          throw makeHttpError(404, "Rule was not found.");
+        }
+        return {
+          data: {
+            rule: toRuleResponse(rule),
+          },
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules/:ruleId/test",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: RuleTestRequestSchema,
+          params: RuleParamsSchema,
+          response: {
+            200: RuleTestResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = RuleParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "Rule");
+        const body = RuleTestRequestSchema.parse(request.body);
+
+        const matched = await workflowService.testRule({
+          limit: body.limit ?? 100,
+          ruleId: parseSyncedId(params.ruleId),
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return {
+          data: {
+            matchedTransactionGroups: matched.map(toTransactionGroupResponse),
+          },
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/rules/:ruleId/apply",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: RuleApplyRequestSchema,
+          params: RuleParamsSchema,
+          response: {
+            200: RuleApplyResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RuleParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "update", "Rule");
+        const body = RuleApplyRequestSchema.parse(request.body);
+
+        const result = await workflowService.applyRule({
+          actorUserId,
+          idempotencyKey: getRequestIdempotencyKey(request),
+          limit: body.limit ?? 100,
+          requestId: String(request.id),
+          ruleId: parseSyncedId(params.ruleId),
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return {
+          data: {
+            matchedTransactionGroupIds: result.matchedTransactionGroupIds,
+            rule: toRuleResponse(result.rule),
+            status: result.status,
+            updatedTransactionGroupIds: result.updatedTransactionGroupIds,
+          },
+        };
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring",
+      {
+        schema: {
+          params: LedgerParamsSchema,
+          response: {
+            200: ListRecurringTemplatesResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "RecurringTemplate");
+
+        const templates = await workflowService.listRecurringTemplates({
+          ledgerId: parseSyncedId(params.ledgerId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        return {
+          data: templates.map(toRecurringTemplateResponse),
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: CreateRecurringTemplateRequestSchema,
+          params: LedgerParamsSchema,
+          response: {
+            201: CreateRecurringTemplateResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request, reply) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = LedgerParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "create", "RecurringTemplate");
+        const body = CreateRecurringTemplateRequestSchema.parse(request.body);
+
+        const recurringTemplate = await workflowService.createRecurringTemplate({
+          actorUserId,
+          cadence: body.cadence,
+          intervalCount: body.intervalCount,
+          ledgerId: parseSyncedId(params.ledgerId),
+          nextRunAt: body.nextRunAt,
+          payload: toRecurringTemplatePayloadInput(body.payload),
+          status: body.status,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        return reply.status(201).send({
+          data: {
+            recurringTemplate: toRecurringTemplateResponse(recurringTemplate),
+          },
+        });
+      },
+    );
+
+    app.get(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring/:templateId",
+      {
+        schema: {
+          params: RecurringTemplateParamsSchema,
+          response: {
+            200: GetRecurringTemplateResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        requireAuthenticatedUser(request);
+        const params = RecurringTemplateParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "read", "RecurringTemplate");
+
+        const recurringTemplate = await workflowService.findRecurringTemplate({
+          ledgerId: parseSyncedId(params.ledgerId),
+          recurringTemplateId: parseSyncedId(params.templateId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!recurringTemplate) {
+          throw makeHttpError(404, "Recurring template was not found.");
+        }
+
+        return {
+          data: {
+            recurringTemplate: toRecurringTemplateResponse(recurringTemplate),
+          },
+        };
+      },
+    );
+
+    app.patch(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring/:templateId",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: UpdateRecurringTemplateRequestSchema,
+          params: RecurringTemplateParamsSchema,
+          response: {
+            200: GetRecurringTemplateResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RecurringTemplateParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "update", "RecurringTemplate");
+        const body = UpdateRecurringTemplateRequestSchema.parse(request.body);
+
+        const recurringTemplate = await workflowService.updateRecurringTemplate({
+          cadence: body.cadence,
+          intervalCount: body.intervalCount,
+          ledgerId: parseSyncedId(params.ledgerId),
+          nextRunAt: body.nextRunAt,
+          payload: toRecurringTemplatePayloadInput(body.payload),
+          recurringTemplateId: parseSyncedId(params.templateId),
+          status: body.status,
+          updatedBy: actorUserId,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!recurringTemplate) {
+          throw makeHttpError(404, "Recurring template was not found.");
+        }
+        return {
+          data: {
+            recurringTemplate: toRecurringTemplateResponse(recurringTemplate),
+          },
+        };
+      },
+    );
+
+    app.delete(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring/:templateId",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          params: RecurringTemplateParamsSchema,
+          response: {
+            200: GetRecurringTemplateResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RecurringTemplateParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "delete", "RecurringTemplate");
+
+        const recurringTemplate = await workflowService.archiveRecurringTemplate({
+          ledgerId: parseSyncedId(params.ledgerId),
+          recurringTemplateId: parseSyncedId(params.templateId),
+          updatedBy: actorUserId,
+          workspaceId: parseSyncedId(params.workspaceId),
+        });
+        if (!recurringTemplate) {
+          throw makeHttpError(404, "Recurring template was not found.");
+        }
+        return {
+          data: {
+            recurringTemplate: toRecurringTemplateResponse(recurringTemplate),
+          },
+        };
+      },
+    );
+
+    app.post(
+      "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/recurring/:templateId/generate",
+      {
+        onRequest: app.csrfProtection,
+        schema: {
+          body: GenerateRecurringTemplateRequestSchema,
+          params: RecurringTemplateParamsSchema,
+          response: {
+            200: GenerateRecurringTemplateResponseSchema,
+            ...ErrorResponseSchemas,
+          },
+        },
+      },
+      async (request) => {
+        const actorUserId = requireAuthenticatedUser(request);
+        const params = RecurringTemplateParamsSchema.parse(request.params);
+        requireActiveWorkspace(request, params.workspaceId);
+        requireAbility(request, "update", "RecurringTemplate");
+        const body = GenerateRecurringTemplateRequestSchema.parse(request.body);
+
+        const result = await workflowService.generateRecurringTemplate({
+          actorUserId,
+          idempotencyKey: getRequestIdempotencyKey(request),
+          occurredAt: body.occurredAt ?? null,
+          recurringTemplateId: parseSyncedId(params.templateId),
+          requestId: String(request.id),
+          scope: {
+            ledgerId: parseSyncedId(params.ledgerId),
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        });
+        return {
+          data: {
+            recurringTemplate: toRecurringTemplateResponse(result.recurringTemplate),
+            transactionGroup: toTransactionGroupResponse(result.transactionGroup),
+          },
+        };
+      },
+    );
+  }
 }
 
 function makeSideEffectFlags(
@@ -594,6 +1285,119 @@ function toBudgetSummaryResponse(
     spent: makeMoneyAmount(budget.spentMinor, budget.currencyCode),
     updatedAt: budget.updatedAt,
     workspaceId: budget.workspaceId,
+  };
+}
+
+function toRuleConditionInput(
+  condition: z.infer<typeof RuleResponseSchema>["condition"],
+): RuleRecord["condition"] {
+  return {
+    ...(condition.amountMaxMinor ? { amountMaxMinor: condition.amountMaxMinor } : {}),
+    ...(condition.amountMinMinor ? { amountMinMinor: condition.amountMinMinor } : {}),
+    ...(condition.descriptionContains
+      ? { descriptionContains: condition.descriptionContains }
+      : {}),
+    ...(condition.type ? { type: condition.type } : {}),
+  };
+}
+
+function toRecurringTemplatePayloadInput(
+  payload: z.infer<typeof RecurringTemplateResponseSchema>["payload"],
+): RecurringTemplateRecord["payload"] {
+  return {
+    currencyCode: payload.currencyCode,
+    description: payload.description,
+    lines: payload.lines.map((line) => ({
+      amountMinor: line.amountMinor,
+      budgetId: line.budgetId ?? null,
+      categoryId: line.categoryId ?? null,
+      description: line.description ?? null,
+      destinationAccountId: line.destinationAccountId,
+      reportingAmountMinor: line.reportingAmountMinor ?? null,
+      reportingCurrencyCode: line.reportingCurrencyCode ?? null,
+    })),
+    sourceAccountId: payload.sourceAccountId,
+    title: payload.title ?? null,
+    type: payload.type,
+  };
+}
+
+function toImportJobResponse(importJob: ImportJobRecord): z.infer<typeof ImportJobResponseSchema> {
+  return {
+    committedAt: importJob.committedAt,
+    committedGroupIds: [...importJob.committedGroupIds],
+    createdAt: importJob.createdAt,
+    createdBy: importJob.createdBy,
+    fileName: importJob.fileName,
+    id: importJob.id,
+    ledgerId: importJob.ledgerId,
+    previewRows: importJob.previewRows.map((row) => ({
+      amountMinor: row.amountMinor,
+      currencyCode: row.currencyCode,
+      description: row.description,
+      destinationAccountId: row.destinationAccountId,
+      occurredAt: row.occurredAt,
+      rowNumber: row.rowNumber,
+      sourceAccountId: row.sourceAccountId,
+      type: row.type,
+    })),
+    status: importJob.status,
+    undoneAt: importJob.undoneAt,
+    updatedAt: importJob.updatedAt,
+    workspaceId: importJob.workspaceId,
+  };
+}
+
+function toRuleResponse(rule: RuleRecord): z.infer<typeof RuleResponseSchema> {
+  return {
+    action: rule.action,
+    archivedAt: rule.archivedAt,
+    condition: rule.condition,
+    createdAt: rule.createdAt,
+    createdBy: rule.createdBy,
+    enabled: rule.enabled,
+    id: rule.id,
+    ledgerId: rule.ledgerId,
+    name: rule.name,
+    updatedAt: rule.updatedAt,
+    updatedBy: rule.updatedBy,
+    workspaceId: rule.workspaceId,
+  };
+}
+
+function toRecurringTemplateResponse(
+  recurringTemplate: RecurringTemplateRecord,
+): z.infer<typeof RecurringTemplateResponseSchema> {
+  return {
+    archivedAt: recurringTemplate.archivedAt,
+    cadence: recurringTemplate.cadence,
+    createdAt: recurringTemplate.createdAt,
+    createdBy: recurringTemplate.createdBy,
+    id: recurringTemplate.id,
+    intervalCount: recurringTemplate.intervalCount,
+    lastGeneratedAt: recurringTemplate.lastGeneratedAt,
+    ledgerId: recurringTemplate.ledgerId,
+    nextRunAt: recurringTemplate.nextRunAt,
+    payload: {
+      currencyCode: recurringTemplate.payload.currencyCode,
+      description: recurringTemplate.payload.description,
+      lines: recurringTemplate.payload.lines.map((line) => ({
+        amountMinor: line.amountMinor,
+        budgetId: line.budgetId,
+        categoryId: line.categoryId,
+        description: line.description,
+        destinationAccountId: line.destinationAccountId,
+        reportingAmountMinor: line.reportingAmountMinor,
+        reportingCurrencyCode: line.reportingCurrencyCode,
+      })),
+      sourceAccountId: recurringTemplate.payload.sourceAccountId,
+      title: recurringTemplate.payload.title,
+      type: recurringTemplate.payload.type,
+    },
+    status: recurringTemplate.status,
+    updatedAt: recurringTemplate.updatedAt,
+    updatedBy: recurringTemplate.updatedBy,
+    workspaceId: recurringTemplate.workspaceId,
   };
 }
 

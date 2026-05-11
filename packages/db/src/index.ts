@@ -169,10 +169,12 @@ export type {
 } from "./repositories/sync.js";
 export { createPostgresSyncRepository, createSqliteSyncRepository } from "./repositories/sync.js";
 export type {
+  ArchiveTransactionGroupsInput,
   CreateTransactionInput,
   CreateTransactionLineInput,
   GetTransactionGroupInput,
   ListTransactionsInput,
+  SetTransactionGroupStatusInput,
   TransactionGroupRecord,
   TransactionJournalRecord,
   TransactionPostingRecord,
@@ -189,7 +191,37 @@ export {
   createSqliteTransactionWriteRepository,
   TransactionWriteError,
 } from "./repositories/transactions.js";
-export type { AuditAction, JobQueueStatus, JsonObject } from "./schema-types.js";
+export type {
+  CreateImportJobInput,
+  CreateRecurringTemplateInput,
+  CreateRuleInput,
+  ImportJobRecord,
+  ImportPreviewRow,
+  RecurringTemplatePayload,
+  RecurringTemplateRecord,
+  RuleAction,
+  RuleCondition,
+  RuleRecord,
+  UpdateImportJobCommittedInput,
+  UpdateImportJobUndoneInput,
+  UpdateRecurringTemplateInput,
+  UpdateRuleInput,
+  WorkflowRepository,
+  WorkflowRepositoryOptions,
+} from "./repositories/workflows.js";
+export {
+  createPostgresWorkflowRepository,
+  createSqliteWorkflowRepository,
+} from "./repositories/workflows.js";
+export type {
+  AuditAction,
+  ImportJobStatus,
+  JobQueueStatus,
+  JsonObject,
+  RecurringCadence,
+  RecurringTemplateStatus,
+  RuleActionType,
+} from "./schema-types.js";
 export { createSeedPasswordHash, SEED_CREDENTIALS, SEED_NOW } from "./seed/fixtures.js";
 export { SEED_IDS, seedId } from "./seed/ids.js";
 export type { SeedDatabaseInput, SeedDriver, SeedLevel } from "./seed/index.js";
@@ -197,6 +229,8 @@ export { seedDatabase, seedPostgres, seedPostgresDatabase, seedSqlite } from "./
 export type {
   ArchiveAccountMutationInput,
   ArchiveAccountMutationPayload,
+  ArchiveTransactionGroupsMutationInput,
+  ArchiveTransactionGroupsMutationPayload,
   CreateAccountMutationInput,
   CreateAccountMutationPayload,
   CreateTransactionMutationInput,
@@ -205,6 +239,8 @@ export type {
   CreateTypedTransactionMutationPayload,
   LedgerFinanceMutationService,
   LedgerFinanceMutationServiceOptions,
+  SetTransactionGroupStatusMutationInput,
+  SetTransactionGroupStatusMutationPayload,
 } from "./services/finance-mutations.js";
 export {
   createLedgerFinanceMutationService,

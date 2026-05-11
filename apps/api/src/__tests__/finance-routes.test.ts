@@ -165,10 +165,29 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: true,
       status: 201,
     })),
+    archiveTransactionGroups: vi.fn(async () => ({
+      body: {
+        data: {
+          archivedGroupIds: [createId()],
+        },
+      },
+      idempotencyReplayed: false,
+      status: 200,
+    })),
     createExpense: vi.fn(makeTransactionResult),
     createIncome: vi.fn(makeTransactionResult),
     createTransaction: vi.fn(makeTransactionResult),
     createTransfer: vi.fn(makeTransactionResult),
+    setTransactionGroupStatus: vi.fn(async () => ({
+      body: {
+        data: {
+          status: "cleared",
+          updatedGroupIds: [createId()],
+        },
+      },
+      idempotencyReplayed: false,
+      status: 200,
+    })),
   };
 }
 

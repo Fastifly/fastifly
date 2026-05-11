@@ -4,8 +4,12 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 
 import type {
   AuditAction,
+  ImportJobStatus,
   JobQueueStatus,
   JsonObject,
+  RecurringCadence,
+  RecurringTemplateStatus,
+  RuleActionType,
   SyncConflictStatus,
   SyncConflictType,
   SyncOperationStatus,
@@ -625,6 +629,97 @@ export const sqliteBudgetLimits = sqliteTable(
   ],
 );
 
+export const sqliteImportJobs = sqliteTable(
+  "import_jobs",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    fileName: text("file_name"),
+    csvText: text("csv_text").notNull(),
+    previewRowsJson: text("preview_rows_json", { mode: "json" })
+      .$type<readonly JsonObject[]>()
+      .notNull(),
+    status: text("status").$type<ImportJobStatus>().notNull(),
+    committedGroupIdsJson: text("committed_group_ids_json", { mode: "json" })
+      .$type<readonly string[]>()
+      .notNull(),
+    createdBy: requiredIdText("created_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    committedAt: optionalTimestampText("committed_at"),
+    undoneAt: optionalTimestampText("undone_at"),
+  },
+  (table) => [
+    index("import_jobs_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("import_jobs_status_idx").on(table.status),
+    check(
+      "import_jobs_status_check",
+      sql`${table.status} IN ('preview_ready', 'committed', 'undone', 'failed')`,
+    ),
+  ],
+);
+
+export const sqliteRules = sqliteTable(
+  "rules",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    name: text("name").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    conditionJson: text("condition_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    actionType: text("action_type").$type<RuleActionType>().notNull(),
+    actionJson: text("action_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => sqliteUsers.id),
+    updatedBy: requiredIdText("updated_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    archivedAt: optionalTimestampText("archived_at"),
+  },
+  (table) => [
+    index("rules_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("rules_enabled_idx").on(table.enabled),
+    uniqueIndex("rules_ledger_name_unique").on(table.ledgerId, table.name),
+    check("rules_action_type_check", sql`${table.actionType} IN ('set_transaction_status')`),
+  ],
+);
+
+export const sqliteRecurringTemplates = sqliteTable(
+  "recurring_templates",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    type: text("type").notNull(),
+    cadence: text("cadence").$type<RecurringCadence>().notNull(),
+    intervalCount: integer("interval_count").notNull().default(1),
+    nextRunAt: timestampText("next_run_at"),
+    status: text("status").$type<RecurringTemplateStatus>().notNull(),
+    templateJson: text("template_json", { mode: "json" }).$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => sqliteUsers.id),
+    updatedBy: requiredIdText("updated_by").references(() => sqliteUsers.id),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+    lastGeneratedAt: optionalTimestampText("last_generated_at"),
+    archivedAt: optionalTimestampText("archived_at"),
+  },
+  (table) => [
+    index("recurring_templates_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("recurring_templates_status_idx").on(table.status),
+    check(
+      "recurring_templates_type_check",
+      sql`${table.type} IN ('expense', 'income', 'transfer')`,
+    ),
+    check("recurring_templates_cadence_check", sql`${table.cadence} IN ('daily', 'weekly', 'monthly')`),
+    check(
+      "recurring_templates_status_check",
+      sql`${table.status} IN ('active', 'paused', 'archived')`,
+    ),
+    check("recurring_templates_interval_check", sql`${table.intervalCount} >= 1`),
+  ],
+);
+
 export const sqliteTransactionGroups = sqliteTable(
   "transaction_groups",
   {
@@ -847,6 +942,7 @@ export const sqliteSchema = {
   devices: sqliteDevices,
   exchangeRates: sqliteExchangeRates,
   idempotencyReceipts: sqliteIdempotencyReceipts,
+  importJobs: sqliteImportJobs,
   journalMeta: sqliteJournalMeta,
   jobQueue: sqliteJobQueue,
   ledgers: sqliteLedgers,
@@ -855,7 +951,9 @@ export const sqliteSchema = {
   payeeAliases: sqlitePayeeAliases,
   payeeMappings: sqlitePayeeMappings,
   payees: sqlitePayees,
+  recurringTemplates: sqliteRecurringTemplates,
   recoveryCodes: sqliteRecoveryCodes,
+  rules: sqliteRules,
   sessions: sqliteSessions,
   syncConflicts: sqliteSyncConflicts,
   syncOperations: sqliteSyncOperations,

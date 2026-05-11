@@ -51,6 +51,11 @@ export type TransactionWriteRepositoryOptions = {
   readonly createId?: () => SyncedId;
 };
 
+export type ArchiveTransactionGroupsInput = LedgerScope & {
+  readonly groupIds: readonly SyncedId[];
+  readonly updatedBy: SyncedId | null;
+};
+
 export type CreateTransactionLineInput = {
   readonly amountMinor: bigint;
   readonly destinationAccountId: SyncedId;
@@ -72,6 +77,12 @@ export type CreateTransactionInput = LedgerScope & {
   readonly source?: "manual" | "import" | "recurring" | "rule" | "api";
   readonly createdBy?: SyncedId | null;
   readonly lines: readonly CreateTransactionLineInput[];
+};
+
+export type SetTransactionGroupStatusInput = LedgerScope & {
+  readonly groupIds: readonly SyncedId[];
+  readonly status: "pending" | "cleared" | "reconciled" | "void";
+  readonly updatedBy: SyncedId | null;
 };
 
 export type TransactionPostingRecord = {
@@ -104,6 +115,12 @@ export type TransactionWriteRepository = {
   readonly createTransaction: (
     input: CreateTransactionInput,
   ) => MaybePromise<TransactionGroupRecord>;
+  readonly archiveTransactionGroups: (
+    input: ArchiveTransactionGroupsInput,
+  ) => MaybePromise<readonly SyncedId[]>;
+  readonly setTransactionGroupStatus: (
+    input: SetTransactionGroupStatusInput,
+  ) => MaybePromise<readonly SyncedId[]>;
 };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -260,6 +277,59 @@ function resolveOptions(options?: TransactionWriteRepositoryOptions): ResolvedOp
   };
 }
 
+type SqliteImpactedAccountRow = {
+  readonly account_id: string;
+  readonly currency_code: string;
+  readonly from_occurred_at: string;
+};
+
+type ImpactedAccount = {
+  readonly accountId: SyncedId;
+  readonly currencyCode: string;
+  readonly fromOccurredAt: string;
+};
+
+function normalizeGroupIds(groupIds: readonly SyncedId[]): readonly SyncedId[] {
+  return [...new Set(groupIds)];
+}
+
+function toSqlitePlaceholders(length: number): string {
+  return Array.from({ length }, () => "?").join(",");
+}
+
+function readSqliteImpactedAccounts(
+  client: SqliteClient,
+  scope: LedgerScope,
+  groupIds: readonly SyncedId[],
+): readonly ImpactedAccount[] {
+  const rows = client
+    .prepare(
+      `
+        SELECT
+          transaction_postings.account_id AS account_id,
+          transaction_postings.currency_code AS currency_code,
+          MIN(transaction_journals.occurred_at) AS from_occurred_at
+        FROM transaction_postings
+        INNER JOIN transaction_journals
+          ON transaction_journals.id = transaction_postings.journal_id
+          AND transaction_journals.workspace_id = transaction_postings.workspace_id
+          AND transaction_journals.ledger_id = transaction_postings.ledger_id
+        WHERE transaction_journals.workspace_id = ?
+          AND transaction_journals.ledger_id = ?
+          AND transaction_journals.group_id IN (${toSqlitePlaceholders(groupIds.length)})
+          AND transaction_journals.deleted_at IS NULL
+        GROUP BY transaction_postings.account_id, transaction_postings.currency_code
+      `,
+    )
+    .all(scope.workspaceId, scope.ledgerId, ...groupIds) as readonly SqliteImpactedAccountRow[];
+
+  return rows.map((row) => ({
+    accountId: parseSyncedId(row.account_id),
+    currencyCode: row.currency_code,
+    fromOccurredAt: row.from_occurred_at,
+  }));
+}
+
 export function createSqliteTransactionWriteRepository(
   client: SqliteClient,
   options?: TransactionWriteRepositoryOptions,
@@ -316,6 +386,79 @@ export function createSqliteTransactionWriteRepository(
           return { ...group, journals };
         })
         .immediate();
+    },
+    archiveTransactionGroups(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = normalizeGroupIds(input.groupIds);
+      if (groupIds.length === 0) {
+        return [];
+      }
+      const now = makeTimestamp(resolved.clock);
+      const impactedAccounts = readSqliteImpactedAccounts(client, scope, groupIds);
+
+      return client
+        .transaction(() => {
+          const placeholders = toSqlitePlaceholders(groupIds.length);
+          client
+            .prepare(
+              `
+                UPDATE transaction_journals
+                SET deleted_at = ?, updated_at = ?, updated_by = ?
+                WHERE workspace_id = ?
+                  AND ledger_id = ?
+                  AND group_id IN (${placeholders})
+                  AND deleted_at IS NULL
+              `,
+            )
+            .run(now, now, input.updatedBy, scope.workspaceId, scope.ledgerId, ...groupIds);
+          const result = client
+            .prepare(
+              `
+                UPDATE transaction_groups
+                SET deleted_at = ?, updated_at = ?, updated_by = ?
+                WHERE workspace_id = ?
+                  AND ledger_id = ?
+                  AND id IN (${placeholders})
+                  AND deleted_at IS NULL
+              `,
+            )
+            .run(now, now, input.updatedBy, scope.workspaceId, scope.ledgerId, ...groupIds);
+          for (const impacted of impactedAccounts) {
+            insertSqliteBalanceDirty(client, {
+              accountId: impacted.accountId,
+              currencyCode: impacted.currencyCode,
+              fromOccurredAt: impacted.fromOccurredAt,
+              id: resolved.createId(),
+              ledgerId: scope.ledgerId,
+              now,
+              workspaceId: scope.workspaceId,
+            });
+          }
+          return result.changes > 0 ? groupIds : [];
+        })
+        .immediate();
+    },
+    setTransactionGroupStatus(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = normalizeGroupIds(input.groupIds);
+      if (groupIds.length === 0) {
+        return [];
+      }
+      const now = makeTimestamp(resolved.clock);
+      const placeholders = toSqlitePlaceholders(groupIds.length);
+      const result = client
+        .prepare(
+          `
+            UPDATE transaction_journals
+            SET status = ?, updated_at = ?, updated_by = ?
+            WHERE workspace_id = ?
+              AND ledger_id = ?
+              AND group_id IN (${placeholders})
+              AND deleted_at IS NULL
+          `,
+        )
+        .run(input.status, now, input.updatedBy, scope.workspaceId, scope.ledgerId, ...groupIds);
+      return result.changes > 0 ? groupIds : [];
     },
   };
 }
@@ -395,6 +538,117 @@ export function createPostgresTransactionWriteRepository(
 
         return { ...group, journals };
       });
+    },
+    async archiveTransactionGroups(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = normalizeGroupIds(input.groupIds);
+      if (groupIds.length === 0) {
+        return [];
+      }
+
+      return runPostgresWrite(db, async (tx) => {
+        const now = resolved.clock.now();
+        const impactedRows = await tx
+          .select({
+            accountId: pgTransactionPostings.accountId,
+            currencyCode: pgTransactionPostings.currencyCode,
+            fromOccurredAt: sql<string>`min(${pgTransactionJournals.occurredAt})`,
+          })
+          .from(pgTransactionPostings)
+          .innerJoin(
+            pgTransactionJournals,
+            and(
+              eq(pgTransactionJournals.id, pgTransactionPostings.journalId),
+              eq(pgTransactionJournals.workspaceId, pgTransactionPostings.workspaceId),
+              eq(pgTransactionJournals.ledgerId, pgTransactionPostings.ledgerId),
+            ),
+          )
+          .where(
+            and(
+              eq(pgTransactionJournals.workspaceId, scope.workspaceId),
+              eq(pgTransactionJournals.ledgerId, scope.ledgerId),
+              inArray(pgTransactionJournals.groupId, groupIds),
+              isNull(pgTransactionJournals.deletedAt),
+            ),
+          )
+          .groupBy(pgTransactionPostings.accountId, pgTransactionPostings.currencyCode);
+
+        await tx
+          .update(pgTransactionJournals)
+          .set({
+            deletedAt: now,
+            updatedAt: now,
+            updatedBy: input.updatedBy,
+          })
+          .where(
+            and(
+              eq(pgTransactionJournals.workspaceId, scope.workspaceId),
+              eq(pgTransactionJournals.ledgerId, scope.ledgerId),
+              inArray(pgTransactionJournals.groupId, groupIds),
+              isNull(pgTransactionJournals.deletedAt),
+            ),
+          );
+
+        await tx
+          .update(pgTransactionGroups)
+          .set({
+            deletedAt: now,
+            updatedAt: now,
+            updatedBy: input.updatedBy,
+          })
+          .where(
+            and(
+              eq(pgTransactionGroups.workspaceId, scope.workspaceId),
+              eq(pgTransactionGroups.ledgerId, scope.ledgerId),
+              inArray(pgTransactionGroups.id, groupIds),
+              isNull(pgTransactionGroups.deletedAt),
+            ),
+          );
+
+        if (impactedRows.length > 0) {
+          await tx.insert(pgBalanceRecalculationQueue).values(
+            impactedRows.map((row) => ({
+              id: resolved.createId(),
+              workspaceId: scope.workspaceId,
+              ledgerId: scope.ledgerId,
+              accountId: row.accountId,
+              currencyCode: row.currencyCode,
+              fromOccurredAt: row.fromOccurredAt ? new Date(row.fromOccurredAt) : now,
+              reason: TRANSACTION_WRITE_REASON,
+              status: "pending",
+              createdAt: now,
+            })),
+          );
+        }
+
+        return groupIds;
+      });
+    },
+    async setTransactionGroupStatus(input) {
+      const scope = assertLedgerScope(input);
+      const groupIds = normalizeGroupIds(input.groupIds);
+      if (groupIds.length === 0) {
+        return [];
+      }
+      const now = resolved.clock.now();
+      await runPostgresWrite(db, async (tx) => {
+        await tx
+          .update(pgTransactionJournals)
+          .set({
+            status: input.status,
+            updatedAt: now,
+            updatedBy: input.updatedBy,
+          })
+          .where(
+            and(
+              eq(pgTransactionJournals.workspaceId, scope.workspaceId),
+              eq(pgTransactionJournals.ledgerId, scope.ledgerId),
+              inArray(pgTransactionJournals.groupId, groupIds),
+              isNull(pgTransactionJournals.deletedAt),
+            ),
+          );
+      });
+      return groupIds;
     },
   };
 }

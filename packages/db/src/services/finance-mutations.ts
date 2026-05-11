@@ -12,8 +12,10 @@ import type {
   CreateAccountResult,
 } from "../repositories/accounts.js";
 import type {
+  ArchiveTransactionGroupsInput,
   CreateTransactionInput,
   CreateTransactionLineInput,
+  SetTransactionGroupStatusInput,
   TransactionGroupRecord,
   TransactionJournalRecord,
   TransactionPostingRecord,
@@ -37,6 +39,15 @@ export type ArchiveAccountMutationPayload = {
   readonly accountId: AccountRecord["id"];
 };
 
+export type ArchiveTransactionGroupsMutationPayload = {
+  readonly groupIds: readonly TransactionGroupRecord["id"][];
+};
+
+export type SetTransactionGroupStatusMutationPayload = {
+  readonly groupIds: readonly TransactionGroupRecord["id"][];
+  readonly status: SetTransactionGroupStatusInput["status"];
+};
+
 export type CreateAccountMutationInput = {
   readonly envelope: LedgerMutationEnvelope;
   readonly account: CreateAccountMutationPayload;
@@ -52,6 +63,16 @@ export type CreateTransactionMutationInput = {
   readonly transaction: CreateTransactionMutationPayload;
 };
 
+export type ArchiveTransactionGroupsMutationInput = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly transactionGroups: ArchiveTransactionGroupsMutationPayload;
+};
+
+export type SetTransactionGroupStatusMutationInput = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly transactionGroups: SetTransactionGroupStatusMutationPayload;
+};
+
 export type CreateTypedTransactionMutationInput = {
   readonly envelope: LedgerMutationEnvelope;
   readonly transaction: CreateTypedTransactionMutationPayload;
@@ -60,6 +81,9 @@ export type CreateTypedTransactionMutationInput = {
 export type LedgerFinanceMutationService = {
   readonly createAccount: (input: CreateAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly archiveAccount: (input: ArchiveAccountMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly archiveTransactionGroups: (
+    input: ArchiveTransactionGroupsMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
   readonly createExpense: (
     input: CreateTypedTransactionMutationInput,
   ) => Promise<LedgerMutationRunResult>;
@@ -71,6 +95,9 @@ export type LedgerFinanceMutationService = {
   ) => Promise<LedgerMutationRunResult>;
   readonly createTransaction: (
     input: CreateTransactionMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
+  readonly setTransactionGroupStatus: (
+    input: SetTransactionGroupStatusMutationInput,
   ) => Promise<LedgerMutationRunResult>;
 };
 
@@ -232,6 +259,61 @@ export function createLedgerFinanceMutationService(
       });
     },
 
+    archiveTransactionGroups(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "delete",
+        subject: "TransactionGroup",
+      });
+      const requestPayload = serializeArchiveTransactionGroupsPayload(input.transactionGroups);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ envelope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                data: {
+                  archivedGroupIds: requestPayload.groupIds,
+                  dryRun: true,
+                },
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createTransactionRepositoryForTransaction?.(transaction) ??
+            options.transactionRepository;
+          const result = repository.archiveTransactionGroups({
+            groupIds: input.transactionGroups.groupIds,
+            ledgerId: envelope.ledgerId,
+            updatedBy: envelope.actorUserId,
+            workspaceId: envelope.workspaceId,
+          } satisfies ArchiveTransactionGroupsInput);
+
+          return mapMaybePromise(result, (archivedGroupIds) => {
+            for (const groupId of archivedGroupIds) {
+              recordAudit({
+                action: "transaction.created",
+                entityId: groupId,
+                entityType: "transaction_group",
+                metadataJson: { operation: "archived" },
+              });
+            }
+            return {
+              body: {
+                data: {
+                  archivedGroupIds,
+                },
+              },
+              status: 200,
+            };
+          });
+        },
+      });
+    },
+
     createExpense(input) {
       return createTypedTransaction(options, input, "expense");
     },
@@ -246,6 +328,68 @@ export function createLedgerFinanceMutationService(
 
     createTransaction(input) {
       return createTransactionMutation(options, input);
+    },
+
+    setTransactionGroupStatus(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "update",
+        subject: "TransactionGroup",
+      });
+      const requestPayload = serializeSetTransactionGroupStatusPayload(input.transactionGroups);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ envelope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                data: {
+                  dryRun: true,
+                  status: input.transactionGroups.status,
+                  updatedGroupIds: requestPayload.groupIds,
+                },
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createTransactionRepositoryForTransaction?.(transaction) ??
+            options.transactionRepository;
+          const result = repository.setTransactionGroupStatus({
+            groupIds: input.transactionGroups.groupIds,
+            ledgerId: envelope.ledgerId,
+            status: input.transactionGroups.status,
+            updatedBy: envelope.actorUserId,
+            workspaceId: envelope.workspaceId,
+          } satisfies SetTransactionGroupStatusInput);
+
+          return mapMaybePromise(result, (updatedGroupIds) => {
+            for (const groupId of updatedGroupIds) {
+              recordAudit({
+                action: "transaction.created",
+                entityId: groupId,
+                entityType: "transaction_group",
+                metadataJson: {
+                  operation: "status_updated",
+                  status: input.transactionGroups.status,
+                },
+              });
+            }
+
+            return {
+              body: {
+                data: {
+                  status: input.transactionGroups.status,
+                  updatedGroupIds,
+                },
+              },
+              status: 200,
+            };
+          });
+        },
+      });
     },
   };
 }
@@ -394,6 +538,23 @@ function serializeCreateTransactionPayload(input: CreateTransactionMutationPaylo
 function serializeArchiveAccountPayload(input: ArchiveAccountMutationPayload): JsonObject {
   return {
     accountId: input.accountId,
+  };
+}
+
+function serializeArchiveTransactionGroupsPayload(
+  input: ArchiveTransactionGroupsMutationPayload,
+): JsonObject {
+  return {
+    groupIds: [...input.groupIds],
+  };
+}
+
+function serializeSetTransactionGroupStatusPayload(
+  input: SetTransactionGroupStatusMutationPayload,
+): JsonObject {
+  return {
+    groupIds: [...input.groupIds],
+    status: input.status,
   };
 }
 

@@ -2,6 +2,14 @@ export type JsonObject = Record<string, unknown>;
 
 export type JobQueueStatus = "available" | "running" | "succeeded" | "failed" | "cancelled";
 
+export type ImportJobStatus = "preview_ready" | "committed" | "undone" | "failed";
+
+export type RuleActionType = "set_transaction_status";
+
+export type RecurringCadence = "daily" | "weekly" | "monthly";
+
+export type RecurringTemplateStatus = "active" | "paused" | "archived";
+
 export type SyncOperationStatus = "accepted" | "rejected" | "conflict" | "superseded";
 
 export type SyncConflictStatus = "open" | "resolved" | "dismissed";

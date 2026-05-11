@@ -23,6 +23,7 @@ const app = await buildApiApp({
   syncQueryService: routeDependency,
   syncReplayService: routeDependency,
   transactionQueryService: routeDependency,
+  workflowService: routeDependency,
 });
 
 try {

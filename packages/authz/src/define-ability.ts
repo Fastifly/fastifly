@@ -18,6 +18,9 @@ const READABLE_FINANCE_SUBJECTS = [
   "Tag",
   "Payee",
   "TransactionGroup",
+  "Import",
+  "Rule",
+  "RecurringTemplate",
   "Report",
   "Sync",
 ] as const satisfies readonly DomainAuthzSubject[];
@@ -30,6 +33,8 @@ const EDITABLE_FINANCE_SUBJECTS = [
   "Payee",
   "TransactionGroup",
   "Import",
+  "Rule",
+  "RecurringTemplate",
 ] as const satisfies readonly DomainAuthzSubject[];
 
 const ADMIN_SUBJECTS = [
@@ -60,7 +65,7 @@ function defineEditorPermissions(builder: FastiflyAbilityBuilder): void {
   defineViewerPermissions(builder);
   allow(builder, "create", EDITABLE_FINANCE_SUBJECTS);
   allow(builder, "update", EDITABLE_FINANCE_SUBJECTS);
-  allow(builder, "delete", ["TransactionGroup", "Tag", "Payee"]);
+  allow(builder, "delete", ["TransactionGroup", "Tag", "Payee", "Rule", "RecurringTemplate"]);
   allow(builder, "archive", ["Account"]);
   allow(builder, "reconcile", ["TransactionGroup"]);
   allow(builder, "import", ["Import"]);

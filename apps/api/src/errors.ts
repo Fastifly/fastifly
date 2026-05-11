@@ -6,6 +6,7 @@ import {
 } from "@fastifly/common";
 import { FinanceMutationError, LedgerMutationError, TransactionWriteError } from "@fastifly/db";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { FinanceWorkflowServiceError } from "./services/finance-workflows.js";
 
 const DEFAULT_ERROR_MESSAGES = {
   BAD_REQUEST: "The request is invalid.",
@@ -149,6 +150,45 @@ function toTransactionWriteHttpError(error: TransactionWriteError): {
   }
 }
 
+function toFinanceWorkflowHttpError(error: FinanceWorkflowServiceError): {
+  readonly statusCode: number;
+  readonly code: ApiErrorCode;
+  readonly message: string;
+} {
+  switch (error.code) {
+    case "IMPORT_JOB_NOT_FOUND":
+      return {
+        code: "NOT_FOUND",
+        message: "Import job was not found.",
+        statusCode: 404,
+      };
+    case "RULE_NOT_FOUND":
+      return {
+        code: "NOT_FOUND",
+        message: "Rule was not found.",
+        statusCode: 404,
+      };
+    case "RECURRING_TEMPLATE_NOT_FOUND":
+      return {
+        code: "NOT_FOUND",
+        message: "Recurring template was not found.",
+        statusCode: 404,
+      };
+    case "IMPORT_JOB_INVALID_STATE":
+      return {
+        code: "CONFLICT",
+        message: error.message,
+        statusCode: 409,
+      };
+    case "INVALID_IMPORT_CSV":
+      return {
+        code: "BAD_REQUEST",
+        message: error.message,
+        statusCode: 400,
+      };
+  }
+}
+
 function mapStatusToApiErrorCode(statusCode: number): ApiErrorCode {
   switch (statusCode) {
     case 401:
@@ -250,6 +290,21 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof TransactionWriteError) {
       const mappedError = toTransactionWriteHttpError(error);
+      sendError(
+        reply,
+        mappedError.statusCode,
+        makeApiError({
+          code: mappedError.code,
+          message: mappedError.message,
+          details: {},
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof FinanceWorkflowServiceError) {
+      const mappedError = toFinanceWorkflowHttpError(error);
       sendError(
         reply,
         mappedError.statusCode,

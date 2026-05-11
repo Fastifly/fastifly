@@ -16,8 +16,12 @@ import {
 
 import type {
   AuditAction,
+  ImportJobStatus,
   JobQueueStatus,
   JsonObject,
+  RecurringCadence,
+  RecurringTemplateStatus,
+  RuleActionType,
   SyncConflictStatus,
   SyncConflictType,
   SyncOperationStatus,
@@ -627,6 +631,93 @@ export const pgBudgetLimits = pgTable(
   ],
 );
 
+export const pgImportJobs = pgTable(
+  "import_jobs",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    fileName: text("file_name"),
+    csvText: text("csv_text").notNull(),
+    previewRowsJson: jsonb("preview_rows_json").$type<readonly JsonObject[]>().notNull(),
+    status: text("status").$type<ImportJobStatus>().notNull(),
+    committedGroupIdsJson: jsonb("committed_group_ids_json").$type<readonly string[]>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => pgUsers.id),
+    createdAt: timestampTz("created_at"),
+    updatedAt: timestampTz("updated_at"),
+    committedAt: optionalTimestampTz("committed_at"),
+    undoneAt: optionalTimestampTz("undone_at"),
+  },
+  (table) => [
+    index("import_jobs_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("import_jobs_status_idx").on(table.status),
+    check(
+      "import_jobs_status_check",
+      sql`${table.status} IN ('preview_ready', 'committed', 'undone', 'failed')`,
+    ),
+  ],
+);
+
+export const pgRules = pgTable(
+  "rules",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    conditionJson: jsonb("condition_json").$type<JsonObject>().notNull(),
+    actionType: text("action_type").$type<RuleActionType>().notNull(),
+    actionJson: jsonb("action_json").$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => pgUsers.id),
+    updatedBy: requiredIdText("updated_by").references(() => pgUsers.id),
+    createdAt: timestampTz("created_at"),
+    updatedAt: timestampTz("updated_at"),
+    archivedAt: optionalTimestampTz("archived_at"),
+  },
+  (table) => [
+    index("rules_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("rules_enabled_idx").on(table.enabled),
+    uniqueIndex("rules_ledger_name_unique").on(table.ledgerId, table.name),
+    check("rules_action_type_check", sql`${table.actionType} IN ('set_transaction_status')`),
+  ],
+);
+
+export const pgRecurringTemplates = pgTable(
+  "recurring_templates",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
+    type: text("type").notNull(),
+    cadence: text("cadence").$type<RecurringCadence>().notNull(),
+    intervalCount: integer("interval_count").notNull().default(1),
+    nextRunAt: timestampTz("next_run_at"),
+    status: text("status").$type<RecurringTemplateStatus>().notNull(),
+    templateJson: jsonb("template_json").$type<JsonObject>().notNull(),
+    createdBy: requiredIdText("created_by").references(() => pgUsers.id),
+    updatedBy: requiredIdText("updated_by").references(() => pgUsers.id),
+    createdAt: timestampTz("created_at"),
+    updatedAt: timestampTz("updated_at"),
+    lastGeneratedAt: optionalTimestampTz("last_generated_at"),
+    archivedAt: optionalTimestampTz("archived_at"),
+  },
+  (table) => [
+    index("recurring_templates_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("recurring_templates_status_idx").on(table.status),
+    check(
+      "recurring_templates_type_check",
+      sql`${table.type} IN ('expense', 'income', 'transfer')`,
+    ),
+    check("recurring_templates_cadence_check", sql`${table.cadence} IN ('daily', 'weekly', 'monthly')`),
+    check(
+      "recurring_templates_status_check",
+      sql`${table.status} IN ('active', 'paused', 'archived')`,
+    ),
+    check("recurring_templates_interval_check", sql`${table.intervalCount} >= 1`),
+  ],
+);
+
 export const pgTransactionGroups = pgTable(
   "transaction_groups",
   {
@@ -842,6 +933,7 @@ export const pgSchema = {
   devices: pgDevices,
   exchangeRates: pgExchangeRates,
   idempotencyReceipts: pgIdempotencyReceipts,
+  importJobs: pgImportJobs,
   journalMeta: pgJournalMeta,
   jobQueue: pgJobQueue,
   ledgers: pgLedgers,
@@ -850,7 +942,9 @@ export const pgSchema = {
   payeeAliases: pgPayeeAliases,
   payeeMappings: pgPayeeMappings,
   payees: pgPayees,
+  recurringTemplates: pgRecurringTemplates,
   recoveryCodes: pgRecoveryCodes,
+  rules: pgRules,
   sessions: pgSessions,
   syncConflicts: pgSyncConflicts,
   syncOperations: pgSyncOperations,

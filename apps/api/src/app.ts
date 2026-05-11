@@ -34,6 +34,7 @@ import { registerDeviceRoutes } from "./routes/devices.js";
 import { registerFinanceRoutes } from "./routes/finance.js";
 import { registerSyncRoutes } from "./routes/sync.js";
 import { type ReadinessState, registerSystemRoutes } from "./routes/system.js";
+import type { FinanceWorkflowService } from "./services/finance-workflows.js";
 
 export type BuildApiAppOptions = {
   readonly accountRepository?: AccountRepository;
@@ -46,6 +47,7 @@ export type BuildApiAppOptions = {
   readonly syncQueryService?: SyncQueryService;
   readonly syncReplayService?: SyncReplayService;
   readonly transactionQueryService?: TransactionQueryService;
+  readonly workflowService?: FinanceWorkflowService;
   readonly webAuthnAdapter?: WebAuthnAdapter;
 };
 
@@ -175,13 +177,15 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     options.accountRepository ||
     options.budgetQueryService ||
     options.financeMutationService ||
-    options.transactionQueryService
+    options.transactionQueryService ||
+    options.workflowService
   ) {
     await registerFinanceRoutes(app, {
       accountRepository: options.accountRepository,
       budgetQueryService: options.budgetQueryService,
       financeMutationService: options.financeMutationService,
       transactionQueryService: options.transactionQueryService,
+      workflowService: options.workflowService,
     });
   }
 
