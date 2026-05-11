@@ -234,6 +234,7 @@ function AccountArchiveAction({
             }}
             variant="destructive"
           >
+            <Archive aria-hidden="true" />
             {disabled ? en.accounts.archiving : en.accounts.archiveConfirm}
           </AlertDialogAction>
         </AlertDialogFooter>

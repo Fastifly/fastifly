@@ -1,0 +1,208 @@
+- generic [ref=e4] [box=0,0,390,844]:
+  - main [ref=e5] [box=0,0,390,844]:
+    - generic [ref=e7] [box=12,12,366,44]:
+      - generic [ref=e8] [box=12,16,268,36]:
+        - img "Fastifly" [ref=e10] [box=18,22,24,24]
+        - navigation "Breadcrumb" [ref=e14] [box=60,22,220,24]:
+          - link "Home" [ref=e15] [cursor=pointer] [box=60,22,46,24]:
+            - /url: /
+          - img [ref=e16] [box=110,28,12,12]
+          - generic [ref=e18] [box=126,24,86,20]: Transactions
+      - 'button "Toggle theme: System" [ref=e20] [box=292,12,86,44]':
+        - img [box=305,26,16,16]
+        - generic [ref=e21] [box=327,26,38,16]: Theme
+    - generic [ref=e24] [box=12,-112,351,1874]:
+      - generic [ref=e25] [box=12,-112,351,410]:
+        - generic [ref=e26] [box=12,-112,351,250]:
+          - generic [ref=e27] [box=13,-99,349,28]:
+            - generic [ref=e28] [box=25,-99,242,19]: Filters
+            - button "Reset" [ref=e30] [box=275,-99,75,28]:
+              - img [box=286,-92,14,14]
+              - text: Reset
+          - generic [ref=e31] [box=13,-59,349,184]:
+            - generic [ref=e32] [box=25,-59,325,53]:
+              - generic [ref=e33] [box=25,-59,325,19]: Type
+              - group [ref=e34] [box=25,-34,325,28]:
+                - radio "All" [checked] [ref=e35] [box=25,-34,38,28]
+                - radio "Expense" [ref=e36] [box=67,-34,73,28]
+                - radio "Income" [ref=e37] [box=144,-34,66,28]
+                - radio "Transfer" [ref=e38] [box=214,-34,71,28]
+            - generic [ref=e39] [box=25,2,325,57]:
+              - generic [ref=e40] [box=25,2,325,19]: Account
+              - combobox [ref=e41] [box=25,28,325,32]:
+                - generic [box=36,34,79,20]: All accounts
+                - img [box=325,36,16,16]
+            - generic [ref=e42] [box=25,68,325,57]:
+              - generic [ref=e43] [box=25,68,325,19]: Status
+              - combobox [ref=e44] [box=25,93,325,32]:
+                - generic [box=36,99,75,20]: All statuses
+                - img [box=325,101,16,16]
+        - generic [ref=e47] [box=24,168,327,112]:
+          - button "Expense" [ref=e48] [box=24,168,327,32]:
+            - img [box=33,176,16,16]
+            - text: Expense
+          - button "Income" [ref=e49] [box=24,208,327,32]:
+            - img [box=33,216,16,16]
+            - text: Income
+          - button "Transfer" [ref=e50] [box=24,248,327,32]:
+            - img [box=33,256,16,16]
+            - text: Transfer
+      - generic [ref=e52] [box=12,310,351,1452]:
+        - generic [ref=e54] [box=29,327,317,62]:
+          - generic [ref=e55] [box=29,327,317,22]: All transactions
+          - generic [ref=e56] [box=29,349,317,40]: Review recent money movement from the seeded ledger.
+        - generic [ref=e57] [box=13,409,349,1336]:
+          - generic [ref=e58] [box=13,409,349,68]:
+            - generic [ref=e59] [box=29,423,137,39]:
+              - img [ref=e61] [box=37,434,16,16]
+              - generic [ref=e64] [box=73,423,93,39]:
+                - paragraph [ref=e65] [box=73,423,93,20]: Doctor visit
+                - paragraph [ref=e66] [box=73,445,93,17]: May 14 · expense
+            - paragraph [ref=e67] [box=268,432,78,20]: "-₹2,000.00"
+          - generic [ref=e68] [box=13,477,349,68]:
+            - generic [ref=e69] [box=29,491,137,39]:
+              - img [ref=e71] [box=37,502,16,16]
+              - generic [ref=e74] [box=73,491,93,39]:
+                - paragraph [ref=e75] [box=73,491,93,20]: Ride share
+                - paragraph [ref=e76] [box=73,513,93,17]: May 14 · expense
+            - paragraph [ref=e77] [box=281,500,65,20]: "-₹520.00"
+          - generic [ref=e78] [box=13,545,349,68]:
+            - generic [ref=e79] [box=29,559,137,39]:
+              - img [ref=e81] [box=37,571,16,16]
+              - generic [ref=e84] [box=73,559,93,39]:
+                - paragraph [ref=e85] [box=73,559,93,20]: Lunch
+                - paragraph [ref=e86] [box=73,581,93,17]: May 13 · expense
+            - paragraph [ref=e87] [box=281,569,65,20]: "-₹680.00"
+          - generic [ref=e88] [box=13,613,349,68]:
+            - generic [ref=e89] [box=29,627,181,39]:
+              - img [ref=e91] [box=37,639,16,16]
+              - generic [ref=e94] [box=73,627,137,39]:
+                - paragraph [ref=e95] [box=73,627,137,20]: Fruit and vegetables
+                - paragraph [ref=e96] [box=73,649,137,17]: May 13 · expense
+            - paragraph [ref=e97] [box=276,637,70,20]: "-₹1,120.00"
+          - generic [ref=e98] [box=13,681,349,68]:
+            - generic [ref=e99] [box=29,695,179,39]:
+              - img [ref=e101] [box=37,707,16,16]
+              - generic [ref=e104] [box=73,695,135,39]:
+                - paragraph [ref=e105] [box=73,695,135,20]: Pending internet bill
+                - paragraph [ref=e106] [box=73,717,135,17]: May 12 · expense
+            - paragraph [ref=e107] [box=276,705,70,20]: "-₹1,199.00"
+          - generic [ref=e108] [box=13,749,349,68]:
+            - generic [ref=e109] [box=29,763,134,39]:
+              - img [ref=e111] [box=37,775,16,16]
+              - generic [ref=e114] [box=73,763,90,39]:
+                - paragraph [ref=e115] [box=73,763,90,20]: Coffee
+                - paragraph [ref=e116] [box=73,785,90,17]: May 11 · expense
+            - paragraph [ref=e117] [box=281,773,65,20]: "-₹240.00"
+          - generic [ref=e118] [box=13,818,349,68]:
+            - generic [ref=e119] [box=29,832,173,39]:
+              - img [ref=e121] [box=37,843,16,16]
+              - generic [ref=e124] [box=73,832,129,39]:
+                - paragraph [ref=e125] [box=73,832,129,20]: Recurring template
+                - paragraph [ref=e126] [box=73,854,129,17]: May 11 · expense
+            - paragraph [ref=e127] [box=284,841,63,20]: "-₹100.00"
+          - generic [ref=e128] [box=13,886,349,68]:
+            - generic [ref=e129] [box=29,900,134,39]:
+              - img [ref=e131] [box=37,911,16,16]
+              - generic [ref=e134] [box=73,900,90,39]:
+                - paragraph [ref=e135] [box=73,900,90,20]: Metro pass
+                - paragraph [ref=e136] [box=73,922,90,17]: May 11 · expense
+            - paragraph [ref=e137] [box=271,909,75,20]: "-₹1,500.00"
+          - generic [ref=e138] [box=13,954,349,68]:
+            - generic [ref=e139] [box=29,968,138,39]:
+              - img [ref=e141] [box=37,979,16,16]
+              - generic [ref=e144] [box=73,968,94,39]:
+                - paragraph [ref=e145] [box=73,968,94,20]: Clothes
+                - paragraph [ref=e146] [box=73,990,94,17]: May 10 · expense
+            - paragraph [ref=e147] [box=271,977,75,20]: "-₹3,750.00"
+          - generic [ref=e148] [box=13,1022,349,68]:
+            - generic [ref=e149] [box=29,1036,117,39]:
+              - img [ref=e151] [box=37,1048,16,16]
+              - generic [ref=e154] [box=73,1036,73,39]:
+                - paragraph [ref=e155] [box=73,1036,73,20]: Market run
+                - paragraph [ref=e156] [box=73,1058,73,17]: May 9 · split
+            - paragraph [ref=e157] [box=274,1046,72,20]: ₹4,200.00
+          - generic [ref=e158] [box=13,1090,349,68]:
+            - generic [ref=e159] [box=29,1104,153,39]:
+              - img [ref=e161] [box=37,1116,16,16]
+              - generic [ref=e164] [box=73,1104,109,39]:
+                - paragraph [ref=e165] [box=73,1104,109,20]: Savings interest
+                - paragraph [ref=e166] [box=73,1126,109,17]: May 9 · income
+            - paragraph [ref=e167] [box=287,1114,59,20]: ₹625.00
+          - generic [ref=e168] [box=13,1158,349,68]:
+            - generic [ref=e169] [box=29,1172,133,39]:
+              - img [ref=e171] [box=37,1184,16,16]
+              - generic [ref=e174] [box=73,1172,89,39]:
+                - paragraph [ref=e175] [box=73,1172,89,20]: Pharmacy
+                - paragraph [ref=e176] [box=73,1194,89,17]: May 9 · expense
+            - paragraph [ref=e177] [box=281,1182,65,20]: "-₹850.00"
+          - generic [ref=e178] [box=13,1226,349,68]:
+            - generic [ref=e179] [box=29,1240,151,39]:
+              - img [ref=e181] [box=37,1252,16,16]
+              - generic [ref=e184] [box=73,1240,107,39]:
+                - paragraph [ref=e185] [box=73,1240,107,20]: ATM withdrawal
+                - paragraph [ref=e186] [box=73,1262,107,17]: May 8 · transfer
+            - paragraph [ref=e187] [box=273,1250,73,20]: ₹5,000.00
+          - generic [ref=e188] [box=13,1295,349,68]:
+            - generic [ref=e189] [box=29,1309,136,39]:
+              - img [ref=e191] [box=37,1320,16,16]
+              - generic [ref=e194] [box=73,1309,92,39]:
+                - paragraph [ref=e195] [box=73,1309,92,20]: Electricity bill
+                - paragraph [ref=e196] [box=73,1331,92,17]: May 7 · expense
+            - paragraph [ref=e197] [box=269,1318,77,20]: "-₹3,250.00"
+          - generic [ref=e198] [box=13,1363,349,68]:
+            - generic [ref=e199] [box=29,1377,153,39]:
+              - img [ref=e201] [box=37,1388,16,16]
+              - generic [ref=e204] [box=73,1377,109,39]:
+                - paragraph [ref=e205] [box=73,1377,109,20]: Move to savings
+                - paragraph [ref=e206] [box=73,1399,109,17]: May 6 · transfer
+            - paragraph [ref=e207] [box=264,1386,82,20]: ₹50,000.00
+          - generic [ref=e208] [box=13,1431,349,68]:
+            - generic [ref=e209] [box=29,1445,171,39]:
+              - img [ref=e211] [box=37,1456,16,16]
+              - generic [ref=e214] [box=73,1445,127,39]:
+                - paragraph [ref=e215] [box=73,1445,127,20]: Dinner with friends
+                - paragraph [ref=e216] [box=73,1467,127,17]: May 6 · expense
+            - paragraph [ref=e217] [box=268,1454,78,20]: "-₹2,400.00"
+          - generic [ref=e218] [box=13,1499,349,68]:
+            - generic [ref=e219] [box=29,1513,160,39]:
+              - img [ref=e221] [box=37,1525,16,16]
+              - generic [ref=e224] [box=73,1513,116,39]:
+                - paragraph [ref=e225] [box=73,1513,116,20]: Weekly groceries
+                - paragraph [ref=e226] [box=73,1535,116,17]: May 5 · expense
+            - paragraph [ref=e227] [box=268,1523,78,20]: "-₹6,850.00"
+          - generic [ref=e228] [box=13,1567,349,68]:
+            - generic [ref=e229] [box=29,1581,133,39]:
+              - img [ref=e231] [box=37,1593,16,16]
+              - generic [ref=e234] [box=73,1581,89,39]:
+                - paragraph [ref=e235] [box=73,1581,89,20]: Monthly rent
+                - paragraph [ref=e236] [box=73,1603,89,17]: May 2 · expense
+            - paragraph [ref=e237] [box=259,1591,87,20]: "-₹45,000.00"
+          - generic [ref=e238] [box=13,1635,349,68]:
+            - generic [ref=e239] [box=29,1649,124,39]:
+              - img [ref=e241] [box=37,1661,16,16]
+              - generic [ref=e244] [box=73,1649,80,39]:
+                - paragraph [ref=e245] [box=73,1649,80,20]: May salary
+                - paragraph [ref=e246] [box=73,1671,80,17]: May 1 · income
+            - paragraph [ref=e247] [box=252,1659,94,20]: ₹2,50,000.00
+          - paragraph [ref=e249] [box=25,1715,325,17]: End of list
+  - navigation "Navigation" [ref=e250] [box=12,768,366,64]:
+    - link "Home" [ref=e251] [cursor=pointer] [box=17,773,68,52]:
+      - /url: /
+      - img [box=43,781,16,16]
+      - generic [ref=e252] [box=35,801,31,17]: Home
+    - link "Txns" [ref=e253] [cursor=pointer] [box=89,773,68,52]:
+      - /url: /transactions
+      - img [box=115,781,16,16]
+      - generic [ref=e254] [box=110,801,26,17]: Txns
+    - link "Accts" [ref=e255] [cursor=pointer] [box=161,773,68,52]:
+      - /url: /accounts
+      - img [box=187,781,16,16]
+      - generic [ref=e256] [box=179,801,33,17]: Accts
+    - link "Budget" [ref=e257] [cursor=pointer] [box=233,773,68,52]:
+      - /url: /budgets
+      - img [box=259,781,16,16]
+      - generic [ref=e258] [box=247,801,40,17]: Budget
+    - button "More" [ref=e259] [box=305,773,68,52]:
+      - img [box=331,781,16,16]
+      - generic [ref=e260] [box=325,801,28,17]: More

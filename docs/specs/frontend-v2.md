@@ -814,6 +814,7 @@ Runtime configuration:
 
 ```text
 VITE_FASTIFLY_API_BASE_URL
+VITE_FASTIFLY_SHOW_DEMO_LOGIN
 FASTIFLY_API_PROXY_TARGET
 ```
 
@@ -849,6 +850,14 @@ token only when the server returns a CSRF-specific forbidden error.
 The login screen may display seeded demo credentials for local development, but
 the demo username/password must come from `packages/common`, not duplicated
 inside React components, DB seeds, or tests.
+
+`VITE_FASTIFLY_SHOW_DEMO_LOGIN` controls whether production builds display the
+demo credential card:
+
+- local development defaults to showing demo credentials
+- production defaults to hiding demo credentials
+- set `VITE_FASTIFLY_SHOW_DEMO_LOGIN=true` only for intentional demo
+  deployments where seeded demo users are present
 
 When a request returns `UNAUTHENTICATED` after the app has already established a
 valid user context, the frontend must keep the current screen visible and show a

@@ -95,7 +95,10 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">
+            <XIcon aria-hidden="true" />
+            Close
+          </Button>
         </DialogPrimitive.Close>
       )}
     </div>

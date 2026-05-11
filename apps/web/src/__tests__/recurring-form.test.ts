@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildCreateRecurringTemplateRequest,
   getDestinationAccountsForRecurring,
+  getMinimumFutureDateInput,
+  getRecurringFormIssues,
   getSourceAccountsForRecurring,
+  makeRecurringFormDefaults,
+  makeRecurringFormValuesFromTemplate,
 } from "../finance/recurring-form.js";
 
 const accounts = [
@@ -94,6 +98,151 @@ describe("recurring form helpers", () => {
         accounts,
       ),
     ).toThrow();
+  });
+
+  it("returns guardrail issues for incomplete subscription draft", () => {
+    const issues = getRecurringFormIssues(
+      {
+        amount: "",
+        cadence: "monthly",
+        description: "",
+        destinationAccountId: "",
+        nextRunOn: "",
+        sourceAccountId: "",
+        title: "",
+        type: "expense",
+      },
+      accounts,
+    );
+
+    expect(issues.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining([
+        "amount-required",
+        "destination-account-required",
+        "next-run-on-invalid",
+        "source-account-required",
+        "title-or-description-required",
+      ]),
+    );
+  });
+
+  it("flags destination account mismatch before submit", () => {
+    const issues = getRecurringFormIssues(
+      {
+        amount: "100",
+        cadence: "monthly",
+        description: "Mismatch",
+        destinationAccountId: "acct_salary",
+        nextRunOn: "2026-05-15",
+        sourceAccountId: "acct_bank",
+        title: "Mismatch",
+        type: "expense",
+      },
+      accounts,
+    );
+
+    expect(issues.some((issue) => issue.code === "destination-account-invalid")).toBe(true);
+  });
+
+  it("requires subscription start date in the future", () => {
+    const issues = getRecurringFormIssues(
+      {
+        amount: "100",
+        cadence: "monthly",
+        description: "Valid recurring",
+        destinationAccountId: "acct_groceries",
+        nextRunOn: "2000-01-01",
+        sourceAccountId: "acct_bank",
+        title: "Valid recurring",
+        type: "expense",
+      },
+      accounts,
+    );
+
+    expect(issues.some((issue) => issue.code === "next-run-on-must-be-future")).toBe(true);
+  });
+
+  it("defaults start date to a future day", () => {
+    const defaults = makeRecurringFormDefaults(accounts, "expense");
+    expect(defaults.nextRunOn >= getMinimumFutureDateInput()).toBe(true);
+  });
+
+  it("applies valid create defaults when compatible", () => {
+    const defaults = makeRecurringFormDefaults(accounts, "expense", {
+      cadence: "weekly",
+      destinationAccountId: "acct_bank",
+      nextRunOn: "2099-01-01",
+      sourceAccountId: "acct_salary",
+      type: "income",
+    });
+
+    expect(defaults).toMatchObject({
+      cadence: "weekly",
+      destinationAccountId: "acct_bank",
+      sourceAccountId: "acct_salary",
+      type: "income",
+    });
+    expect(defaults.nextRunOn).toBe("2099-01-01");
+  });
+
+  it("falls back when create defaults are incompatible or stale", () => {
+    const defaults = makeRecurringFormDefaults(accounts, "expense", {
+      destinationAccountId: "acct_salary",
+      nextRunOn: "2000-01-01",
+      sourceAccountId: "acct_salary",
+      type: "expense",
+    });
+
+    expect(defaults.sourceAccountId).toBe("acct_bank");
+    expect(defaults.destinationAccountId).toBe("acct_groceries");
+    expect(defaults.nextRunOn >= getMinimumFutureDateInput()).toBe(true);
+  });
+
+  it("maps existing template values for edit prefill", () => {
+    const values = makeRecurringFormValuesFromTemplate({
+      archivedAt: null,
+      cadence: "monthly",
+      createdAt: "2026-05-10T00:00:00.000Z",
+      createdBy: "019dfbac-0000-7000-8000-000000000003",
+      id: "019dfbac-0000-7000-8000-000000000004",
+      intervalCount: 1,
+      lastGeneratedAt: null,
+      ledgerId: "019dfbac-0000-7000-8000-000000000001",
+      nextRunAt: "2026-05-15T12:00:00.000Z",
+      payload: {
+        currencyCode: "INR",
+        description: "Netflix",
+        lines: [
+          {
+            amountMinor: "49999",
+            budgetId: null,
+            categoryId: null,
+            description: "Netflix",
+            destinationAccountId: "acct_groceries",
+            reportingAmountMinor: null,
+            reportingCurrencyCode: null,
+          },
+        ],
+        sourceAccountId: "acct_bank",
+        title: "Netflix subscription",
+        type: "expense",
+      },
+      status: "active",
+      updatedAt: "2026-05-10T00:00:00.000Z",
+      updatedBy: "019dfbac-0000-7000-8000-000000000003",
+      workspaceId: "019dfbac-0000-7000-8000-000000000002",
+    });
+
+    expect(values).toEqual({
+      amount: "499.99",
+      cadence: "monthly",
+      description: "Netflix",
+      destinationAccountId: "acct_groceries",
+      nextRunOn: "2026-05-15",
+      sourceAccountId: "acct_bank",
+      title: "Netflix subscription",
+      type: "expense",
+    });
   });
 });
 

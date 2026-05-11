@@ -44,19 +44,17 @@ runtime_package_deps = [
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     'packages/common/package.json',
-    'packages/common/src',
     'packages/config/package.json',
-    'packages/config/src',
     'packages/authz/package.json',
-    'packages/authz/src',
     'packages/db/package.json',
-    'packages/db/src',
     'apps/api/package.json',
 ]
 
+runtime_packages_build_cmd = 'pnpm --filter @fastifly/common build && pnpm --filter @fastifly/config build && pnpm --filter @fastifly/authz build && pnpm --filter @fastifly/db build'
+
 local_resource(
     'runtime-packages',
-    cmd='pnpm --filter @fastifly/common build && pnpm --filter @fastifly/config build && pnpm --filter @fastifly/authz build && pnpm --filter @fastifly/db build',
+    cmd=runtime_packages_build_cmd,
     deps=runtime_package_deps,
     env=runtime_env,
     labels=['setup'],
@@ -132,7 +130,16 @@ local_resource(
 
 local_resource(
     'api',
-    serve_cmd='pnpm --filter @fastifly/api exec tsx watch src/server.ts',
+    cmd=runtime_packages_build_cmd,
+    deps=[
+        'apps/api/package.json',
+        'apps/api/src',
+        'packages/common/src',
+        'packages/config/src',
+        'packages/authz/src',
+        'packages/db/src',
+    ],
+    serve_cmd='pnpm --filter @fastifly/api exec tsx src/server.ts',
     resource_deps=['db-ready'],
     serve_env=runtime_env,
     readiness_probe=probe(

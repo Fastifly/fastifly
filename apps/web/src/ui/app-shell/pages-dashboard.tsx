@@ -1,6 +1,6 @@
 import type { AccountWithBalanceResponse } from "@fastifly/common";
 import { Button } from "@ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@ui/card";
+import { Card, CardContent } from "@ui/card";
 import { Field, FieldLabel } from "@ui/field";
 import {
   Select,
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui/select";
+import { Separator } from "@ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
 import { ArrowDownLeft, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
 import { useQueryStates } from "nuqs";
@@ -146,9 +147,14 @@ export function PageBody({
   cashflow,
   income,
   isOnline,
+  isLoggingOut,
+  isUpdateReady,
   ledgerContext,
   liabilities,
   moneySummaryValue,
+  onApplyUpdate,
+  onLogout,
+  onThemeChange,
   openConflictCount,
   pageSlug,
   pendingOutboxCount,
@@ -159,9 +165,11 @@ export function PageBody({
   spendingRate,
   theme,
   transferCount,
+  workspaceId,
   workspaceName,
   workspaceRole,
   ledgerName,
+  ledgerId,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly accountPreview: readonly AccountWithBalanceResponse[];
@@ -171,6 +179,8 @@ export function PageBody({
   readonly cashflow: string;
   readonly income: string;
   readonly isOnline: boolean;
+  readonly isLoggingOut: boolean;
+  readonly isUpdateReady: boolean;
   readonly ledgerContext: {
     readonly ledgerId: string;
     readonly workspaceId: string;
@@ -197,10 +207,15 @@ export function PageBody({
   readonly spending: string;
   readonly spendingRate: string;
   readonly theme: Theme;
+  readonly onApplyUpdate: () => void;
+  readonly onLogout: () => void;
+  readonly onThemeChange: (theme: Theme) => void;
   readonly transferCount: number;
+  readonly workspaceId: string;
   readonly workspaceName: string;
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
   readonly ledgerName: string;
+  readonly ledgerId: string;
 }) {
   if (pageSlug === "transactions") {
     return <TransactionsPage accounts={accounts} ledgerContext={ledgerContext} />;
@@ -252,10 +267,17 @@ export function PageBody({
       <SettingsPage
         apiStatus={apiStatus}
         isOnline={isOnline}
+        isLoggingOut={isLoggingOut}
+        isUpdateReady={isUpdateReady}
         ledgerName={ledgerName}
+        ledgerId={ledgerId}
+        onApplyUpdate={onApplyUpdate}
+        onLogout={onLogout}
+        onThemeChange={onThemeChange}
         openConflictCount={openConflictCount}
         pendingOutboxCount={pendingOutboxCount}
         theme={theme}
+        workspaceId={workspaceId}
         workspaceName={workspaceName}
         workspaceRole={workspaceRole}
       />
@@ -309,37 +331,53 @@ export function TransactionsPage({
   const transactions = transactionsQuery.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <section className="mt-2 flex flex-col gap-4" data-testid={testIds.transactions.page}>
-      <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
-      <TransactionFilters
-        accounts={accounts}
-        filters={filters}
-        onChange={(nextFilters) => {
-          void setUrlFilters({
-            accountId: nextFilters.accountId,
-            status: nextFilters.status,
-            type: nextFilters.type,
-          });
-        }}
-      />
-      <TransactionsPanel
-        descriptionTestId={testIds.transactions.listDescription}
-        description={en.shell.transactionsBody}
-        emptyBodyId={testIds.transactions.emptyBody}
-        emptyStateId={testIds.transactions.emptyState}
-        emptyTitleId={testIds.transactions.emptyTitle}
-        hasActiveFilters={hasActiveTransactionFilters(filters)}
-        hasNextPage={Boolean(transactionsQuery.hasNextPage)}
-        isFetchingNextPage={transactionsQuery.isFetchingNextPage}
-        onLoadMore={() => {
-          void transactionsQuery.fetchNextPage();
-        }}
-        title={en.shell.allTransactions}
-        titleTestId={testIds.transactions.listTitle}
-        transactions={transactions}
-        transactionsError={transactionsQuery.isError}
-        transactionsLoading={transactionsQuery.isPending}
-      />
+    <section
+      className="mt-2 flex flex-col gap-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] xl:mt-0 xl:h-full xl:min-h-0 xl:pb-0"
+      data-testid={testIds.transactions.page}
+    >
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)] xl:min-h-0 xl:flex-1 xl:items-start">
+        <TransactionsPanel
+          descriptionTestId={testIds.transactions.listDescription}
+          description={en.shell.transactionsBody}
+          emptyBodyId={testIds.transactions.emptyBody}
+          emptyStateId={testIds.transactions.emptyState}
+          emptyTitleId={testIds.transactions.emptyTitle}
+          hasActiveFilters={hasActiveTransactionFilters(filters)}
+          hasNextPage={Boolean(transactionsQuery.hasNextPage)}
+          headerContent={
+            <TransactionFilters
+              accounts={accounts}
+              filters={filters}
+              onChange={(nextFilters) => {
+                void setUrlFilters({
+                  accountId: nextFilters.accountId,
+                  status: nextFilters.status,
+                  type: nextFilters.type,
+                });
+              }}
+            />
+          }
+          isFetchingNextPage={transactionsQuery.isFetchingNextPage}
+          listClassName="xl:min-h-0 xl:flex-1 xl:overflow-y-auto"
+          onLoadMore={() => {
+            void transactionsQuery.fetchNextPage();
+          }}
+          onRetry={() => {
+            void transactionsQuery.refetch();
+          }}
+          panelClassName="xl:flex xl:h-full xl:min-h-0 xl:flex-col"
+          title={en.shell.allTransactions}
+          titleTestId={testIds.transactions.listTitle}
+          transactions={transactions}
+          transactionsError={transactionsQuery.isError}
+          transactionsLoading={transactionsQuery.isPending}
+        />
+        <TransactionCreatePanel
+          accounts={accounts}
+          ledgerContext={ledgerContext}
+          variant="vertical-actions"
+        />
+      </div>
     </section>
   );
 }
@@ -354,29 +392,13 @@ export function TransactionFilters({
   readonly onChange: (filters: TransactionListFilterState) => void;
 }) {
   return (
-    <Card
-      className="border border-border bg-card text-card-foreground shadow-sm"
-      data-testid={testIds.transactions.filters.panel}
-    >
-      <CardHeader>
-        <CardTitle>{en.transactions.filters.title}</CardTitle>
-        <CardAction>
-          <Button
-            data-testid={testIds.transactions.filters.resetButton}
-            onClick={() => onChange(makeTransactionListFilterDefaults())}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {en.transactions.filters.reset}
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Field>
+    <div className="space-y-2" data-testid={testIds.transactions.filters.panel}>
+      <Separator />
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+        <Field className="gap-1.5">
           <FieldLabel>{en.transactions.filters.types}</FieldLabel>
           <ToggleGroup
-            className="flex w-full flex-wrap justify-start"
+            className="flex w-full flex-wrap justify-start gap-1"
             data-testid={testIds.transactions.filters.typeGroup}
             onValueChange={(value) => {
               if (value) {
@@ -400,60 +422,71 @@ export function TransactionFilters({
             ))}
           </ToggleGroup>
         </Field>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field>
-            <FieldLabel>{en.transactions.filters.account}</FieldLabel>
-            <Select
-              onValueChange={(accountId) => onChange({ ...filters, accountId })}
-              value={filters.accountId}
+        <Field className="gap-1.5">
+          <FieldLabel>{en.transactions.filters.account}</FieldLabel>
+          <Select
+            onValueChange={(accountId) => onChange({ ...filters, accountId })}
+            value={filters.accountId}
+          >
+            <SelectTrigger
+              className="w-full"
+              data-testid={testIds.transactions.filters.accountSelect}
             >
-              <SelectTrigger
-                className="w-full"
-                data-testid={testIds.transactions.filters.accountSelect}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={ALL_TRANSACTION_FILTER}>
-                    {en.transactions.filters.allAccounts}
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ALL_TRANSACTION_FILTER}>
+                  {en.transactions.filters.allAccounts}
+                </SelectItem>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name}
                   </SelectItem>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>{en.transactions.filters.status}</FieldLabel>
-            <Select
-              onValueChange={(status) =>
-                onChange({ ...filters, status: status as TransactionStatusFilter })
-              }
-              value={filters.status}
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field className="gap-1.5">
+          <FieldLabel>{en.transactions.filters.status}</FieldLabel>
+          <Select
+            onValueChange={(status) =>
+              onChange({ ...filters, status: status as TransactionStatusFilter })
+            }
+            value={filters.status}
+          >
+            <SelectTrigger
+              className="w-full"
+              data-testid={testIds.transactions.filters.statusSelect}
             >
-              <SelectTrigger
-                className="w-full"
-                data-testid={testIds.transactions.filters.statusSelect}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {transactionStatusFilterOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {transactionStatusFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="flex justify-start md:justify-end">
+          <Button
+            data-testid={testIds.transactions.filters.resetButton}
+            onClick={() => onChange(makeTransactionListFilterDefaults())}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <RefreshCcw aria-hidden="true" />
+            {en.transactions.filters.reset}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      <Separator />
+    </div>
   );
 }

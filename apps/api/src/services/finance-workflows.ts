@@ -320,6 +320,7 @@ export function createFinanceWorkflowService(
     },
 
     async createRecurringTemplate(input) {
+      validateRecurringNextRunAt(input.nextRunAt);
       await validateRecurringTemplatePayload(options, {
         ledgerId: input.ledgerId,
         payload: input.payload,
@@ -537,11 +538,23 @@ export function createFinanceWorkflowService(
     },
 
     async updateRecurringTemplate(input) {
-      await validateRecurringTemplatePayload(options, {
+      const existing = await options.workflowRepository.findRecurringTemplate({
         ledgerId: input.ledgerId,
-        payload: input.payload,
+        recurringTemplateId: input.recurringTemplateId,
         workspaceId: input.workspaceId,
       });
+      if (!existing) {
+        return null;
+      }
+
+      if (!isRecurringStatusOnlyUpdate(existing, input)) {
+        validateRecurringNextRunAt(input.nextRunAt);
+        await validateRecurringTemplatePayload(options, {
+          ledgerId: input.ledgerId,
+          payload: input.payload,
+          workspaceId: input.workspaceId,
+        });
+      }
 
       return options.workflowRepository.updateRecurringTemplate(input);
     },
@@ -550,6 +563,41 @@ export function createFinanceWorkflowService(
       return options.workflowRepository.updateRule(input);
     },
   };
+}
+
+function isRecurringStatusOnlyUpdate(
+  existing: RecurringTemplateRecord,
+  input: UpdateRecurringTemplateInput,
+): boolean {
+  return (
+    existing.cadence === input.cadence &&
+    existing.intervalCount === input.intervalCount &&
+    existing.nextRunAt === input.nextRunAt &&
+    JSON.stringify(existing.payload) === JSON.stringify(input.payload)
+  );
+}
+
+function validateRecurringNextRunAt(nextRunAt: string): void {
+  const parsed = Date.parse(nextRunAt);
+  if (!Number.isFinite(parsed)) {
+    throw new FinanceWorkflowServiceError(
+      "Choose a valid future start date.",
+      "INVALID_RECURRING_TEMPLATE",
+    );
+  }
+
+  const nextDayUtc = new Date(parsed);
+  nextDayUtc.setUTCHours(0, 0, 0, 0);
+
+  const todayUtc = new Date();
+  todayUtc.setUTCHours(0, 0, 0, 0);
+
+  if (nextDayUtc.getTime() <= todayUtc.getTime()) {
+    throw new FinanceWorkflowServiceError(
+      "Choose a future start date.",
+      "INVALID_RECURRING_TEMPLATE",
+    );
+  }
 }
 
 async function validateRecurringTemplatePayload(
@@ -566,7 +614,7 @@ async function validateRecurringTemplatePayload(
     workspaceId: input.workspaceId,
   });
 
-  if (!sourceAccount || !sourceAccount.isActive) {
+  if (!sourceAccount?.isActive) {
     throw new FinanceWorkflowServiceError(
       "The source account for this subscription is missing or inactive.",
       "INVALID_RECURRING_TEMPLATE",
@@ -587,7 +635,7 @@ async function validateRecurringTemplatePayload(
       workspaceId: input.workspaceId,
     });
 
-    if (!destinationAccount || !destinationAccount.isActive) {
+    if (!destinationAccount?.isActive) {
       throw new FinanceWorkflowServiceError(
         `The destination account in line ${lineIndex + 1} is missing or inactive.`,
         "INVALID_RECURRING_TEMPLATE",
