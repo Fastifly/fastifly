@@ -12,7 +12,7 @@ import {
 } from "@ui/alert-dialog";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import type { LucideIcon } from "lucide-react";
 import { Archive } from "lucide-react";
 import type { ReactNode } from "react";
@@ -24,21 +24,27 @@ import { formatAccountArchiveTitle } from "./utils";
 export function GlassSection({
   children,
   description,
+  headerAction,
   testId,
   title,
 }: {
   readonly children: ReactNode;
   readonly description?: string;
+  readonly headerAction?: ReactNode;
   readonly testId?: string;
-  readonly title: string;
+  readonly title: ReactNode;
 }) {
   return (
-    <Card className="ff-glass-panel" data-testid={testId}>
+    <Card
+      className="border border-border bg-card text-card-foreground shadow-sm"
+      data-testid={testId}
+    >
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         {description ? (
           <CardDescription className="max-w-2xl">{description}</CardDescription>
         ) : null}
+        {headerAction ? <CardAction>{headerAction}</CardAction> : null}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -76,9 +82,8 @@ export function MetricTile({
   return (
     <Card
       className={cn(
-        "min-w-0 rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow-soft)] backdrop-blur-[18px]",
-        compact &&
-          "bg-[color-mix(in_oklab,var(--ff-surface-strong)_82%,var(--ff-surface-muted))] shadow-none",
+        "min-w-0 rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm",
+        compact && "bg-muted/40 shadow-none",
         className,
       )}
       data-testid={testId}
@@ -95,7 +100,7 @@ export function MetricTile({
       >
         <div
           className={cn(
-            "inline-flex size-8 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)]",
+            "inline-flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40",
             compact && "size-7",
             dense && "size-7",
             toneClass,
@@ -105,7 +110,7 @@ export function MetricTile({
         </div>
         <p
           className={cn(
-            "font-medium text-slate-500 dark:text-white/52",
+            "font-medium text-muted-foreground",
             compact
               ? "m-0 text-[0.72rem] leading-tight"
               : dense
@@ -117,7 +122,7 @@ export function MetricTile({
         </p>
         <p
           className={cn(
-            "break-words font-semibold leading-[1.15] text-[var(--ff-text)]",
+            "break-words font-semibold leading-[1.15] text-foreground",
             compact
               ? "col-span-2 mt-0.5 text-base leading-tight max-[380px]:text-[0.875rem]"
               : dense
@@ -143,7 +148,7 @@ export function AccountCard({
 }) {
   return (
     <Card
-      className="min-w-0 rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow-soft)] backdrop-blur-[18px]"
+      className="min-w-0 rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
       data-testid={testIds.accounts.card(account.id)}
       size="sm"
     >
@@ -157,16 +162,16 @@ export function AccountCard({
               {account.name}
             </p>
             <p
-              className="mt-1 text-[12px] text-slate-500 capitalize dark:text-white/50"
+              className="mt-1 text-[12px] text-muted-foreground capitalize"
               data-testid={testIds.accounts.cardType(account.id)}
             >
               {account.kind} / {account.subtype}
             </p>
           </div>
           <Badge
-            className="ff-currency-chip"
+            className="rounded-full border border-border bg-muted/40 text-muted-foreground"
             data-testid={testIds.accounts.cardCurrency(account.id)}
-            variant="secondary"
+            variant="outline"
           >
             {account.currencyCode}
           </Badge>
@@ -243,7 +248,7 @@ export function AccountBalanceCard({ account }: { readonly account: AccountWithB
       ? "border-red-500/25 bg-red-500/[0.08]"
       : account.kind === "asset"
         ? "border-emerald-500/25 bg-emerald-500/[0.08]"
-        : "bg-[var(--ff-surface-muted)]";
+        : "bg-muted/40";
 
   return (
     <Card
