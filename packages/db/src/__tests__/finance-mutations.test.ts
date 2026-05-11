@@ -303,6 +303,41 @@ describe("finance mutation service", () => {
       );
     });
 
+    it(`allows import-authorized transaction writes on ${factory.name}`, async () => {
+      await factory.run(async ({ accountRepository, identityRepository, service }) => {
+        const { accounts, user, workspaceState } = await createWorkspaceAccounts(
+          identityRepository,
+          accountRepository,
+        );
+
+        const result = await service.createExpense({
+          envelope: createEnvelope({
+            actorUserId: user.id,
+            authorization: { action: "import", subject: "Import" },
+            idempotencyKey: "idem_import_transaction",
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+          transaction: {
+            currencyCode: "INR",
+            description: "Imported groceries",
+            lines: [{ amountMinor: 18_500n, destinationAccountId: accounts.groceries.id }],
+            occurredAt: "2026-05-09T08:15:00.000Z",
+            sourceAccountId: accounts.bank.id,
+          },
+        });
+
+        expect(result.status).toBe(201);
+        expect(result.body).toMatchObject({
+          data: {
+            transactionGroup: {
+              type: "expense",
+            },
+          },
+        });
+      });
+    });
+
     it(`rejects mismatched service authorization context before writing on ${factory.name}`, async () => {
       await factory.run(async ({ dialect, identityRepository, rawDb, service }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);

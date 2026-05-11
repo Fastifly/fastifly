@@ -412,10 +412,10 @@ function createTransactionMutation(
   options: LedgerFinanceMutationServiceOptions,
   input: CreateTransactionMutationInput,
 ): Promise<LedgerMutationRunResult> {
-  assertExpectedAuthorization(input.envelope, {
-    action: "create",
-    subject: "TransactionGroup",
-  });
+  assertExpectedAuthorizationOneOf(input.envelope, [
+    { action: "create", subject: "TransactionGroup" },
+    { action: "import", subject: "Import" },
+  ]);
   const requestPayload = serializeCreateTransactionPayload(input.transaction);
 
   return options.runner.run({
@@ -492,6 +492,25 @@ function assertExpectedAuthorization(
       "MUTATION_FORBIDDEN",
     );
   }
+}
+
+function assertExpectedAuthorizationOneOf(
+  envelope: LedgerMutationEnvelope,
+  expected: readonly LedgerMutationAuthorizationContext[],
+): void {
+  for (const candidate of expected) {
+    if (
+      envelope.authorization.action === candidate.action &&
+      envelope.authorization.subject === candidate.subject
+    ) {
+      return;
+    }
+  }
+
+  throw new LedgerMutationError(
+    "Ledger mutation authorization context does not match the requested operation.",
+    "MUTATION_FORBIDDEN",
+  );
 }
 
 function mapMaybePromise<TValue, TResult>(
