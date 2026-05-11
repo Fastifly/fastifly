@@ -443,7 +443,6 @@ export function createSqliteWorkflowRepository(
             FROM rules
             WHERE workspace_id = ?
               AND ledger_id = ?
-              AND archived_at IS NULL
             ORDER BY created_at DESC
           `,
         )
@@ -869,11 +868,7 @@ export function createPostgresWorkflowRepository(
         .select()
         .from(pgRules)
         .where(
-          and(
-            eq(pgRules.workspaceId, scope.workspaceId),
-            eq(pgRules.ledgerId, scope.ledgerId),
-            isNull(pgRules.archivedAt),
-          ),
+          and(eq(pgRules.workspaceId, scope.workspaceId), eq(pgRules.ledgerId, scope.ledgerId)),
         )
         .orderBy(desc(pgRules.createdAt));
       return rows.map(toRuleRecord);
