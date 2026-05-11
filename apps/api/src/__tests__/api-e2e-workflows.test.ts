@@ -470,6 +470,460 @@ describe("api e2e workflows (sqlite)", () => {
     expect(rejectedPush.statusCode).toBe(403);
   });
 
+  it("executes the full session lifecycle and idempotent write workflow", async () => {
+    const app = await createSqliteE2eApp();
+
+    const register = await requestWithCsrf(app, undefined, {
+      method: "POST",
+      payload: {
+        password: "password123",
+        username: "session-owner-e2e",
+      },
+      url: "/api/v1/auth/register",
+    });
+    expect(register.statusCode).toBe(201);
+    const initialCookie = getSessionCookie(register);
+
+    const logout = await requestWithCsrf(app, initialCookie, {
+      method: "POST",
+      payload: {},
+      url: "/api/v1/auth/logout",
+    });
+    expect(logout.statusCode).toBe(204);
+
+    const contextAfterLogout = await app.inject({
+      headers: { cookie: initialCookie },
+      method: "GET",
+      url: "/api/v1/me/context",
+    });
+    expect(contextAfterLogout.statusCode).toBe(401);
+
+    const login = await requestWithCsrf(app, undefined, {
+      method: "POST",
+      payload: {
+        password: "password123",
+        username: "session-owner-e2e",
+      },
+      url: "/api/v1/auth/login",
+    });
+    expect(login.statusCode).toBe(200);
+    const activeCookie = getSessionCookie(login);
+
+    const me = await app.inject({
+      headers: { cookie: activeCookie },
+      method: "GET",
+      url: "/api/v1/me/context",
+    });
+    expect(me.statusCode).toBe(200);
+    const scope = me.json<{
+      data: {
+        activeLedger: { id: string };
+        activeWorkspace: { id: string; role: "owner" | "admin" | "editor" | "viewer" };
+      };
+    }>().data;
+    expect(scope.activeWorkspace.role).toBe("owner");
+
+    const createCheckingFirst = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-account-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        kind: "asset",
+        name: "Idem Checking",
+        subtype: "bank",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
+    });
+    expect(createCheckingFirst.statusCode).toBe(201);
+    const checkingId = createCheckingFirst.json<{ data: { account: { id: string } } }>().data.account.id;
+
+    const createCheckingReplay = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-account-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        kind: "asset",
+        name: "Idem Checking",
+        subtype: "bank",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
+    });
+    expect(createCheckingReplay.statusCode).toBe(201);
+    expect(createCheckingReplay.headers["idempotency-replayed"]).toBe("true");
+    expect(createCheckingReplay.json<{ data: { account: { id: string } } }>().data.account.id).toBe(
+      checkingId,
+    );
+
+    const createCheckingConflict = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-account-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        kind: "asset",
+        name: "Changed payload should conflict",
+        subtype: "bank",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
+    });
+    expect(createCheckingConflict.statusCode).toBe(409);
+
+    const createGroceries = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-account-create-2" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        kind: "expense",
+        name: "Idem Groceries",
+        subtype: "external",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
+    });
+    expect(createGroceries.statusCode).toBe(201);
+    const groceriesId = createGroceries.json<{ data: { account: { id: string } } }>().data.account.id;
+
+    const createTransactionFirst = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-transaction-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        description: "Idempotent groceries",
+        occurredAt: "2026-05-11T16:00:00.000Z",
+        sourceAccountId: checkingId,
+        transactions: [{ amountMinor: "150000", destinationAccountId: groceriesId }],
+        type: "expense",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/transactions`,
+    });
+    expect(createTransactionFirst.statusCode).toBe(201);
+    const firstGroupId = createTransactionFirst.json<{ data: { transactionGroup: { id: string } } }>().data
+      .transactionGroup.id;
+
+    const createTransactionReplay = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-transaction-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        description: "Idempotent groceries",
+        occurredAt: "2026-05-11T16:00:00.000Z",
+        sourceAccountId: checkingId,
+        transactions: [{ amountMinor: "150000", destinationAccountId: groceriesId }],
+        type: "expense",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/transactions`,
+    });
+    expect(createTransactionReplay.statusCode).toBe(201);
+    expect(createTransactionReplay.headers["idempotency-replayed"]).toBe("true");
+    expect(
+      createTransactionReplay.json<{ data: { transactionGroup: { id: string } } }>().data.transactionGroup
+        .id,
+    ).toBe(firstGroupId);
+
+    const createTransactionConflict = await requestWithCsrf(app, activeCookie, {
+      headers: { "idempotency-key": "idem-transaction-create-1" },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        description: "Idempotent groceries",
+        occurredAt: "2026-05-11T16:00:00.000Z",
+        sourceAccountId: checkingId,
+        transactions: [{ amountMinor: "155000", destinationAccountId: groceriesId }],
+        type: "expense",
+      },
+      url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/transactions`,
+    });
+    expect(createTransactionConflict.statusCode).toBe(409);
+  });
+
+  it("executes the full collaboration role workflow across owner, editor, and viewer", async () => {
+    const app = await createSqliteE2eApp();
+    const owner = await registerAndResolveScope(app, {
+      password: "password123",
+      username: "collab-owner-e2e",
+    });
+
+    const checking = await createAccount(app, owner, {
+      currencyCode: "INR",
+      kind: "asset",
+      name: "Collab Checking",
+      subtype: "bank",
+    });
+    const groceries = await createAccount(app, owner, {
+      currencyCode: "INR",
+      kind: "expense",
+      name: "Collab Groceries",
+      subtype: "external",
+    });
+
+    const editorInvite = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: { inviteeIdentifier: "collab-editor-e2e", role: "editor" },
+      url: `/api/v1/workspaces/${owner.workspaceId}/invitations`,
+    });
+    expect(editorInvite.statusCode).toBe(201);
+    const editorToken = editorInvite
+      .json<{ data: { inviteLink: string } }>()
+      .data.inviteLink.split("/")
+      .at(-1);
+    expect(editorToken).toBeTruthy();
+
+    const viewerInvite = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: { inviteeIdentifier: "collab-viewer-e2e", role: "viewer" },
+      url: `/api/v1/workspaces/${owner.workspaceId}/invitations`,
+    });
+    expect(viewerInvite.statusCode).toBe(201);
+    const viewerToken = viewerInvite
+      .json<{ data: { inviteLink: string } }>()
+      .data.inviteLink.split("/")
+      .at(-1);
+    expect(viewerToken).toBeTruthy();
+
+    const editor = await registerAndResolveScope(app, {
+      password: "password123",
+      username: "collab-editor-e2e",
+    });
+    const viewer = await registerAndResolveScope(app, {
+      password: "password123",
+      username: "collab-viewer-e2e",
+    });
+
+    const acceptEditor = await requestWithCsrf(app, editor.cookie, {
+      method: "POST",
+      payload: {},
+      url: `/api/v1/invitations/${editorToken}/accept`,
+    });
+    expect(acceptEditor.statusCode).toBe(200);
+    const acceptViewer = await requestWithCsrf(app, viewer.cookie, {
+      method: "POST",
+      payload: {},
+      url: `/api/v1/invitations/${viewerToken}/accept`,
+    });
+    expect(acceptViewer.statusCode).toBe(200);
+
+    const editorCreateExpense = await requestWithCsrf(app, editor.cookie, {
+      headers: { "idempotency-key": `editor-expense-${createUuidV7()}` },
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        description: "Editor-created expense",
+        occurredAt: "2026-05-11T17:00:00.000Z",
+        sourceAccountId: checking,
+        transactions: [{ amountMinor: "111000", destinationAccountId: groceries }],
+        type: "expense",
+      },
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/transactions`,
+    });
+    expect(editorCreateExpense.statusCode).toBe(201);
+
+    const editorInviteAttempt = await requestWithCsrf(app, editor.cookie, {
+      method: "POST",
+      payload: { inviteeIdentifier: "blocked-user", role: "viewer" },
+      url: `/api/v1/workspaces/${owner.workspaceId}/invitations`,
+    });
+    expect(editorInviteAttempt.statusCode).toBe(403);
+
+    const viewerReadAccounts = await app.inject({
+      headers: { cookie: viewer.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/accounts?limit=20`,
+    });
+    expect(viewerReadAccounts.statusCode).toBe(200);
+
+    const viewerCreateAccountAttempt = await requestWithCsrf(app, viewer.cookie, {
+      method: "POST",
+      payload: {
+        currencyCode: "INR",
+        kind: "asset",
+        name: "Viewer forbidden",
+        subtype: "cash",
+      },
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/accounts`,
+    });
+    expect(viewerCreateAccountAttempt.statusCode).toBe(403);
+
+    const removeViewer = await requestWithCsrf(app, owner.cookie, {
+      method: "DELETE",
+      payload: {},
+      url: `/api/v1/workspaces/${owner.workspaceId}/members/${viewer.userId}`,
+    });
+    expect(removeViewer.statusCode).toBe(204);
+
+    const viewerReadAfterRemoval = await app.inject({
+      headers: { cookie: viewer.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/accounts?limit=20`,
+    });
+    expect(viewerReadAfterRemoval.statusCode).toBe(403);
+  });
+
+  it("executes the full sync conflict and resolution workflow", async () => {
+    const app = await createSqliteE2eApp();
+    const owner = await registerAndResolveScope(app, {
+      password: "password123",
+      username: "sync-conflict-owner-e2e",
+    });
+
+    const checking = await createAccount(app, owner, {
+      currencyCode: "INR",
+      kind: "asset",
+      name: "Conflict Checking",
+      subtype: "bank",
+    });
+    const groceries = await createAccount(app, owner, {
+      currencyCode: "INR",
+      kind: "expense",
+      name: "Conflict Groceries",
+      subtype: "external",
+    });
+
+    const registerDevice = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: {
+        deviceKey: "sync-conflict-device",
+        name: "Pixel",
+      },
+      url: "/api/v1/devices",
+    });
+    expect(registerDevice.statusCode).toBe(201);
+    const deviceId = registerDevice.json<{ data: { device: { id: string } } }>().data.device.id;
+
+    const firstOperationId = createUuidV7();
+    const staleOperationId = createUuidV7();
+
+    const firstPush = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: {
+        deviceId,
+        ledgerId: owner.ledgerId,
+        operations: [
+          {
+            baseRevision: "0",
+            createdAt: "2026-05-11T18:00:00.000Z",
+            idempotencyKey: "sync-conflict-op-1",
+            localSequence: "1",
+            operationId: firstOperationId,
+            operationType: "transaction_group.create_expense.v1",
+            operationVersion: 1,
+            payload: {
+              currencyCode: "INR",
+              description: "Conflict seed expense",
+              occurredAt: "2026-05-11T18:00:00.000Z",
+              sourceAccountId: checking,
+              transactions: [{ amountMinor: "90000", destinationAccountId: groceries }],
+            },
+          },
+        ],
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/push",
+    });
+    expect(firstPush.statusCode).toBe(200);
+    expect(firstPush.json<{ data: { accepted: unknown[] } }>().data.accepted.length).toBe(1);
+
+    const stalePush = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: {
+        deviceId,
+        ledgerId: owner.ledgerId,
+        operations: [
+          {
+            baseRevision: "0",
+            createdAt: "2026-05-11T18:05:00.000Z",
+            idempotencyKey: "sync-conflict-op-2",
+            localSequence: "2",
+            operationId: staleOperationId,
+            operationType: "transaction_group.create_expense.v1",
+            operationVersion: 1,
+            payload: {
+              currencyCode: "INR",
+              description: "Stale base revision should conflict",
+              occurredAt: "2026-05-11T18:05:00.000Z",
+              sourceAccountId: checking,
+              transactions: [{ amountMinor: "91000", destinationAccountId: groceries }],
+            },
+          },
+        ],
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/push",
+    });
+    expect(stalePush.statusCode).toBe(200);
+    const stalePayload = stalePush.json<{
+      data: { conflicts: Array<{ conflictType: string; operationId: string }> };
+    }>().data;
+    expect(stalePayload.conflicts).toHaveLength(1);
+    expect(stalePayload.conflicts[0]).toMatchObject({
+      conflictType: "stale_update",
+      operationId: staleOperationId,
+    });
+
+    const conflictsBeforeResolve = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      query: {
+        ledgerId: owner.ledgerId,
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/conflicts",
+    });
+    expect(conflictsBeforeResolve.statusCode).toBe(200);
+    const openConflicts = conflictsBeforeResolve.json<{
+      data: { conflicts: Array<{ id: string; incomingOperationId: string }> };
+    }>().data.conflicts;
+    expect(openConflicts).toHaveLength(1);
+    expect(openConflicts[0]?.incomingOperationId).toBe(staleOperationId);
+
+    const statusBeforeResolve = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      query: {
+        ledgerId: owner.ledgerId,
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/status",
+    });
+    expect(statusBeforeResolve.statusCode).toBe(200);
+    expect(statusBeforeResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(1);
+
+    const resolve = await requestWithCsrf(app, owner.cookie, {
+      method: "POST",
+      payload: {
+        ledgerId: owner.ledgerId,
+        resolution: "dismiss",
+        workspaceId: owner.workspaceId,
+      },
+      url: `/api/v1/sync/conflicts/${openConflicts[0]?.id}/resolve`,
+    });
+    expect(resolve.statusCode).toBe(200);
+    expect(resolve.json<{ data: { status: string } }>().data.status).toBe("dismissed");
+
+    const conflictsAfterResolve = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      query: {
+        ledgerId: owner.ledgerId,
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/conflicts",
+    });
+    expect(conflictsAfterResolve.statusCode).toBe(200);
+    expect(conflictsAfterResolve.json<{ data: { conflicts: unknown[] } }>().data.conflicts).toHaveLength(
+      0,
+    );
+
+    const statusAfterResolve = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      query: {
+        ledgerId: owner.ledgerId,
+        workspaceId: owner.workspaceId,
+      },
+      url: "/api/v1/sync/status",
+    });
+    expect(statusAfterResolve.statusCode).toBe(200);
+    expect(statusAfterResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(0);
+  });
+
   it("executes the full import, rule, and recurring workflow", async () => {
     const app = await createSqliteE2eApp();
     const owner = await registerAndResolveScope(app, {
@@ -515,6 +969,16 @@ describe("api e2e workflows (sqlite)", () => {
     const importJob = createImport.json<{ data: { importJob: { id: string; status: string } } }>().data
       .importJob;
     expect(importJob.status).toBe("preview_ready");
+
+    const listImports = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports`,
+    });
+    expect(listImports.statusCode).toBe(200);
+    expect(
+      listImports.json<{ data: Array<{ id: string }> }>().data.some((job) => job.id === importJob.id),
+    ).toBe(true);
 
     const getImportBeforeCommit = await app.inject({
       headers: { cookie: owner.cookie },
@@ -570,6 +1034,38 @@ describe("api e2e workflows (sqlite)", () => {
     expect(createRule.statusCode).toBe(201);
     const ruleId = createRule.json<{ data: { rule: { id: string } } }>().data.rule.id;
 
+    const getRule = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/rules/${ruleId}`,
+    });
+    expect(getRule.statusCode).toBe(200);
+
+    const updateRule = await requestWithCsrf(app, owner.cookie, {
+      method: "PATCH",
+      payload: {
+        action: { status: "reconciled", type: "set_transaction_status" },
+        condition: { descriptionContains: "CSV", type: "expense" },
+        enabled: true,
+        name: "Auto-reconcile CSV expenses",
+      },
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/rules/${ruleId}`,
+    });
+    expect(updateRule.statusCode).toBe(200);
+    expect(updateRule.json<{ data: { rule: { action: { status: string } } } }>().data.rule.action.status).toBe(
+      "reconciled",
+    );
+
+    const listRules = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/rules`,
+    });
+    expect(listRules.statusCode).toBe(200);
+    expect(
+      listRules.json<{ data: Array<{ id: string }> }>().data.some((rule) => rule.id === ruleId),
+    ).toBe(true);
+
     const testRule = await requestWithCsrf(app, owner.cookie, {
       method: "POST",
       payload: { limit: 20 },
@@ -615,6 +1111,43 @@ describe("api e2e workflows (sqlite)", () => {
     const templateId = createRecurring.json<{ data: { recurringTemplate: { id: string } } }>().data
       .recurringTemplate.id;
 
+    const getRecurring = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/recurring/${templateId}`,
+    });
+    expect(getRecurring.statusCode).toBe(200);
+
+    const updateRecurring = await requestWithCsrf(app, owner.cookie, {
+      method: "PATCH",
+      payload: {
+        cadence: "monthly",
+        intervalCount: 1,
+        nextRunAt: "2026-06-15T00:00:00.000Z",
+        payload: {
+          currencyCode: "INR",
+          description: "Monthly groceries updated",
+          lines: [{ amountMinor: "310000", destinationAccountId: groceries }],
+          sourceAccountId: checking,
+          title: "Recurring groceries updated",
+          type: "expense",
+        },
+        status: "active",
+      },
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/recurring/${templateId}`,
+    });
+    expect(updateRecurring.statusCode).toBe(200);
+
+    const listRecurring = await app.inject({
+      headers: { cookie: owner.cookie },
+      method: "GET",
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/recurring`,
+    });
+    expect(listRecurring.statusCode).toBe(200);
+    expect(
+      listRecurring.json<{ data: Array<{ id: string }> }>().data.some((item) => item.id === templateId),
+    ).toBe(true);
+
     const generateRecurring = await requestWithCsrf(app, owner.cookie, {
       headers: { "idempotency-key": "recurring-generate-e2e-1" },
       method: "POST",
@@ -650,6 +1183,27 @@ describe("api e2e workflows (sqlite)", () => {
     for (const groupId of committedGroupIds) {
       expect(visibleGroupIdsAfterUndo.has(groupId)).toBe(false);
     }
+
+    const archiveRule = await requestWithCsrf(app, owner.cookie, {
+      method: "DELETE",
+      payload: {},
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/rules/${ruleId}`,
+    });
+    expect(archiveRule.statusCode).toBe(200);
+    expect(
+      archiveRule.json<{ data: { rule: { archivedAt: string | null } } }>().data.rule.archivedAt,
+    ).not.toBeNull();
+
+    const archiveRecurring = await requestWithCsrf(app, owner.cookie, {
+      method: "DELETE",
+      payload: {},
+      url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/recurring/${templateId}`,
+    });
+    expect(archiveRecurring.statusCode).toBe(200);
+    expect(
+      archiveRecurring.json<{ data: { recurringTemplate: { archivedAt: string | null } } }>().data
+        .recurringTemplate.archivedAt,
+    ).not.toBeNull();
   });
 });
 
