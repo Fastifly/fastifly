@@ -4,7 +4,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@ui/alert";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
 import {
@@ -307,13 +315,20 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
               </Alert>
             ) : null}
 
-            <Button
-              data-testid={testIds.accounts.create.saveButton}
-              disabled={mutation.isPending}
-              type="submit"
-            >
-              {mutation.isPending ? en.accounts.saving : en.accounts.save}
-            </Button>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {en.rules.cancel}
+                </Button>
+              </DialogClose>
+              <Button
+                data-testid={testIds.accounts.create.saveButton}
+                disabled={mutation.isPending}
+                type="submit"
+              >
+                {mutation.isPending ? en.accounts.saving : en.accounts.save}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

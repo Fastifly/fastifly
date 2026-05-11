@@ -17,7 +17,7 @@ export function BudgetPage({
   const budgets = budgetsQuery.data?.data ?? [];
 
   return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.budgets.page}>
+    <section className="mt-2 space-y-4" data-testid={testIds.budgets.page}>
       <GlassSection title={en.shell.budgetWatch} description={en.shell.budgetWatchBody}>
         <div
           className="grid grid-cols-2 gap-3 lg:grid-cols-4"

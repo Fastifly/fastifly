@@ -58,7 +58,7 @@ export function AuthPage() {
 
   return (
     <main
-      className="ff-liquid-bg flex min-h-screen items-center justify-center px-4 py-8 text-white"
+      className="flex min-h-screen items-center justify-center bg-background px-4 py-8 text-foreground"
       data-testid={testIds.auth.page}
     >
       <AuthPanel className="w-full max-w-[27rem]">

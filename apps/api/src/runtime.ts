@@ -133,6 +133,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
       transactionRepository,
     });
     const workflowService = createFinanceWorkflowService({
+      accountRepository,
       financeMutationService,
       transactionQueryService,
       workflowRepository,
@@ -200,6 +201,7 @@ async function createPostgresRuntimeDependencies(
       transactionRepository,
     });
     const workflowService = createFinanceWorkflowService({
+      accountRepository,
       financeMutationService,
       transactionQueryService,
       workflowRepository,

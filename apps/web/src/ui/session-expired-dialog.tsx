@@ -1,7 +1,14 @@
 import { LoginCredentialsSchema } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog";
 import { LockKeyhole } from "lucide-react";
 import { apiClient, FastiflyApiError } from "../api/client";
 import { en } from "../i18n/en";
@@ -49,7 +56,7 @@ export function SessionExpiredDialog({
         showCloseButton={false}
       >
         <DialogHeader className="flex flex-row items-start gap-3 text-left">
-          <div className="ff-auth-dialog-icon">
+          <div className="inline-flex size-8 flex-none items-center justify-center rounded-lg border border-border bg-muted/40 text-primary">
             <LockKeyhole aria-hidden="true" />
           </div>
           <div>
@@ -86,15 +93,16 @@ export function SessionExpiredDialog({
           }}
         />
 
-        <Button
-          className="mt-3 w-full"
-          data-testid={testIds.auth.sessionExpired.switchAccountButton}
-          onClick={onSwitchAccount}
-          type="button"
-          variant="outline"
-        >
-          {en.auth.switchAccount}
-        </Button>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            data-testid={testIds.auth.sessionExpired.switchAccountButton}
+            onClick={onSwitchAccount}
+            type="button"
+            variant="outline"
+          >
+            {en.auth.switchAccount}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

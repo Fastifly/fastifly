@@ -56,7 +56,7 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
   };
 
   return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.accounts.page}>
+    <section className="mt-2 space-y-4" data-testid={testIds.accounts.page}>
       <AccountCreatePanel ledgerContext={ledgerContext} />
       <GlassSection title={en.shell.allAccounts} description={en.shell.accountsBody}>
         <div className="flex flex-col gap-3">

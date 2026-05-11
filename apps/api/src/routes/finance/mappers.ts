@@ -109,6 +109,7 @@ export function toTransactionJournalResponse(
     id: journal.id,
     occurredAt: journal.occurredAt,
     postings: journal.postings.map(toTransactionPostingResponse),
+    status: journal.status,
     type: journal.type,
   };
 }

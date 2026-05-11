@@ -135,6 +135,7 @@ export const TransactionJournalResponseSchema = z.strictObject({
   id: SyncedIdSchema,
   occurredAt: IsoDateTimeSchema,
   postings: z.array(TransactionPostingResponseSchema).min(2),
+  status: z.enum(["pending", "cleared", "reconciled", "void"]),
   type: z.enum(["expense", "income", "transfer"]),
 });
 

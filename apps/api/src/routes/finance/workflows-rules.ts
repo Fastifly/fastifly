@@ -225,8 +225,8 @@ export function registerFinanceRuleWorkflowRoutes(
       const body = RuleTestRequestSchema.parse(request.body);
 
       const matched = await workflowService.testRule({
-        limit: body.limit ?? 100,
         ruleId: parseSyncedId(params.ruleId),
+        ...(body.limit !== undefined ? { limit: body.limit } : {}),
         scope: {
           ledgerId: parseSyncedId(params.ledgerId),
           workspaceId: parseSyncedId(params.workspaceId),
@@ -263,9 +263,9 @@ export function registerFinanceRuleWorkflowRoutes(
       const result = await workflowService.applyRule({
         actorUserId,
         idempotencyKey: getRequestIdempotencyKey(request),
-        limit: body.limit ?? 100,
         requestId: String(request.id),
         ruleId: parseSyncedId(params.ruleId),
+        ...(body.limit !== undefined ? { limit: body.limit } : {}),
         scope: {
           ledgerId: parseSyncedId(params.ledgerId),
           workspaceId: parseSyncedId(params.workspaceId),

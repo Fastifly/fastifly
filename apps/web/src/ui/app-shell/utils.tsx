@@ -1,7 +1,6 @@
 import {
   type AccountWithBalanceResponse,
   formatMoneyMinor,
-  type RecurringTemplateResponse,
   type TransactionGroupResponse,
 } from "@fastifly/common";
 import type { LucideIcon } from "lucide-react";
@@ -64,35 +63,6 @@ export function makeSampleImportCsv(
       `expense,${sourceAccount.id},${destinationAccount.id},12000,${sourceAccount.currencyCode},${occurredAt},Groceries`,
     ].join("\n"),
     fileName: "quick-import.csv",
-  };
-}
-
-export function makeSampleRecurringPayload(
-  accounts: readonly AccountWithBalanceResponse[],
-): RecurringTemplateResponse["payload"] | null {
-  const sourceAccount = accounts[0];
-  const destinationAccount = accounts[1];
-  if (!sourceAccount || !destinationAccount || sourceAccount.id === destinationAccount.id) {
-    return null;
-  }
-
-  return {
-    currencyCode: sourceAccount.currencyCode,
-    description: "Monthly recurring entry",
-    lines: [
-      {
-        amountMinor: "10000",
-        budgetId: null,
-        categoryId: null,
-        description: "Recurring line",
-        destinationAccountId: destinationAccount.id,
-        reportingAmountMinor: null,
-        reportingCurrencyCode: null,
-      },
-    ],
-    sourceAccountId: sourceAccount.id,
-    title: "Recurring template",
-    type: "expense",
   };
 }
 

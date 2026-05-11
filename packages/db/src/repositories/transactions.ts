@@ -95,11 +95,12 @@ export type TransactionPostingRecord = {
 };
 
 export type TransactionJournalRecord = {
-  readonly id: SyncedId;
-  readonly type: "expense" | "income" | "transfer";
-  readonly occurredAt: string;
   readonly description: string;
+  readonly id: SyncedId;
+  readonly occurredAt: string;
   readonly postings: readonly TransactionPostingRecord[];
+  readonly status: "pending" | "cleared" | "reconciled" | "void";
+  readonly type: "expense" | "income" | "transfer";
 };
 
 export type TransactionGroupRecord = {
@@ -250,6 +251,7 @@ type SqliteTransactionFlatRow = {
   readonly journal_type: TransactionJournalRecord["type"];
   readonly journal_occurred_at: string;
   readonly journal_description: string;
+  readonly journal_status: TransactionJournalRecord["status"];
   readonly posting_id: string;
   readonly posting_account_id: string;
   readonly posting_amount_minor: bigint | number | string;
@@ -1192,6 +1194,7 @@ function readSqliteTransactionGroupsByIds(
         transaction_journals.type AS journal_type,
         transaction_journals.occurred_at AS journal_occurred_at,
         transaction_journals.description AS journal_description,
+        transaction_journals.status AS journal_status,
         transaction_postings.id AS posting_id,
         transaction_postings.account_id AS posting_account_id,
         transaction_postings.amount_minor AS posting_amount_minor,
@@ -1224,6 +1227,7 @@ function readSqliteTransactionGroupsByIds(
       journalDescription: row.journal_description,
       journalId: parseSyncedId(row.journal_id),
       journalOccurredAt: row.journal_occurred_at,
+      journalStatus: row.journal_status,
       journalType: row.journal_type,
       postingAccountId: parseSyncedId(row.posting_account_id),
       postingAmountMinor: readRequiredSqliteMoneyMinor(row.posting_amount_minor, "amount_minor"),
@@ -1487,6 +1491,7 @@ function insertSqliteTransactionJournal(
     id: input.journalId,
     occurredAt: input.normalized.occurredAt,
     postings,
+    status: input.normalized.status,
     type: input.normalized.type,
   };
 }
@@ -1718,6 +1723,7 @@ async function readPostgresTransactionGroupsByIds(
       journalType: pgTransactionJournals.type,
       journalOccurredAt: pgTransactionJournals.occurredAt,
       journalDescription: pgTransactionJournals.description,
+      journalStatus: pgTransactionJournals.status,
       postingId: pgTransactionPostings.id,
       postingAccountId: pgTransactionPostings.accountId,
       postingAmountMinor: pgTransactionPostings.amountMinor,
@@ -1746,6 +1752,7 @@ async function readPostgresTransactionGroupsByIds(
       journalDescription: row.journalDescription,
       journalId: parseSyncedId(row.journalId),
       journalOccurredAt: toRequiredIsoString(row.journalOccurredAt),
+      journalStatus: row.journalStatus as TransactionJournalRecord["status"],
       journalType: row.journalType as TransactionJournalRecord["type"],
       postingAccountId: parseSyncedId(row.postingAccountId),
       postingAmountMinor: readPostgresMoneyMinor(row.postingAmountMinor),
@@ -1924,6 +1931,7 @@ async function insertPostgresTransactionJournal(
     id: input.journalId,
     occurredAt: input.normalized.occurredAt,
     postings,
+    status: input.normalized.status,
     type: input.normalized.type,
   };
 }
@@ -1961,6 +1969,7 @@ type TransactionFlatRecord = {
   readonly journalType: TransactionJournalRecord["type"];
   readonly journalOccurredAt: string;
   readonly journalDescription: string;
+  readonly journalStatus: TransactionJournalRecord["status"];
   readonly postingId: SyncedId;
   readonly postingAccountId: SyncedId;
   readonly postingAmountMinor: bigint;
@@ -2003,6 +2012,7 @@ function buildTransactionGroupsFromFlatRows(
         id: row.journalId,
         occurredAt: row.journalOccurredAt,
         postings: [],
+        status: row.journalStatus,
         type: row.journalType,
       };
       group.journals.set(row.journalId, journal);
@@ -2029,6 +2039,7 @@ function buildTransactionGroupsFromFlatRows(
       id: journal.id,
       occurredAt: journal.occurredAt,
       postings: journal.postings,
+      status: journal.status,
       type: journal.type,
     })),
   }));

@@ -35,9 +35,10 @@ export const NotFoundErrorResponseSchema = apiErrorResponseSchema("NOT_FOUND");
 export const ConflictErrorResponseSchema = apiErrorResponseSchema("CONFLICT");
 export const RateLimitedErrorResponseSchema = apiErrorResponseSchema("RATE_LIMITED");
 export const InternalServerErrorResponseSchema = apiErrorResponseSchema("INTERNAL_SERVER_ERROR");
+export const BadRequestErrorResponseSchema = apiErrorResponseSchema("BAD_REQUEST");
 
 export const ErrorResponseSchemas = {
-  400: ValidationErrorSchema,
+  400: z.union([ValidationErrorSchema, BadRequestErrorResponseSchema]),
   401: UnauthenticatedErrorResponseSchema,
   403: ForbiddenErrorResponseSchema,
   404: NotFoundErrorResponseSchema,

@@ -105,6 +105,7 @@ export const transactionListFixture = ListTransactionsResponseSchema.parse({
               reportingCurrencyCode: "INR",
             },
           ],
+          status: "pending",
           type: "expense",
         },
       ],

@@ -4,7 +4,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@ui/alert";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
 import {
@@ -123,7 +131,7 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
             </CardDescription>
           </div>
           <CardAction>
-            <div className="inline-flex size-7 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)] text-emerald-700 dark:text-emerald-200">
+            <div className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-muted/40 text-emerald-700 dark:text-emerald-200">
               <PlusCircle aria-hidden="true" />
             </div>
           </CardAction>
@@ -404,13 +412,20 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
               </Alert>
             ) : null}
 
-            <Button
-              data-testid={testIds.transactionCreate.saveButton}
-              disabled={!canCreate || mutation.isPending}
-              type="submit"
-            >
-              {mutation.isPending ? en.transactions.saving : en.transactions.save}
-            </Button>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {en.rules.cancel}
+                </Button>
+              </DialogClose>
+              <Button
+                data-testid={testIds.transactionCreate.saveButton}
+                disabled={!canCreate || mutation.isPending}
+                type="submit"
+              >
+                {mutation.isPending ? en.transactions.saving : en.transactions.save}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

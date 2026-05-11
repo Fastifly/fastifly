@@ -38,7 +38,10 @@ export function TransactionsPanel({
   readonly transactionsLoading: boolean;
 }) {
   return (
-    <Card className="ff-glass-panel overflow-hidden" data-testid={testIds.transactions.listPanel}>
+    <Card
+      className="overflow-hidden border border-border bg-card text-card-foreground shadow-sm"
+      data-testid={testIds.transactions.listPanel}
+    >
       <CardHeader>
         <div>
           <CardTitle data-testid={titleTestId}>{title}</CardTitle>
@@ -47,10 +50,7 @@ export function TransactionsPanel({
           ) : null}
         </div>
       </CardHeader>
-      <div
-        className="min-w-0 divide-y divide-white/45 dark:divide-white/10"
-        data-testid={testIds.transactions.list}
-      >
+      <div className="min-w-0 divide-y divide-border" data-testid={testIds.transactions.list}>
         {transactions.length > 0 ? (
           transactions.map((transaction) => (
             <TransactionRow key={transaction.id} transaction={transaction} />
@@ -78,7 +78,7 @@ export function TransactionsPanel({
         )}
       </div>
       {transactions.length > 0 ? (
-        <div className="border-t border-white/45 p-3 dark:border-white/10">
+        <div className="border-t border-border p-3">
           {hasNextPage ? (
             <Button
               className="w-full"
@@ -112,7 +112,7 @@ function TransactionRow({ transaction }: { readonly transaction: TransactionGrou
     >
       <div className="flex min-w-0 items-center gap-3">
         <div
-          className={`ff-row-icon ${isIncome ? "text-emerald-700 dark:text-emerald-200" : "text-slate-700 dark:text-white/72"}`}
+          className={`inline-flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 ${isIncome ? "text-emerald-700 dark:text-emerald-200" : "text-slate-700 dark:text-muted-foreground"}`}
         >
           {isIncome ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
         </div>

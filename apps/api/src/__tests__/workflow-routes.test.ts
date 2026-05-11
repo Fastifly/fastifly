@@ -8,6 +8,7 @@ import type {
   UserRecord,
   UserWorkspaceContextRecord,
 } from "@fastifly/db";
+import { TransactionWriteError } from "@fastifly/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApiApp } from "../app.js";
@@ -281,6 +282,7 @@ function makeWorkflowService(
                 reportingCurrencyCode: "INR",
               },
             ],
+            status: "pending" as const,
             type: "expense" as const,
           },
         ],
@@ -303,9 +305,15 @@ function makeWorkflowService(
   };
 }
 
-async function makeApp(role: UserWorkspaceContextRecord["activeWorkspace"]["role"] = "editor") {
+async function makeApp(
+  role: UserWorkspaceContextRecord["activeWorkspace"]["role"] = "editor",
+  createWorkflowService?: (input: {
+    readonly context: UserWorkspaceContextRecord;
+    readonly user: UserRecord;
+  }) => FinanceWorkflowService,
+) {
   const state = createUserWorkspaceContext(role);
-  const workflowService = makeWorkflowService(state);
+  const workflowService = createWorkflowService?.(state) ?? makeWorkflowService(state);
   const app = await buildApiApp({
     config: { logLevel: "silent", nodeEnv: "test" },
     identityRepository: makeIdentityRepository(state),
@@ -473,5 +481,35 @@ describe("workflow routes", () => {
         idempotencyKey: "recurring-generate-1",
       }),
     );
+  });
+
+  it("returns a stable bad-request error when recurring generation rejects transaction input", async () => {
+    const { app, state } = await makeApp("editor", (contextState) => {
+      const workflowService = makeWorkflowService(contextState);
+      return {
+        ...workflowService,
+        generateRecurringTemplate: vi.fn(async () => {
+          throw new TransactionWriteError(
+            "Cross-currency transaction writes are not supported yet.",
+            "CROSS_CURRENCY_WRITE_NOT_SUPPORTED",
+          );
+        }),
+      };
+    });
+
+    const response = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie(), "idempotency-key": "recurring-generate-error-1" },
+      method: "POST",
+      payload: { occurredAt: "2026-05-11T08:00:00.000Z" },
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/recurring/${createId()}/generate`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Cross-currency transaction writes are not supported yet.",
+      },
+    });
   });
 });

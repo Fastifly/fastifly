@@ -632,6 +632,7 @@ function serializeTransactionJournal(journal: TransactionJournalRecord): JsonObj
     id: journal.id,
     occurredAt: journal.occurredAt,
     postings: journal.postings.map(serializeTransactionPosting),
+    status: journal.status,
     type: journal.type,
   };
 }

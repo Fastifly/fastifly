@@ -255,11 +255,11 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div
-      className="ff-liquid-bg min-h-screen overflow-x-hidden text-white"
+      className="min-h-screen overflow-x-hidden bg-background text-foreground"
       data-testid={testIds.shell.app}
     >
       <main
-        className="relative mx-auto min-h-screen w-full max-w-[1500px] px-3 pt-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:px-5 xl:px-8 xl:pb-10"
+        className="relative mx-auto min-h-screen w-full max-w-[1500px] px-3 pt-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-5 md:pb-8 xl:px-8 xl:pb-8"
         data-testid={testIds.shell.main}
       >
         <TopBar
@@ -350,7 +350,7 @@ export function AppShell({ children }: PropsWithChildren) {
       </main>
 
       <nav
-        className="ff-mobile-tabbar xl:hidden"
+        className="fixed right-3 bottom-3 left-3 z-20 grid grid-cols-5 gap-1 rounded-lg border border-border bg-background/95 p-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] shadow-lg supports-backdrop-filter:backdrop-blur xl:hidden"
         aria-label={en.shell.navigation}
         data-testid={testIds.navigation.mobileTabbar}
       >
@@ -360,7 +360,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <Button
           type="button"
           variant="ghost"
-          className="ff-mobile-tab"
+          className="flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-transparent text-[11px] font-extrabold text-muted-foreground hover:bg-muted hover:text-foreground"
           data-testid={testIds.navigation.mobileMoreButton}
           onClick={() => setIsMoreOpen(true)}
         >

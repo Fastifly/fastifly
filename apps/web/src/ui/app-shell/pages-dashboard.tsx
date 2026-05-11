@@ -26,14 +26,8 @@ import {
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { TransactionCreatePanel } from "../transaction-create-panel";
-import { AccountsPage, BudgetPage, ImportsPage, RulesPage } from "./pages-accounts";
-import {
-  DashboardAside,
-  RecurringPage,
-  ReportsPage,
-  SettingsPage,
-  SyncPage,
-} from "./pages-finance";
+import { AccountsPage, BudgetPage, ImportsPage, RecurringPage, RulesPage } from "./pages-accounts";
+import { DashboardAside, ReportsPage, SettingsPage, SyncPage } from "./pages-finance";
 import { MetricTile } from "./shared-components";
 import { TransactionsPanel } from "./transaction-components";
 import {
@@ -69,21 +63,24 @@ export function DashboardPage({
   readonly spending: string;
 }) {
   return (
-    <section className="ff-page-grid" data-testid={testIds.dashboard.page}>
+    <section
+      className="mt-2 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,0.8fr)]"
+      data-testid={testIds.dashboard.page}
+    >
       <div className="flex flex-col gap-4">
         <Card
-          className="rounded-lg border-[color:var(--ff-border)] bg-[var(--ff-surface)] p-0 text-[var(--ff-text)] shadow-[var(--ff-shadow)] backdrop-blur-[18px]"
+          className="rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
           data-testid={testIds.dashboard.netWorthCard}
         >
           <CardContent className="p-5 max-[380px]:p-4">
             <p
-              className="font-bold text-[0.8125rem] text-[var(--ff-text-muted)]"
+              className="font-bold text-[0.8125rem] text-muted-foreground"
               data-testid={testIds.dashboard.netWorthLabel}
             >
               {en.shell.netWorth}
             </p>
             <p
-              className="mt-2 break-words font-[750] text-[2.55rem] leading-none tracking-normal text-[var(--ff-text)] max-[380px]:text-[2.15rem]"
+              className="mt-2 break-words font-[750] text-[2.55rem] leading-none tracking-normal text-foreground max-[380px]:text-[2.15rem]"
               data-testid={testIds.dashboard.netWorthValue}
             >
               {moneySummaryValue}
@@ -91,7 +88,10 @@ export function DashboardPage({
           </CardContent>
         </Card>
 
-        <Card className="ff-glass-panel" data-testid={testIds.dashboard.summaryMetrics}>
+        <Card
+          className="border border-border bg-card text-card-foreground shadow-sm"
+          data-testid={testIds.dashboard.summaryMetrics}
+        >
           <CardContent className="grid grid-cols-2 gap-2.5 p-4 max-[380px]:gap-2 max-[380px]:p-3">
             <MetricTile
               compact
@@ -309,7 +309,7 @@ export function TransactionsPage({
   const transactions = transactionsQuery.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <section className="ff-single-page flex flex-col gap-4" data-testid={testIds.transactions.page}>
+    <section className="mt-2 flex flex-col gap-4" data-testid={testIds.transactions.page}>
       <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
       <TransactionFilters
         accounts={accounts}
@@ -354,7 +354,10 @@ export function TransactionFilters({
   readonly onChange: (filters: TransactionListFilterState) => void;
 }) {
   return (
-    <Card className="ff-glass-panel" data-testid={testIds.transactions.filters.panel}>
+    <Card
+      className="border border-border bg-card text-card-foreground shadow-sm"
+      data-testid={testIds.transactions.filters.panel}
+    >
       <CardHeader>
         <CardTitle>{en.transactions.filters.title}</CardTitle>
         <CardAction>

@@ -253,6 +253,7 @@ describe("API contract schemas", () => {
                     reportingCurrencyCode: "INR",
                   },
                 ],
+                status: "pending",
                 type: "expense",
               },
             ],

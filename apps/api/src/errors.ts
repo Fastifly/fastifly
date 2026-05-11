@@ -36,7 +36,11 @@ function isFastifyError(error: unknown): error is FastifyError {
 }
 
 function isFastifyValidationError(error: unknown): error is FastifyError {
-  return isFastifyError(error) && Array.isArray(error.validation);
+  return (
+    isFastifyError(error) &&
+    error.statusCode === 400 &&
+    Array.isArray(error.validation)
+  );
 }
 
 function toLedgerMutationHttpError(error: LedgerMutationError): {
@@ -186,6 +190,12 @@ function toFinanceWorkflowHttpError(error: FinanceWorkflowServiceError): {
         message: error.message,
         statusCode: 400,
       };
+    case "INVALID_RECURRING_TEMPLATE":
+      return {
+        code: "BAD_REQUEST",
+        message: error.message,
+        statusCode: 400,
+      };
   }
 }
 
@@ -231,6 +241,26 @@ function sendError(reply: FastifyReply, statusCode: number, payload: unknown): v
   reply.status(statusCode).send(payload);
 }
 
+function logInternalServerError(
+  request: FastifyRequest,
+  error: unknown,
+  statusCode: number,
+  code: ApiErrorCode,
+): void {
+  if (statusCode < 500) {
+    return;
+  }
+
+  request.log.error({
+    code,
+    ...(error instanceof Error ? { err: error } : { error }),
+    method: request.method,
+    requestId: getRequestId(request),
+    statusCode,
+    url: request.url,
+  }, "Request failed with internal server error");
+}
+
 export function registerErrorHandlers(app: FastifyInstance): void {
   app.setNotFoundHandler((request, reply) => {
     sendError(
@@ -260,6 +290,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof LedgerMutationError) {
       const mappedError = toLedgerMutationHttpError(error);
+      logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
       sendError(
         reply,
         mappedError.statusCode,
@@ -275,6 +306,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof FinanceMutationError) {
       const mappedError = toFinanceMutationHttpError(error);
+      logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
       sendError(
         reply,
         mappedError.statusCode,
@@ -290,6 +322,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof TransactionWriteError) {
       const mappedError = toTransactionWriteHttpError(error);
+      logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
       sendError(
         reply,
         mappedError.statusCode,
@@ -305,6 +338,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof FinanceWorkflowServiceError) {
       const mappedError = toFinanceWorkflowHttpError(error);
+      logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
       sendError(
         reply,
         mappedError.statusCode,
@@ -324,6 +358,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
     const clientMessage = isFastifyError(error)
       ? error.message
       : DEFAULT_ERROR_MESSAGES.BAD_REQUEST;
+    logInternalServerError(request, error, statusCode, code);
 
     sendError(
       reply,

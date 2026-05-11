@@ -1,10 +1,8 @@
 import type { AccountWithBalanceResponse } from "@fastifly/common";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
-import { Card, CardContent } from "@ui/card";
+import { Card } from "@ui/card";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -13,153 +11,11 @@ import {
   ShieldCheck,
   WalletCards,
 } from "lucide-react";
-import { apiClient } from "../../api/client";
-import { useRecurringTemplatesQuery } from "../../api/queries";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
 import { AccountBalanceCard, GlassSection, MetricTile } from "./shared-components";
-import { formatDateTime, formatThemeLabel, makeSampleRecurringPayload, type Theme } from "./utils";
-
-export function RecurringPage({
-  accounts,
-  ledgerContext,
-}: {
-  readonly accounts: readonly AccountWithBalanceResponse[];
-  readonly ledgerContext: {
-    readonly ledgerId: string;
-    readonly workspaceId: string;
-  } | null;
-}) {
-  const queryClient = useQueryClient();
-  const recurringQuery = useRecurringTemplatesQuery(ledgerContext);
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      if (!ledgerContext) {
-        throw new Error(en.accounts.ledgerRequired);
-      }
-      const payload = makeSampleRecurringPayload(accounts);
-      if (!payload) {
-        throw new Error(en.recurring.createFailed);
-      }
-      return await apiClient.createRecurringTemplate({
-        cadence: "monthly",
-        intervalCount: 1,
-        nextRunAt: new Date().toISOString(),
-        payload,
-        status: "active",
-        ...ledgerContext,
-      });
-    },
-    onSuccess: async () => {
-      if (!ledgerContext) {
-        return;
-      }
-      await queryClient.invalidateQueries({
-        queryKey: ["finance", "recurring", ledgerContext.workspaceId, ledgerContext.ledgerId],
-      });
-    },
-  });
-  const generateMutation = useMutation({
-    mutationFn: async (templateId: string) => {
-      if (!ledgerContext) {
-        throw new Error(en.accounts.ledgerRequired);
-      }
-      return await apiClient.generateRecurringTemplate({
-        templateId,
-        ...ledgerContext,
-      });
-    },
-    onSuccess: async () => {
-      if (!ledgerContext) {
-        return;
-      }
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["finance", "recurring", ledgerContext.workspaceId, ledgerContext.ledgerId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
-        }),
-      ]);
-    },
-  });
-  const templates = recurringQuery.data ?? [];
-
-  return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.recurring.page}>
-      <GlassSection title={en.shell.recurringTitle} description={en.shell.recurringBody}>
-        <div className="flex flex-col gap-3">
-          <div className="flex justify-end">
-            <Button
-              data-testid={testIds.recurring.createButton}
-              disabled={createMutation.isPending}
-              onClick={() => createMutation.mutate()}
-              size="sm"
-              type="button"
-            >
-              {createMutation.isPending ? en.recurring.creating : en.recurring.create}
-            </Button>
-          </div>
-          <div className="grid gap-3" data-testid={testIds.recurring.list}>
-            {templates.length > 0 ? (
-              templates.map((template) => (
-                <Card
-                  className="ff-glass-panel"
-                  data-testid={testIds.recurring.card(template.id)}
-                  key={template.id}
-                >
-                  <CardContent className="space-y-3 py-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium text-[15px]">
-                        {template.payload.title ?? template.payload.description}
-                      </p>
-                      <Badge variant="outline">{template.status}</Badge>
-                    </div>
-                    <p className="text-[13px] text-slate-600 dark:text-white/62">
-                      {en.recurring.nextRun.replace("{value}", template.nextRunAt)}
-                    </p>
-                    <Button
-                      data-testid={testIds.recurring.generateButton(template.id)}
-                      disabled={
-                        generateMutation.isPending && generateMutation.variables === template.id
-                      }
-                      onClick={() => generateMutation.mutate(template.id)}
-                      size="sm"
-                      type="button"
-                    >
-                      {generateMutation.isPending && generateMutation.variables === template.id
-                        ? en.recurring.generating
-                        : en.recurring.generate}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <p
-                className="text-[14px] text-slate-600 dark:text-white/62"
-                data-testid={testIds.recurring.emptyState}
-              >
-                {recurringQuery.isPending
-                  ? en.shell.loadingData
-                  : recurringQuery.isError
-                    ? en.recurring.createFailed
-                    : en.recurring.noTemplates}
-              </p>
-            )}
-          </div>
-          {createMutation.isError || generateMutation.isError ? (
-            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
-              <AlertDescription>
-                {createMutation.isError ? en.recurring.createFailed : en.recurring.generateFailed}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </div>
-      </GlassSection>
-    </section>
-  );
-}
+import { formatDateTime, formatThemeLabel, type Theme } from "./utils";
 
 export function ReportsPage({
   accounts,
@@ -179,7 +35,7 @@ export function ReportsPage({
   readonly transferCount: number;
 }) {
   return (
-    <section className="ff-single-page" data-testid={testIds.reports.page}>
+    <section className="mt-2" data-testid={testIds.reports.page}>
       <GlassSection title={en.shell.reportSummary} description={en.shell.reportSummaryBody}>
         <div
           className="grid grid-cols-2 gap-3 lg:grid-cols-4"
@@ -258,7 +114,10 @@ export function SettingsPage({
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
 }) {
   return (
-    <section className="ff-page-grid" data-testid={testIds.settings.page}>
+    <section
+      className="mt-2 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,0.8fr)]"
+      data-testid={testIds.settings.page}
+    >
       <GlassSection
         title={en.shell.settingsOverview}
         description={en.shell.settingsBody}
@@ -342,7 +201,7 @@ export function SyncPage({
 }) {
   const openConflicts = conflicts.filter((conflict) => conflict.status === "open");
   return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.sync.page}>
+    <section className="mt-2 space-y-4" data-testid={testIds.sync.page}>
       <GlassSection
         description={en.shell.syncCenterBody}
         testId={testIds.sync.statusCard}
@@ -375,7 +234,7 @@ export function SyncPage({
           <div className="grid gap-3">
             {openConflicts.map((conflict) => (
               <Card
-                className="ff-glass-panel p-4"
+                className="border border-border bg-card p-4 text-card-foreground shadow-sm"
                 data-testid={testIds.sync.conflictRow(conflict.id)}
                 key={conflict.id}
               >

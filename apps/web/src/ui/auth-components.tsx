@@ -62,7 +62,7 @@ export function AuthPanel({ ariaDescribedBy, children, className = "", role }: A
   return (
     <Card
       aria-describedby={ariaDescribedBy}
-      className={cn("ff-auth-panel p-5", className)}
+      className={cn("border border-border bg-card p-5 text-card-foreground shadow-sm", className)}
       data-testid={testIds.auth.panel}
       {...dialogProps}
     >
@@ -75,7 +75,7 @@ export function AuthBrandHeader({ icon: Icon, title }: AuthBrandHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[var(--ff-shadow-soft)] dark:bg-emerald-400 dark:text-black">
+        <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm dark:bg-emerald-400 dark:text-black">
           <FastiflyIcon className="size-7" />
         </div>
         <div>
@@ -88,7 +88,7 @@ export function AuthBrandHeader({ icon: Icon, title }: AuthBrandHeaderProps) {
           </h1>
         </div>
       </div>
-      <div className="inline-flex size-8 items-center justify-center rounded-lg border border-[color:var(--ff-border)] bg-[var(--ff-surface-muted)] text-cyan-100">
+      <div className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 text-cyan-700 dark:text-cyan-300">
         <Icon aria-hidden="true" />
       </div>
     </div>

@@ -21,7 +21,10 @@ export function BudgetSummaryCard({ budget }: { readonly budget: BudgetSummary }
   const spentRatio = limitMinor > 0n ? Number((spentMinor * 100n) / limitMinor) : 0;
 
   return (
-    <Card className="ff-glass-panel p-4" data-testid={testIds.budgets.card(budget.id)}>
+    <Card
+      className="border border-border bg-card p-4 text-card-foreground shadow-sm"
+      data-testid={testIds.budgets.card(budget.id)}
+    >
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-medium text-[15px]" data-testid={testIds.budgets.cardName(budget.id)}>
           {budget.name}

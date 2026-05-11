@@ -23,7 +23,7 @@ export function MobileNavLink({
   return (
     <Button
       asChild
-      className="ff-mobile-tab"
+      className="flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-transparent text-[11px] font-extrabold text-muted-foreground hover:bg-muted hover:text-foreground"
       data-testid={testIds.navigation.mobileNav(toNavigationTestIdSlug(item.slug))}
       variant="ghost"
     >
@@ -37,11 +37,11 @@ export function MobileNavLink({
 
 export function DesktopNavigation({ currentSlug }: { readonly currentSlug: string }) {
   return (
-    <nav className="ff-desktop-nav" aria-label={en.shell.navigation}>
+    <nav className="mb-4 hidden flex-wrap gap-2 xl:flex" aria-label={en.shell.navigation}>
       {navigationItems.map((item) => (
         <Button
           asChild
-          className="ff-desktop-nav-link"
+          className="rounded-lg border border-border"
           data-testid={testIds.navigation.moreNav(toNavigationTestIdSlug(item.slug))}
           key={item.slug}
           variant={item.slug === currentSlug ? "secondary" : "ghost"}
@@ -70,9 +70,14 @@ export function SystemStatusRow({
   readonly valueTestId?: string | undefined;
 }) {
   return (
-    <div className="ff-status-row" data-testid={rowTestId}>
+    <div
+      className="flex items-center justify-between gap-4 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground"
+      data-testid={rowTestId}
+    >
       <span data-testid={labelTestId}>{label}</span>
-      <strong data-testid={valueTestId}>{value}</strong>
+      <strong className="text-right text-foreground" data-testid={valueTestId}>
+        {value}
+      </strong>
     </div>
   );
 }
@@ -91,8 +96,11 @@ export function RuntimeStatusChips({
   readonly surface: "drawer" | "settings";
 }) {
   return (
-    <div className="ff-runtime-status-group" data-testid={testIds.runtimeStatus.group(surface)}>
-      <div className="ff-runtime-status-chips">
+    <div
+      className="mt-4 border-y border-border py-3"
+      data-testid={testIds.runtimeStatus.group(surface)}
+    >
+      <div className="flex max-w-full items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <StatusCapsule
           icon={isOnline ? CheckCircle2 : XCircle}
           label={en.status.internet}
@@ -145,7 +153,7 @@ export function MobileMoreDrawer({
     <Sheet open={open} onOpenChange={(nextOpen) => (nextOpen ? undefined : onClose())}>
       <SheetContent
         aria-label={en.shell.navigation}
-        className="ff-more-sheet xl:hidden"
+        className="max-h-[min(90vh,42rem)] overflow-y-auto rounded-t-xl border border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg xl:hidden"
         data-testid={testIds.navigation.mobileMoreDrawer}
         showCloseButton={false}
         side="bottom"
@@ -185,7 +193,7 @@ export function MobileMoreDrawer({
             <Button
               asChild
               key={item.label}
-              className="ff-more-link"
+              className="min-w-0 justify-start gap-2 rounded-lg bg-muted p-3 font-bold text-foreground"
               data-testid={testIds.navigation.moreNav(toNavigationTestIdSlug(item.slug))}
               variant="secondary"
             >

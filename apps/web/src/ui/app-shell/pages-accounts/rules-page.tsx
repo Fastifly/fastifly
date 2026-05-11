@@ -6,6 +6,7 @@ import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -13,8 +14,8 @@ import {
   DialogTitle,
 } from "@ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@ui/tabs";
-import { Archive, CircleHelp, PlayCircle, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Archive, Check, CircleHelp, PlayCircle, Plus, Sparkles } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
 import { apiClient } from "../../../api/client";
 import { useAccountsQuery, useRulesQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
@@ -259,6 +260,11 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
     resetManageDialogState();
     setActiveRuleId(null);
   };
+  const closeEditMode = () => {
+    setEditingRuleId(null);
+    setEditForm(defaultRuleFormState());
+    updateMutation.reset();
+  };
 
   return (
     <section className="mt-2 space-y-2" data-testid={testIds.rules.page}>
@@ -276,6 +282,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
               size="sm"
               type="button"
             >
+              <Plus className="size-4" />
               {en.rules.createCustom}
             </Button>
           ) : undefined
@@ -303,12 +310,13 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
               }}
               open={isCreateDialogOpen}
             >
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+              <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[34rem]">
                 <DialogHeader>
                   <DialogTitle>{en.rules.createCustom}</DialogTitle>
                   <DialogDescription>{en.rules.createCustomHint}</DialogDescription>
                 </DialogHeader>
                 <RuleEditorPanel
+                  className="grid gap-2 pt-1"
                   dataTestIds={{
                     amountMax: testIds.rules.createAmountMaxInput,
                     amountMin: testIds.rules.createAmountMinInput,
@@ -321,12 +329,29 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                     type: testIds.rules.createTypeSelect,
                   }}
                   form={createForm}
+                  hideActions
                   isSubmitting={createMutation.isPending}
                   onFormChange={setCreateForm}
                   onSubmit={() => createMutation.mutate(createForm)}
                   submitLabel={en.rules.createCustom}
                   submittingLabel={en.rules.creating}
                 />
+                <DialogFooter className="gap-2 sm:gap-2">
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">
+                      {en.rules.cancel}
+                    </Button>
+                  </DialogClose>
+                  <Button
+                    data-testid={testIds.rules.createSubmitButton}
+                    disabled={createMutation.isPending}
+                    onClick={() => createMutation.mutate(createForm)}
+                    type="button"
+                  >
+                    <Plus className="size-4" />
+                    {createMutation.isPending ? en.rules.creating : en.rules.createCustom}
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           ) : null}
@@ -349,35 +374,24 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
               {activeRule ? (
                 <>
                   <DialogHeader>
-                    <DialogTitle title={activeRuleTitleTooltip}>{activeRule.name}</DialogTitle>
+                    <DialogTitle title={activeRuleTitleTooltip}>
+                      {editingRuleId === activeRule.id ? en.rules.editTitle : activeRule.name}
+                    </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {activeRule.archivedAt ? (
+                    {activeRule.archivedAt ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <Badge title={en.rules.archivedTooltip} variant="outline">
                           {en.rules.archived}
                         </Badge>
-                      ) : null}
-                      <Badge
-                        title={
-                          activeRule.enabled ? en.rules.enabledTooltip : en.rules.disabledTooltip
-                        }
-                        variant={activeRule.enabled ? "secondary" : "outline"}
-                      >
-                        {activeRule.enabled ? en.rules.enabled : en.rules.disabled}
-                      </Badge>
-                      <Badge title={formatRuleAction(activeRule)} variant="outline">
-                        {formatRuleAction(activeRule)}
-                      </Badge>
-                    </div>
+                      </div>
+                    ) : null}
 
                     {activeRule.archivedAt === null && editingRuleId === activeRule.id ? (
                       <RuleEditorPanel
-                        className="rounded-md border border-border bg-muted/40 p-2.5"
                         dataTestIds={{
                           amountMax: testIds.rules.editAmountMaxInput(activeRule.id),
                           amountMin: testIds.rules.editAmountMinInput(activeRule.id),
-                          cancel: testIds.rules.cancelEditButton(activeRule.id),
                           description: testIds.rules.editDescriptionInput(activeRule.id),
                           enabled: testIds.rules.editEnabledSelect(activeRule.id),
                           form: testIds.rules.editForm(activeRule.id),
@@ -387,14 +401,11 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                           type: testIds.rules.editTypeSelect(activeRule.id),
                         }}
                         form={editForm}
+                        hideActions
                         isSubmitting={
                           updateMutation.isPending &&
                           updateMutation.variables?.ruleId === activeRule.id
                         }
-                        onCancel={() => {
-                          setEditingRuleId(null);
-                          setEditForm(defaultRuleFormState());
-                        }}
                         onFormChange={setEditForm}
                         onSubmit={() =>
                           updateMutation.mutate({
@@ -504,6 +515,38 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                       </div>
                     ) : null}
                   </div>
+                  {activeRule.archivedAt === null && editingRuleId === activeRule.id ? (
+                    <DialogFooter className="gap-2 sm:gap-2">
+                      <Button
+                        data-testid={testIds.rules.cancelEditButton(activeRule.id)}
+                        onClick={closeEditMode}
+                        type="button"
+                        variant="outline"
+                      >
+                        {en.rules.cancel}
+                      </Button>
+                      <Button
+                        data-testid={testIds.rules.saveEditButton(activeRule.id)}
+                        disabled={
+                          updateMutation.isPending &&
+                          updateMutation.variables?.ruleId === activeRule.id
+                        }
+                        onClick={() =>
+                          updateMutation.mutate({
+                            form: editForm,
+                            ruleId: activeRule.id,
+                          })
+                        }
+                        type="button"
+                      >
+                        <Check className="size-4" />
+                        {updateMutation.isPending &&
+                        updateMutation.variables?.ruleId === activeRule.id
+                          ? en.rules.savingChanges
+                          : en.rules.saveChanges}
+                      </Button>
+                    </DialogFooter>
+                  ) : null}
                   {activeRule.archivedAt === null && editingRuleId !== activeRule.id ? (
                     <DialogFooter className="gap-2 sm:gap-2">
                       <Button
@@ -579,6 +622,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                 onFormChange={setCreateForm}
                 onSubmit={() => createMutation.mutate(createForm)}
                 submitLabel={en.rules.createCustom}
+                submitIcon={<Plus className="size-4" />}
                 submittingLabel={en.rules.creating}
                 title={en.rules.createCustom}
               />
@@ -777,11 +821,13 @@ function RuleEditorPanel({
   dataTestIds,
   description,
   form,
+  hideActions,
   isSubmitting,
   onCancel,
   onFormChange,
   onSubmit,
   submitLabel,
+  submitIcon,
   submittingLabel,
   title,
 }: {
@@ -789,6 +835,7 @@ function RuleEditorPanel({
   readonly dataTestIds: RuleEditorPanelTestIds;
   readonly description?: string;
   readonly form: RuleFormState;
+  readonly hideActions?: boolean;
   readonly isSubmitting: boolean;
   readonly onCancel?: () => void;
   readonly onFormChange: (
@@ -796,6 +843,7 @@ function RuleEditorPanel({
   ) => void;
   readonly onSubmit: () => void;
   readonly submitLabel: string;
+  readonly submitIcon?: ReactNode;
   readonly submittingLabel: string;
   readonly title?: string;
 }) {
@@ -807,7 +855,7 @@ function RuleEditorPanel({
           {description ? <p className="text-[12px] text-muted-foreground">{description}</p> : null}
         </div>
       ) : null}
-      <div className="grid gap-2 rounded-md border border-border bg-background p-2">
+      <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {en.rules.basicsTitle}
         </p>
@@ -835,8 +883,8 @@ function RuleEditorPanel({
           />
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-2">
-        <div className="grid gap-2 rounded-md border border-border bg-background p-2">
+      <div className="grid gap-2 md:grid-cols-2 md:items-start">
+        <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {en.rules.whenTitle}
@@ -879,7 +927,7 @@ function RuleEditorPanel({
           />
         </div>
 
-        <div className="grid gap-2 rounded-md border border-border bg-background p-2">
+        <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-2">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {en.rules.thenTitle}
@@ -902,28 +950,31 @@ function RuleEditorPanel({
           />
         </div>
       </div>
-      <div className="flex flex-wrap justify-end gap-1.5">
-        {onCancel && dataTestIds.cancel ? (
+      {hideActions ? null : (
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {onCancel && dataTestIds.cancel ? (
+            <Button
+              data-testid={dataTestIds.cancel}
+              onClick={onCancel}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {en.rules.cancel}
+            </Button>
+          ) : null}
           <Button
-            data-testid={dataTestIds.cancel}
-            onClick={onCancel}
+            data-testid={dataTestIds.submit}
+            disabled={isSubmitting}
+            onClick={onSubmit}
             size="sm"
             type="button"
-            variant="outline"
           >
-            {en.rules.cancel}
+            {submitIcon}
+            {isSubmitting ? submittingLabel : submitLabel}
           </Button>
-        ) : null}
-        <Button
-          data-testid={dataTestIds.submit}
-          disabled={isSubmitting}
-          onClick={onSubmit}
-          size="sm"
-          type="button"
-        >
-          {isSubmitting ? submittingLabel : submitLabel}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -89,7 +89,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
   const importJobs = importJobsQuery.data ?? [];
 
   return (
-    <section className="ff-single-page space-y-4" data-testid={testIds.imports.page}>
+    <section className="mt-2 space-y-4" data-testid={testIds.imports.page}>
       <GlassSection title={en.shell.importsTitle} description={en.shell.importsBody}>
         <div className="flex flex-col gap-3">
           <div className="flex justify-end">
@@ -107,7 +107,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
             {importJobs.length > 0 ? (
               importJobs.map((importJob) => (
                 <Card
-                  className="ff-glass-panel"
+                  className="border border-border bg-card text-card-foreground shadow-sm"
                   data-testid={testIds.imports.card(importJob.id)}
                   key={importJob.id}
                 >

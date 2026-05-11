@@ -62,6 +62,9 @@ export type ApiClient = {
   readonly archiveAccount: (
     input: LedgerPathInput & { readonly accountId: string },
   ) => Promise<void>;
+  readonly archiveRule: (
+    input: LedgerPathInput & { readonly ruleId: string },
+  ) => Promise<RuleResponse>;
   readonly applyRule: (
     input: LedgerPathInput & { readonly limit?: number; readonly ruleId: string },
   ) => Promise<{
@@ -235,6 +238,32 @@ export const apiClient: ApiClient = {
         ),
       );
       return response.data;
+    });
+  },
+  async archiveRule(input) {
+    const { ledgerId, ruleId, workspaceId } = input;
+    return await withCsrf(async (csrfToken) => {
+      const response = GetRuleResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.DELETE(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/rules/{ruleId}",
+            {
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  ruleId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+      return response.data.rule;
     });
   },
   async commitImportJob(input) {

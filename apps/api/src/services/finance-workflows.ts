@@ -1,12 +1,14 @@
 import {
   CreateTransactionResponseSchema,
   IsoDateTimeSchema,
+  inferTransactionType,
   parseAmountMinor,
   parseCurrencyCode,
   parseSyncedId,
   type SyncedId,
 } from "@fastifly/common";
 import type {
+  AccountRepository,
   CreateTransactionLineInput,
   ImportJobRecord,
   ImportPreviewRow,
@@ -41,7 +43,7 @@ type UndoImportInput = WorkflowMutationContext & {
 };
 
 type ApplyRuleInput = WorkflowMutationContext & {
-  readonly limit: number;
+  readonly limit?: number;
   readonly ruleId: SyncedId;
 };
 
@@ -58,7 +60,7 @@ export type CreateImportFromCsvInput = {
 };
 
 export type RuleMatchInput = {
-  readonly limit: number;
+  readonly limit?: number;
   readonly ruleId: SyncedId;
   readonly scope: WorkflowScope;
 };
@@ -150,6 +152,7 @@ export type FinanceWorkflowService = {
 };
 
 export type FinanceWorkflowServiceOptions = {
+  readonly accountRepository: AccountRepository;
   readonly financeMutationService: LedgerFinanceMutationService;
   readonly transactionQueryService: TransactionQueryService;
   readonly workflowRepository: WorkflowRepository;
@@ -162,6 +165,7 @@ export class FinanceWorkflowServiceError extends Error {
       | "IMPORT_JOB_NOT_FOUND"
       | "IMPORT_JOB_INVALID_STATE"
       | "INVALID_IMPORT_CSV"
+      | "INVALID_RECURRING_TEMPLATE"
       | "RECURRING_TEMPLATE_NOT_FOUND"
       | "RULE_NOT_FOUND",
   ) {
@@ -193,7 +197,7 @@ export function createFinanceWorkflowService(
       }
 
       const matched = await collectRuleMatches(options.transactionQueryService, rule, {
-        limit: clampLimit(input.limit, 1, 500, 100),
+        ...(input.limit !== undefined ? { limit: clampLimit(input.limit, 1, 500, 100) } : {}),
         scope: input.scope,
       });
       const matchedGroupIds = matched.map((group) => group.id);
@@ -315,7 +319,13 @@ export function createFinanceWorkflowService(
       });
     },
 
-    createRecurringTemplate(input) {
+    async createRecurringTemplate(input) {
+      await validateRecurringTemplatePayload(options, {
+        ledgerId: input.ledgerId,
+        payload: input.payload,
+        workspaceId: input.workspaceId,
+      });
+
       return options.workflowRepository.createRecurringTemplate({
         cadence: input.cadence,
         createdBy: input.actorUserId,
@@ -370,6 +380,11 @@ export function createFinanceWorkflowService(
           "IMPORT_JOB_INVALID_STATE",
         );
       }
+      await validateRecurringTemplatePayload(options, {
+        ledgerId: input.scope.ledgerId,
+        payload: template.payload,
+        workspaceId: input.scope.workspaceId,
+      });
 
       const create = {
         expense: options.financeMutationService.createExpense,
@@ -447,7 +462,7 @@ export function createFinanceWorkflowService(
 
     testRule(input) {
       return collectRuleMatches(options.transactionQueryService, input.ruleId, {
-        limit: clampLimit(input.limit, 1, 200, 100),
+        ...(input.limit !== undefined ? { limit: clampLimit(input.limit, 1, 200, 100) } : {}),
         ruleLookup: (ruleId) =>
           options.workflowRepository.findRule({
             ledgerId: input.scope.ledgerId,
@@ -521,7 +536,13 @@ export function createFinanceWorkflowService(
       };
     },
 
-    updateRecurringTemplate(input) {
+    async updateRecurringTemplate(input) {
+      await validateRecurringTemplatePayload(options, {
+        ledgerId: input.ledgerId,
+        payload: input.payload,
+        workspaceId: input.workspaceId,
+      });
+
       return options.workflowRepository.updateRecurringTemplate(input);
     },
 
@@ -529,6 +550,75 @@ export function createFinanceWorkflowService(
       return options.workflowRepository.updateRule(input);
     },
   };
+}
+
+async function validateRecurringTemplatePayload(
+  options: FinanceWorkflowServiceOptions,
+  input: {
+    readonly ledgerId: SyncedId;
+    readonly payload: RecurringTemplateRecord["payload"];
+    readonly workspaceId: SyncedId;
+  },
+): Promise<void> {
+  const sourceAccount = await options.accountRepository.findAccount({
+    accountId: input.payload.sourceAccountId,
+    ledgerId: input.ledgerId,
+    workspaceId: input.workspaceId,
+  });
+
+  if (!sourceAccount || !sourceAccount.isActive) {
+    throw new FinanceWorkflowServiceError(
+      "The source account for this subscription is missing or inactive.",
+      "INVALID_RECURRING_TEMPLATE",
+    );
+  }
+
+  if (sourceAccount.currencyCode !== input.payload.currencyCode) {
+    throw new FinanceWorkflowServiceError(
+      "The subscription currency must match the source account currency.",
+      "INVALID_RECURRING_TEMPLATE",
+    );
+  }
+
+  for (const [lineIndex, line] of input.payload.lines.entries()) {
+    const destinationAccount = await options.accountRepository.findAccount({
+      accountId: line.destinationAccountId,
+      ledgerId: input.ledgerId,
+      workspaceId: input.workspaceId,
+    });
+
+    if (!destinationAccount || !destinationAccount.isActive) {
+      throw new FinanceWorkflowServiceError(
+        `The destination account in line ${lineIndex + 1} is missing or inactive.`,
+        "INVALID_RECURRING_TEMPLATE",
+      );
+    }
+
+    if (destinationAccount.currencyCode !== input.payload.currencyCode) {
+      throw new FinanceWorkflowServiceError(
+        `The destination account in line ${lineIndex + 1} does not match the subscription currency.`,
+        "INVALID_RECURRING_TEMPLATE",
+      );
+    }
+
+    const inferredType = inferTransactionType(
+      {
+        kind: sourceAccount.kind,
+        ...(sourceAccount.subtype ? { subtype: sourceAccount.subtype } : {}),
+      },
+      {
+        kind: destinationAccount.kind,
+        ...(destinationAccount.subtype ? { subtype: destinationAccount.subtype } : {}),
+      },
+    );
+
+    if (inferredType !== input.payload.type) {
+      throw new FinanceWorkflowServiceError(
+        "The selected accounts do not match this transaction type.",
+        "INVALID_RECURRING_TEMPLATE",
+      );
+    }
+  }
 }
 
 function makeEnvelope(input: {
@@ -570,7 +660,7 @@ async function collectRuleMatches(
   transactionQueryService: TransactionQueryService,
   ruleOrRuleId: RuleRecord | SyncedId,
   input: {
-    readonly limit: number;
+    readonly limit?: number;
     readonly scope: WorkflowScope;
     readonly ruleLookup?: (ruleId: SyncedId) => Promise<RuleRecord | null>;
   },
@@ -591,7 +681,17 @@ async function collectRuleMatches(
   const matches: TransactionGroupRecord[] = [];
   let cursor: string | null = null;
 
-  while (matches.length < input.limit) {
+  while (true) {
+    if (input.limit !== undefined && matches.length >= input.limit) {
+      break;
+    }
+
+    const pageLimit =
+      input.limit === undefined ? 100 : Math.min(100, Math.max(0, input.limit - matches.length));
+    if (pageLimit <= 0) {
+      break;
+    }
+
     const page = await transactionQueryService.listTransactionGroups({
       accountId: null,
       amountMaxMinor,
@@ -603,7 +703,7 @@ async function collectRuleMatches(
       fromOccurredAt: null,
       importJobId: null,
       ledgerId: input.scope.ledgerId,
-      limit: Math.min(100, input.limit - matches.length),
+      limit: pageLimit,
       reconciled: null,
       status: null,
       tagId: null,
@@ -616,7 +716,7 @@ async function collectRuleMatches(
         continue;
       }
       matches.push(group);
-      if (matches.length >= input.limit) {
+      if (input.limit !== undefined && matches.length >= input.limit) {
         break;
       }
     }
@@ -875,6 +975,7 @@ function readCreatedTransactionGroup(result: { readonly body: unknown }): Transa
         reportingAmountMinor: parseAmountMinor(posting.reportingAmountMinor),
         reportingCurrencyCode: posting.reportingCurrencyCode,
       })),
+      status: journal.status,
       type: journal.type,
     })),
     ledgerId: parseSyncedId(group.ledgerId),

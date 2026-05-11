@@ -36,20 +36,23 @@ export function TopBar({
   const currentLabel = isDashboard ? en.nav.dashboardShort : currentNavigationItem.label;
 
   return (
-    <header className="ff-topbar" data-testid={testIds.shell.topBar}>
+    <header
+      className="mb-1 flex items-center justify-between gap-3 xl:mb-2"
+      data-testid={testIds.shell.topBar}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[var(--ff-shadow-soft)] dark:bg-emerald-400 dark:text-black md:size-10">
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm dark:bg-emerald-400 dark:text-black md:size-10">
           <FastiflyIcon className="size-6 md:size-7" />
         </span>
         <div className="min-w-0 flex-1">
           <nav
             aria-label="Breadcrumb"
-            className="flex min-w-0 items-center gap-1 text-sm text-[var(--ff-text-muted)] md:hidden"
+            className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground md:hidden"
             data-testid={testIds.shell.breadcrumbsMobile}
           >
             {isDashboard ? (
               <span
-                className="truncate font-semibold text-base text-[var(--ff-text)]"
+                className="truncate font-semibold text-base text-foreground"
                 data-testid={testIds.shell.topBarTitle}
               >
                 {currentLabel}
@@ -58,13 +61,13 @@ export function TopBar({
               <>
                 <Link
                   to="/"
-                  className="shrink-0 rounded-md px-1 py-0.5 transition-colors hover:text-[var(--ff-text)]"
+                  className="shrink-0 rounded-md px-1 py-0.5 transition-colors hover:text-foreground"
                 >
                   {en.nav.dashboardShort}
                 </Link>
                 <ChevronRight className="size-3 shrink-0" />
                 <span
-                  className="truncate font-semibold text-[var(--ff-text)]"
+                  className="truncate font-semibold text-foreground"
                   data-testid={testIds.shell.topBarTitle}
                 >
                   {currentNavigationItem.label}
@@ -75,24 +78,24 @@ export function TopBar({
 
           <nav
             aria-label="Breadcrumb"
-            className="hidden min-w-0 items-center gap-1 text-sm text-[var(--ff-text-muted)] md:flex"
+            className="hidden min-w-0 items-center gap-1 text-sm text-muted-foreground md:flex"
             data-testid={testIds.shell.breadcrumbsDesktop}
           >
             {isDashboard ? (
               <span
-                className="truncate font-semibold text-[var(--ff-text)]"
+                className="truncate font-semibold text-foreground"
                 data-testid={testIds.shell.topBarTitle}
               >
                 {currentLabel}
               </span>
             ) : (
               <>
-                <Link to="/" className="transition-colors hover:text-[var(--ff-text)]">
+                <Link to="/" className="transition-colors hover:text-foreground">
                   {en.nav.dashboardShort}
                 </Link>
                 <ChevronRight className="size-3" />
                 <span
-                  className="truncate font-semibold text-[var(--ff-text)]"
+                  className="truncate font-semibold text-foreground"
                   data-testid={testIds.shell.topBarTitle}
                 >
                   {currentNavigationItem.label}
