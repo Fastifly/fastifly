@@ -6,9 +6,11 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import { ShieldCheck } from "lucide-react";
+import { ArrowRightLeft, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../api/client";
+import { SHOW_DEMO_LOGIN } from "../env";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import {
@@ -42,15 +44,13 @@ export function AuthPage() {
       });
       await navigate({ replace: true, to: "/" });
     },
+    onError: (error) => {
+      toast.error(getAuthErrorMessage(error));
+    },
   });
   const title = mode === "login" ? en.auth.loginTitle : en.auth.registerTitle;
   const submitLabel = mode === "login" ? en.auth.submitLogin : en.auth.submitRegister;
   const modeSwitchLabel = mode === "login" ? en.auth.switchToRegister : en.auth.switchToLogin;
-  const errorMessage = mutation.isError
-    ? mutation.error instanceof FastiflyApiError
-      ? mutation.error.response.error.message
-      : mutation.error.message
-    : undefined;
   const fillDemoLogin = () => {
     mutation.reset();
     setCredentialsPreset({ ...DEFAULT_DEMO_LOGIN });
@@ -65,7 +65,6 @@ export function AuthPage() {
         <AuthBrandHeader icon={ShieldCheck} title={title} />
 
         <AuthCredentialsForm
-          errorMessage={errorMessage}
           initialCredentials={credentialsPreset}
           isPending={mutation.isPending}
           mode={mode}
@@ -86,11 +85,24 @@ export function AuthPage() {
           type="button"
           variant="outline"
         >
+          <ArrowRightLeft aria-hidden="true" />
           {modeSwitchLabel}
         </Button>
 
-        {mode === "login" ? <DemoLoginCard onUseDemoLogin={fillDemoLogin} /> : null}
+        {mode === "login" && SHOW_DEMO_LOGIN ? (
+          <DemoLoginCard onUseDemoLogin={fillDemoLogin} />
+        ) : null}
       </AuthPanel>
     </main>
   );
+}
+
+function getAuthErrorMessage(error: unknown): string {
+  if (error instanceof FastiflyApiError) {
+    return error.response.error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return en.auth.unexpectedError;
 }

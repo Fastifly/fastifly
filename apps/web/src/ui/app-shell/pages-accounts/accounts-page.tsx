@@ -1,7 +1,6 @@
 import type { AccountWithBalanceResponse } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription } from "@ui/alert";
-import { useState } from "react";
+import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
@@ -12,8 +11,6 @@ import type { AccountsPageProps } from "./types";
 
 export function AccountsPage({ accounts, accountsLoading, ledgerContext }: AccountsPageProps) {
   const queryClient = useQueryClient();
-  const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [archiveSuccess, setArchiveSuccess] = useState<string | null>(null);
   const archiveMutation = useMutation({
     mutationFn: async (account: AccountWithBalanceResponse) => {
       if (!ledgerContext) {
@@ -27,7 +24,7 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
       });
     },
     onSuccess: async (_data, account) => {
-      setArchiveSuccess(formatAccountArchiveSuccess(account.name));
+      toast.success(formatAccountArchiveSuccess(account.name));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
@@ -45,13 +42,10 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
   });
 
   const archiveAccount = async (account: AccountWithBalanceResponse) => {
-    setArchiveError(null);
-    setArchiveSuccess(null);
-
     try {
       await archiveMutation.mutateAsync(account);
     } catch (error) {
-      setArchiveError(getAccountArchiveError(error));
+      toast.error(getAccountArchiveError(error));
     }
   };
 
@@ -60,23 +54,6 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
       <AccountCreatePanel ledgerContext={ledgerContext} />
       <GlassSection title={en.shell.allAccounts} description={en.shell.accountsBody}>
         <div className="flex flex-col gap-3">
-          {archiveError ? (
-            <Alert data-testid={testIds.accounts.archive.errorAlert} variant="destructive">
-              <AlertDescription data-testid={testIds.accounts.archive.errorMessage}>
-                {archiveError}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {archiveSuccess ? (
-            <Alert
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-              data-testid={testIds.accounts.archive.successAlert}
-            >
-              <AlertDescription data-testid={testIds.accounts.archive.successMessage}>
-                {archiveSuccess}
-              </AlertDescription>
-            </Alert>
-          ) : null}
           <div
             className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"
             data-testid={testIds.accounts.list}

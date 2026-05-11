@@ -1,7 +1,6 @@
 import type { AccountWithBalanceResponse, CreateTransactionRequest } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import {
@@ -24,8 +23,10 @@ import {
   SelectValue,
 } from "@ui/select";
 import type { LucideIcon } from "lucide-react";
-import { ArrowDownLeft, ArrowUpRight, PlusCircle, RefreshCcw } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, PlusCircle, RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { apiClient, FastiflyApiError } from "../api/client";
 import {
   buildCreateTransactionRequest,
@@ -43,14 +44,17 @@ type TransactionCreatePanelProps = {
     readonly ledgerId: string;
     readonly workspaceId: string;
   } | null;
+  readonly variant?: "default" | "vertical-actions";
 };
 
-export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionCreatePanelProps) {
+export function TransactionCreatePanel({
+  accounts,
+  ledgerContext,
+  variant = "default",
+}: TransactionCreatePanelProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<SimpleTransactionType>("expense");
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: async (request: CreateTransactionRequest) => {
       if (!ledgerContext) {
@@ -64,7 +68,7 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
       });
     },
     onSuccess: async () => {
-      setSuccessMessage(en.transactions.createSuccess);
+      toast.success(en.transactions.createSuccess);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
@@ -83,14 +87,12 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
   const form = useForm({
     defaultValues: makeTransactionFormDefaults(accounts, selectedType),
     onSubmit: async ({ value }) => {
-      setFormError(null);
-      setSuccessMessage(null);
       try {
         await mutation.mutateAsync(buildCreateTransactionRequest(value, accounts));
         form.reset(makeTransactionFormDefaults(accounts, selectedType));
         setDialogOpen(false);
       } catch (error) {
-        setFormError(getTransactionFormError(error));
+        toast.error(getTransactionFormError(error));
       }
     },
   });
@@ -99,6 +101,8 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
   const canCreateIncome = canCreateTransactionType(accounts, "income");
   const canCreateTransfer = canCreateTransactionType(accounts, "transfer");
   const dialogTitle = `Add ${en.transactions.types[selectedType].toLowerCase()}`;
+  const isVerticalActions = variant === "vertical-actions";
+  const actionLabels = isVerticalActions ? en.transactions.quickAdd : en.transactions.types;
 
   useEffect(() => {
     if (!dialogOpen) {
@@ -106,80 +110,103 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
     }
 
     form.reset(makeTransactionFormDefaults(accounts, selectedType));
-    setFormError(null);
   }, [accounts, dialogOpen, form, selectedType]);
 
   const openDialogForType = (type: SimpleTransactionType) => {
     setSelectedType(type);
-    setSuccessMessage(null);
     setDialogOpen(true);
   };
 
+  const actionButtons = (
+    <div
+      className={cn(
+        "grid gap-1.5",
+        isVerticalActions ? "grid-cols-3 [&>button]:w-full xl:grid-cols-1" : "grid-cols-3",
+      )}
+      data-testid={testIds.transactionCreate.actions}
+    >
+      <QuickTransactionButton
+        colored={isVerticalActions}
+        disabled={!canCreate || !canCreateExpense}
+        fullWidth={isVerticalActions}
+        icon={ArrowUpRight}
+        label={actionLabels.expense}
+        onClick={() => openDialogForType("expense")}
+        type="expense"
+      />
+      <QuickTransactionButton
+        colored={isVerticalActions}
+        disabled={!canCreate || !canCreateIncome}
+        fullWidth={isVerticalActions}
+        icon={ArrowDownLeft}
+        label={actionLabels.income}
+        onClick={() => openDialogForType("income")}
+        type="income"
+      />
+      <QuickTransactionButton
+        colored={isVerticalActions}
+        disabled={!canCreate || !canCreateTransfer}
+        fullWidth={isVerticalActions}
+        icon={RefreshCcw}
+        label={actionLabels.transfer}
+        onClick={() => openDialogForType("transfer")}
+        type="transfer"
+      />
+    </div>
+  );
+
+  const panelAlerts = (
+    <>
+      {!canCreate ? (
+        <p
+          className="rounded-lg border border-border bg-muted/50 px-2.5 py-2 text-[12px] text-muted-foreground"
+          data-testid={testIds.transactionCreate.unavailableAlert}
+        >
+          {ledgerContext ? en.shell.noAccountsBody : en.transactions.ledgerRequired}
+        </p>
+      ) : null}
+    </>
+  );
+
   return (
     <>
-      <Card className="gap-2 py-0" data-testid={testIds.transactionCreate.panel}>
-        <CardHeader className="gap-1 px-4 pt-3 pb-1">
-          <div>
-            <CardTitle className="text-[1rem]" data-testid={testIds.transactionCreate.title}>
-              {en.transactions.addTransaction}
-            </CardTitle>
-            <CardDescription
-              className="text-[0.8125rem] leading-snug"
-              data-testid={testIds.transactionCreate.description}
-            >
-              {en.transactions.addTransactionBody}
-            </CardDescription>
+      {isVerticalActions ? (
+        <div
+          className="fixed right-3 bottom-[calc(5.35rem+env(safe-area-inset-bottom))] left-3 z-30 xl:static xl:z-auto"
+          data-testid={testIds.transactionCreate.panel}
+        >
+          <div className="flex flex-col gap-1">
+            {actionButtons}
+            {panelAlerts}
           </div>
-          <CardAction>
-            <div className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-muted/40 text-emerald-700 dark:text-emerald-200">
-              <PlusCircle aria-hidden="true" />
+        </div>
+      ) : (
+        <Card size="sm" className="gap-1.5 py-0" data-testid={testIds.transactionCreate.panel}>
+          <CardHeader className="gap-1 px-3.5 pt-3 pb-1 md:px-4">
+            <div>
+              <CardTitle className="text-[1rem]" data-testid={testIds.transactionCreate.title}>
+                {en.transactions.addTransaction}
+              </CardTitle>
+              <CardDescription
+                className="text-[0.8125rem] leading-snug"
+                data-testid={testIds.transactionCreate.description}
+              >
+                {en.transactions.addTransactionBody}
+              </CardDescription>
             </div>
-          </CardAction>
-        </CardHeader>
+            <CardAction>
+              <div className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-muted/40 text-emerald-700 dark:text-emerald-200">
+                <PlusCircle aria-hidden="true" />
+              </div>
+            </CardAction>
+          </CardHeader>
 
-        <CardContent className="flex flex-col gap-2 px-4 pb-3">
-          <div className="grid grid-cols-3 gap-2" data-testid={testIds.transactionCreate.actions}>
-            <QuickTransactionButton
-              disabled={!canCreate || !canCreateExpense}
-              icon={ArrowUpRight}
-              label={en.transactions.types.expense}
-              onClick={() => openDialogForType("expense")}
-              type="expense"
-            />
-            <QuickTransactionButton
-              disabled={!canCreate || !canCreateIncome}
-              icon={ArrowDownLeft}
-              label={en.transactions.types.income}
-              onClick={() => openDialogForType("income")}
-              type="income"
-            />
-            <QuickTransactionButton
-              disabled={!canCreate || !canCreateTransfer}
-              icon={RefreshCcw}
-              label={en.transactions.types.transfer}
-              onClick={() => openDialogForType("transfer")}
-              type="transfer"
-            />
-          </div>
-          {!canCreate ? (
-            <Alert data-testid={testIds.transactionCreate.unavailableAlert}>
-              <AlertDescription>
-                {ledgerContext ? en.shell.noAccountsBody : en.transactions.ledgerRequired}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {successMessage ? (
-            <Alert
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-              data-testid={testIds.transactionCreate.successAlert}
-            >
-              <AlertDescription data-testid={testIds.transactionCreate.successMessage}>
-                {successMessage}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-        </CardContent>
-      </Card>
+          <CardContent className="flex flex-col gap-1.5 px-3.5 pb-3 md:px-4">
+            {actionButtons}
+            {panelAlerts}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
@@ -394,24 +421,6 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
               )}
             </form.Field>
 
-            {formError ? (
-              <Alert data-testid={testIds.transactionCreate.errorAlert} variant="destructive">
-                <AlertDescription data-testid={testIds.transactionCreate.errorMessage}>
-                  {formError}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            {successMessage ? (
-              <Alert
-                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-                data-testid={testIds.transactionCreate.successAlert}
-              >
-                <AlertDescription data-testid={testIds.transactionCreate.successMessage}>
-                  {successMessage}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             <DialogFooter className="gap-2 sm:gap-2">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -423,6 +432,7 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
                 disabled={!canCreate || mutation.isPending}
                 type="submit"
               >
+                <Check aria-hidden="true" />
                 {mutation.isPending ? en.transactions.saving : en.transactions.save}
               </Button>
             </DialogFooter>
@@ -434,26 +444,41 @@ export function TransactionCreatePanel({ accounts, ledgerContext }: TransactionC
 }
 
 function QuickTransactionButton({
+  colored = false,
   disabled,
+  fullWidth = false,
   icon: Icon,
   label,
   onClick,
   type,
 }: {
+  readonly colored?: boolean;
   readonly disabled: boolean;
+  readonly fullWidth?: boolean;
   readonly icon: LucideIcon;
   readonly label: string;
   readonly onClick: () => void;
   readonly type: SimpleTransactionType;
 }) {
+  const toneClass =
+    type === "expense"
+      ? "border-transparent bg-[#cf5f50] text-white shadow-sm hover:bg-[#bc5547] dark:bg-[#c76759] dark:hover:bg-[#b75b4e]"
+      : type === "income"
+        ? "border-transparent bg-[#24845e] text-white shadow-sm hover:bg-[#1f7352] dark:bg-[#2a8e66] dark:hover:bg-[#247a58]"
+        : "border-transparent bg-[#3f6f9f] text-white shadow-sm hover:bg-[#385f87] dark:bg-[#4a79a7] dark:hover:bg-[#416b95]";
+
   return (
     <Button
-      className="h-9 min-w-0 gap-1.5 px-2 text-[0.8125rem]"
+      className={cn(
+        "h-8 min-w-0 gap-1.5 px-2 text-[0.8125rem]",
+        fullWidth ? "w-full justify-start" : "",
+        colored ? toneClass : "",
+      )}
       data-testid={testIds.transactionCreate.quickButton(type)}
       disabled={disabled}
       onClick={onClick}
       type="button"
-      variant="outline"
+      variant={colored ? "default" : "outline"}
     >
       <Icon aria-hidden="true" data-icon="inline-start" />
       {label}

@@ -1,7 +1,6 @@
 import type { CreateAccountRequest } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import {
@@ -23,9 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui/select";
-import { PlusCircle } from "lucide-react";
+import { Check, PlusCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../api/client";
 import {
   ACCOUNT_FORM_TYPES,
@@ -47,8 +47,6 @@ type AccountCreatePanelProps = {
 export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: async (request: CreateAccountRequest) => {
       if (!ledgerContext) {
@@ -62,7 +60,7 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
       });
     },
     onSuccess: async () => {
-      setSuccessMessage(en.accounts.createSuccess);
+      toast.success(en.accounts.createSuccess);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
@@ -81,14 +79,12 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
   const form = useForm({
     defaultValues: makeAccountFormDefaults(),
     onSubmit: async ({ value }) => {
-      setFormError(null);
-      setSuccessMessage(null);
       try {
         await mutation.mutateAsync(buildCreateAccountRequest(value));
         form.reset(makeAccountFormDefaults(value.type));
         setDialogOpen(false);
       } catch (error) {
-        setFormError(getAccountFormError(error));
+        toast.error(getAccountFormError(error));
       }
     },
   });
@@ -99,7 +95,6 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
     }
 
     form.reset(makeAccountFormDefaults(form.state.values.type));
-    setFormError(null);
   }, [dialogOpen, form]);
 
   return (
@@ -122,7 +117,6 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
               data-testid={testIds.accounts.create.openButton}
               disabled={!ledgerContext}
               onClick={() => {
-                setSuccessMessage(null);
                 setDialogOpen(true);
               }}
               size="sm"
@@ -136,19 +130,7 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
 
         <CardContent className="px-4 pb-3">
           {!ledgerContext ? (
-            <Alert>
-              <AlertDescription>{en.accounts.ledgerRequired}</AlertDescription>
-            </Alert>
-          ) : null}
-          {successMessage ? (
-            <Alert
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-              data-testid={testIds.accounts.create.successAlert}
-            >
-              <AlertDescription data-testid={testIds.accounts.create.successMessage}>
-                {successMessage}
-              </AlertDescription>
-            </Alert>
+            <p className="text-[13px] text-muted-foreground">{en.accounts.ledgerRequired}</p>
           ) : null}
         </CardContent>
       </Card>
@@ -307,14 +289,6 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
               }
             </form.Subscribe>
 
-            {formError ? (
-              <Alert data-testid={testIds.accounts.create.errorAlert} variant="destructive">
-                <AlertDescription data-testid={testIds.accounts.create.errorMessage}>
-                  {formError}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             <DialogFooter className="gap-2 sm:gap-2">
               <DialogClose asChild>
                 <Button type="button" variant="outline">
@@ -326,6 +300,7 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
                 disabled={mutation.isPending}
                 type="submit"
               >
+                <Check aria-hidden="true" />
                 {mutation.isPending ? en.accounts.saving : en.accounts.save}
               </Button>
             </DialogFooter>

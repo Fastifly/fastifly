@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@ui/dialog";
-import { LockKeyhole } from "lucide-react";
+import { LockKeyhole, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../api/client";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
@@ -39,12 +40,10 @@ export function SessionExpiredDialog({
       });
       onLoginSuccess();
     },
+    onError: (error) => {
+      toast.error(getAuthErrorMessage(error));
+    },
   });
-  const errorMessage = mutation.isError
-    ? mutation.error instanceof FastiflyApiError
-      ? mutation.error.response.error.message
-      : mutation.error.message
-    : undefined;
 
   return (
     <Dialog open={open}>
@@ -73,7 +72,6 @@ export function SessionExpiredDialog({
         </DialogHeader>
 
         <AuthCredentialsForm
-          errorMessage={errorMessage}
           isPending={mutation.isPending}
           lockedUsername={username}
           mode="login"
@@ -100,10 +98,21 @@ export function SessionExpiredDialog({
             type="button"
             variant="outline"
           >
+            <UserRound aria-hidden="true" />
             {en.auth.switchAccount}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+function getAuthErrorMessage(error: unknown): string {
+  if (error instanceof FastiflyApiError) {
+    return error.response.error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return en.auth.unexpectedError;
 }

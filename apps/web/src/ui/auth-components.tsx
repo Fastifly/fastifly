@@ -1,15 +1,15 @@
 import { DEFAULT_DEMO_LOGIN } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card } from "@ui/card";
 import { Field, FieldGroup, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
 import type { LucideIcon } from "lucide-react";
-import { Copy, LogIn, UserRound } from "lucide-react";
+import { Copy, LogIn, UserPlus, UserRound } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { SHOW_DEMO_LOGIN } from "../env";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import { FastiflyIcon } from "./fastifly-icon";
@@ -34,7 +34,6 @@ type AuthBrandHeaderProps = {
 };
 
 type AuthCredentialsFormProps = {
-  readonly errorMessage?: string | undefined;
   readonly initialCredentials?: AuthCredentials | undefined;
   readonly isPending: boolean;
   readonly lockedUsername?: string | undefined;
@@ -96,7 +95,6 @@ export function AuthBrandHeader({ icon: Icon, title }: AuthBrandHeaderProps) {
 }
 
 export function AuthCredentialsForm({
-  errorMessage,
   initialCredentials,
   isPending,
   lockedUsername,
@@ -194,7 +192,9 @@ export function AuthCredentialsForm({
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
                   placeholder={
-                    mode === "login" ? DEFAULT_DEMO_LOGIN.username : en.auth.usernamePlaceholder
+                    mode === "login" && SHOW_DEMO_LOGIN
+                      ? DEFAULT_DEMO_LOGIN.username
+                      : en.auth.usernamePlaceholder
                   }
                   value={field.state.value}
                 />
@@ -243,14 +243,6 @@ export function AuthCredentialsForm({
         </form.Field>
       </FieldGroup>
 
-      {errorMessage ? (
-        <Alert data-testid={resolvedTestIds.errorAlert} variant="destructive">
-          <AlertDescription data-testid={resolvedTestIds.errorMessage}>
-            {errorMessage}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <Button
         className="w-full"
         data-testid={resolvedTestIds.submitButton}
@@ -258,6 +250,7 @@ export function AuthCredentialsForm({
         size="lg"
         type="submit"
       >
+        {mode === "login" ? <LogIn aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
         {isPending ? en.auth.loading : submitLabel}
       </Button>
     </form>

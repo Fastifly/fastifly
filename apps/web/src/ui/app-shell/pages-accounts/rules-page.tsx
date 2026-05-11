@@ -1,6 +1,5 @@
 import type { ListTransactionsResponse, RuleResponse } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
@@ -14,8 +13,19 @@ import {
   DialogTitle,
 } from "@ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@ui/tabs";
-import { Archive, Check, CircleHelp, PlayCircle, Plus, Sparkles } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import {
+  Archive,
+  Check,
+  CircleHelp,
+  Pencil,
+  PlayCircle,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
 import { useAccountsQuery, useRulesQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
@@ -57,7 +67,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<RuleFormState>(defaultRuleFormState());
   const [ruleTab, setRuleTab] = useState<RuleTab>("active");
-  const [createFeedback, setCreateFeedback] = useState<string | null>(null);
+  const hasShownLoadErrorToastRef = useRef(false);
   const accountNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const account of accountsQuery.data?.data ?? []) {
@@ -66,9 +76,6 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
     return map;
   }, [accountsQuery.data?.data]);
   const createMutation = useMutation({
-    onMutate: () => {
-      setCreateFeedback(null);
-    },
     mutationFn: async (form: RuleFormState) => {
       if (!ledgerContext) {
         throw new Error(en.accounts.ledgerRequired);
@@ -90,7 +97,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
       });
     },
     onSuccess: async () => {
-      setCreateFeedback(en.rules.customCreated);
+      toast.success(en.rules.customCreated);
       setCreateForm(defaultRuleFormState());
       setIsCreateDialogOpen(false);
       if (!ledgerContext) {
@@ -99,6 +106,9 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
       await queryClient.invalidateQueries({
         queryKey: rulesQueryKey,
       });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : en.rules.createFailed);
     },
   });
   const updateMutation = useMutation({
@@ -125,7 +135,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
       });
     },
     onSuccess: async () => {
-      setCreateFeedback(en.rules.updatedOk);
+      toast.success(en.rules.updatedOk);
       setEditingRuleId(null);
       if (!ledgerContext) {
         return;
@@ -133,6 +143,9 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
       await queryClient.invalidateQueries({
         queryKey: rulesQueryKey,
       });
+    },
+    onError: () => {
+      toast.error(en.rules.updateFailed);
     },
   });
   const archiveMutation = useMutation({
@@ -147,13 +160,16 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
       });
     },
     onSuccess: async () => {
-      setCreateFeedback(en.rules.archivedOk);
+      toast.success(en.rules.archivedOk);
       if (!ledgerContext) {
         return;
       }
       await queryClient.invalidateQueries({
         queryKey: rulesQueryKey,
       });
+    },
+    onError: () => {
+      toast.error(en.rules.archiveFailed);
     },
   });
   const testMutation = useMutation({
@@ -173,6 +189,9 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
         ...current,
         [ruleId]: matches.slice(0, PREVIEW_EXAMPLE_LIMIT),
       }));
+    },
+    onError: () => {
+      toast.error(en.rules.testFailed);
     },
   });
   const applyMutation = useMutation({
@@ -216,6 +235,9 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
         queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
       });
     },
+    onError: () => {
+      toast.error(en.rules.applyFailed);
+    },
   });
   const activeRules = useMemo(() => rules.filter((rule) => rule.archivedAt === null), [rules]);
   const archivedRules = useMemo(() => rules.filter((rule) => rule.archivedAt !== null), [rules]);
@@ -232,19 +254,16 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
         activeRule,
       )}`
     : undefined;
-  const createErrorMessage =
-    createMutation.error instanceof Error ? createMutation.error.message : en.rules.createFailed;
-  const mutationErrorMessage = createMutation.isError
-    ? createErrorMessage
-    : updateMutation.isError
-      ? en.rules.updateFailed
-      : archiveMutation.isError
-        ? en.rules.archiveFailed
-        : testMutation.isError
-          ? en.rules.testFailed
-          : applyMutation.isError
-            ? en.rules.applyFailed
-            : null;
+  useEffect(() => {
+    if (rulesQuery.isError && !hasShownLoadErrorToastRef.current) {
+      toast.error(en.rules.loadFailed);
+      hasShownLoadErrorToastRef.current = true;
+      return;
+    }
+    if (!rulesQuery.isError) {
+      hasShownLoadErrorToastRef.current = false;
+    }
+  }, [rulesQuery.isError]);
   const resetManageDialogState = () => {
     setEditingRuleId(null);
     setEditForm(defaultRuleFormState());
@@ -275,7 +294,6 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
               className="h-8 rounded-full px-3"
               data-testid={testIds.rules.createButton}
               onClick={() => {
-                setCreateFeedback(null);
                 setCreateForm(defaultRuleFormState());
                 setIsCreateDialogOpen(true);
               }}
@@ -706,6 +724,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                             type="button"
                             variant="outline"
                           >
+                            <SlidersHorizontal aria-hidden="true" />
                             {en.rules.manage}
                           </Button>
                           {rule.archivedAt === null ? (
@@ -723,6 +742,7 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                                 type="button"
                                 variant="outline"
                               >
+                                <Pencil aria-hidden="true" />
                                 {en.rules.edit}
                               </Button>
                               <Button
@@ -762,38 +782,22 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
           )}
 
           {rulesQuery.isError ? (
-            <Alert
-              className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200"
+            <div
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-2 text-[13px] text-muted-foreground"
               data-testid={testIds.rules.loadError}
             >
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                <span>{en.rules.loadFailed}</span>
-                <Button
-                  data-testid={testIds.rules.retryButton}
-                  onClick={() => void rulesQuery.refetch()}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {en.rules.retry}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {createFeedback ? (
-            <Alert
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-              data-testid={testIds.rules.feedbackAlert}
-            >
-              <AlertDescription>{createFeedback}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {mutationErrorMessage ? (
-            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
-              <AlertDescription>{mutationErrorMessage}</AlertDescription>
-            </Alert>
+              <span>{en.rules.loadFailed}</span>
+              <Button
+                data-testid={testIds.rules.retryButton}
+                onClick={() => void rulesQuery.refetch()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <RotateCcw aria-hidden="true" />
+                {en.rules.retry}
+              </Button>
+            </div>
           ) : null}
         </div>
       </GlassSection>
@@ -970,7 +974,7 @@ function RuleEditorPanel({
             size="sm"
             type="button"
           >
-            {submitIcon}
+            {submitIcon ?? <Check aria-hidden="true" />}
             {isSubmitting ? submittingLabel : submitLabel}
           </Button>
         </div>

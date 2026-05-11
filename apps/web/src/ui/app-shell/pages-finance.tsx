@@ -5,17 +5,26 @@ import { Button } from "@ui/button";
 import { Card } from "@ui/card";
 import {
   ArrowDownLeft,
+  ArrowRight,
   ArrowUpRight,
+  Check,
+  Copy,
   Landmark,
+  Laptop,
+  LogOut,
+  Moon,
   RefreshCcw,
   ShieldCheck,
+  Sun,
   WalletCards,
 } from "lucide-react";
+import { useMemo } from "react";
+import { toast } from "sonner";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
 import { AccountBalanceCard, GlassSection, MetricTile } from "./shared-components";
-import { formatDateTime, formatThemeLabel, type Theme } from "./utils";
+import { formatDateTime, type Theme } from "./utils";
 
 export function ReportsPage({
   accounts,
@@ -97,84 +106,349 @@ export function ReportsPage({
 export function SettingsPage({
   apiStatus,
   isOnline,
+  isLoggingOut,
+  isUpdateReady,
   ledgerName,
+  onApplyUpdate,
+  onLogout,
+  onThemeChange,
   openConflictCount,
   pendingOutboxCount,
   theme,
+  workspaceId,
   workspaceName,
   workspaceRole,
+  ledgerId,
 }: {
   readonly apiStatus: string;
   readonly isOnline: boolean;
+  readonly isLoggingOut: boolean;
+  readonly isUpdateReady: boolean;
   readonly ledgerName: string;
+  readonly onApplyUpdate: () => void;
+  readonly onLogout: () => void;
+  readonly onThemeChange: (theme: Theme) => void;
   readonly openConflictCount: number;
   readonly pendingOutboxCount: number;
   readonly theme: Theme;
+  readonly workspaceId: string;
   readonly workspaceName: string;
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
+  readonly ledgerId: string;
 }) {
+  const roleLabel = `${workspaceRole.slice(0, 1).toUpperCase()}${workspaceRole.slice(1)}`;
+  const diagnosticsSnapshot = useMemo(
+    () =>
+      [
+        `capturedAt=${new Date().toISOString()}`,
+        `online=${isOnline}`,
+        `apiStatus=${apiStatus}`,
+        `workspace=${workspaceName}`,
+        `workspaceId=${workspaceId}`,
+        `activeLedger=${ledgerName}`,
+        `ledgerId=${ledgerId}`,
+        `role=${workspaceRole}`,
+        `theme=${theme}`,
+        `pendingOutboxCount=${pendingOutboxCount}`,
+        `openConflictCount=${openConflictCount}`,
+      ].join("\n"),
+    [
+      apiStatus,
+      isOnline,
+      ledgerId,
+      ledgerName,
+      openConflictCount,
+      pendingOutboxCount,
+      theme,
+      workspaceId,
+      workspaceName,
+      workspaceRole,
+    ],
+  );
+
+  const handleCopyDiagnostics = async () => {
+    if (!navigator.clipboard?.writeText) {
+      toast.error(en.settings.copyDiagnosticsFailed);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(diagnosticsSnapshot);
+      toast.success(en.settings.copiedDiagnostics);
+    } catch {
+      toast.error(en.settings.copyDiagnosticsFailed);
+    }
+  };
+
+  const handleCopyIdentifier = async (value: string) => {
+    if (!navigator.clipboard?.writeText) {
+      toast.error(en.settings.copyIdFailed);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(en.settings.copiedId);
+    } catch {
+      toast.error(en.settings.copyIdFailed);
+    }
+  };
+
   return (
     <section
       className="mt-2 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,0.8fr)]"
       data-testid={testIds.settings.page}
     >
-      <GlassSection
-        title={en.shell.settingsOverview}
-        description={en.shell.settingsBody}
-        testId={testIds.settings.overview}
-      >
-        <div className="space-y-2">
-          <SystemStatusRow
-            label={en.shell.workspace}
-            labelTestId={testIds.settings.rowLabel("workspace")}
-            rowTestId={testIds.settings.row("workspace")}
-            value={workspaceName}
-            valueTestId={testIds.settings.rowValue("workspace")}
+      <div className="space-y-4" data-testid={testIds.settings.overview}>
+        <header className="space-y-1">
+          <h2 className="font-semibold text-lg leading-none tracking-tight">
+            {en.settings.overviewTitle}
+          </h2>
+          <p className="text-muted-foreground text-sm">{en.settings.overviewBody}</p>
+        </header>
+
+        <GlassSection
+          title={en.settings.workspaceTitle}
+          description={en.settings.workspaceBody}
+          testId={testIds.settings.workspaceCard}
+        >
+          <div className="space-y-2">
+            <SystemStatusRow
+              label={en.shell.workspace}
+              labelTestId={testIds.settings.rowLabel("workspace")}
+              rowTestId={testIds.settings.row("workspace")}
+              value={workspaceName}
+              valueTestId={testIds.settings.rowValue("workspace")}
+            />
+            <SystemStatusRow
+              label={en.shell.activeLedger}
+              labelTestId={testIds.settings.rowLabel("active-ledger")}
+              rowTestId={testIds.settings.row("active-ledger")}
+              value={ledgerName}
+              valueTestId={testIds.settings.rowValue("active-ledger")}
+            />
+            <SystemStatusRow
+              label={en.shell.role}
+              labelTestId={testIds.settings.rowLabel("active-role")}
+              rowTestId={testIds.settings.row("active-role")}
+              value={roleLabel}
+              valueTestId={testIds.settings.rowValue("active-role")}
+            />
+
+            <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="mb-1 text-[12px]">{en.settings.workspaceId}</p>
+                  <code className="break-all font-mono text-[12px] text-foreground">
+                    {workspaceId}
+                  </code>
+                </div>
+                <Button
+                  aria-label={en.settings.copyWorkspaceId}
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                  data-testid={testIds.settings.copyWorkspaceIdButton}
+                  onClick={() => void handleCopyIdentifier(workspaceId)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Copy aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="mb-1 text-[12px]">{en.settings.ledgerId}</p>
+                  <code className="break-all font-mono text-[12px] text-foreground">
+                    {ledgerId}
+                  </code>
+                </div>
+                <Button
+                  aria-label={en.settings.copyLedgerId}
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                  data-testid={testIds.settings.copyLedgerIdButton}
+                  onClick={() => void handleCopyIdentifier(ledgerId)}
+                  size="icon"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Copy aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </GlassSection>
+
+        <GlassSection
+          title={en.settings.automationTitle}
+          description={en.settings.automationBody}
+          testId={testIds.settings.automationCard}
+        >
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button asChild className="justify-between" type="button" variant="outline">
+              <Link to="/transactions">
+                <span>{en.settings.automationTransactions}</span>
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild className="justify-between" type="button" variant="outline">
+              <Link to="/rules">
+                <span>{en.settings.automationRules}</span>
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild className="justify-between" type="button" variant="outline">
+              <Link to="/recurring">
+                <span>{en.settings.automationRecurring}</span>
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild className="justify-between" type="button" variant="outline">
+              <Link to="/imports">
+                <span>{en.settings.automationImports}</span>
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </GlassSection>
+      </div>
+
+      <aside className="flex flex-col gap-4">
+        <GlassSection
+          title={en.settings.appearanceTitle}
+          description={en.settings.appearanceBody}
+          testId={testIds.settings.appearance}
+        >
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button
+              className="justify-start"
+              data-testid={testIds.settings.themeLightButton}
+              onClick={() => onThemeChange("light")}
+              type="button"
+              variant={theme === "light" ? "secondary" : "outline"}
+            >
+              <Sun aria-hidden="true" />
+              {en.shell.lightTheme}
+              {theme === "light" ? <Check aria-hidden="true" /> : null}
+            </Button>
+            <Button
+              className="justify-start"
+              data-testid={testIds.settings.themeDarkButton}
+              onClick={() => onThemeChange("dark")}
+              type="button"
+              variant={theme === "dark" ? "secondary" : "outline"}
+            >
+              <Moon aria-hidden="true" />
+              {en.shell.darkTheme}
+              {theme === "dark" ? <Check aria-hidden="true" /> : null}
+            </Button>
+            <Button
+              className="justify-start"
+              data-testid={testIds.settings.themeSystemButton}
+              onClick={() => onThemeChange("system")}
+              type="button"
+              variant={theme === "system" ? "secondary" : "outline"}
+            >
+              <Laptop aria-hidden="true" />
+              {en.shell.systemTheme}
+              {theme === "system" ? <Check aria-hidden="true" /> : null}
+            </Button>
+          </div>
+        </GlassSection>
+
+        <GlassSection
+          title={en.settings.syncHealthTitle}
+          description={en.settings.syncHealthBody}
+          testId={testIds.settings.syncHealthCard}
+        >
+          <RuntimeStatusChips
+            apiStatus={apiStatus}
+            isOnline={isOnline}
+            openConflictCount={openConflictCount}
+            pendingOutboxCount={pendingOutboxCount}
+            surface="settings"
           />
+          <div className="mt-3 space-y-2">
+            <SystemStatusRow
+              label={en.settings.queuedChanges}
+              value={pendingOutboxCount.toString()}
+              rowTestId={testIds.settings.row("sync-mode")}
+            />
+            <SystemStatusRow
+              label={en.settings.openConflicts}
+              value={openConflictCount.toString()}
+              rowTestId={testIds.settings.row("active-role")}
+            />
+          </div>
+          <div className="mt-3">
+            <Button asChild size="sm" type="button" variant="outline">
+              <Link to="/sync">
+                <RefreshCcw aria-hidden="true" />
+                {en.shell.syncCenter}
+              </Link>
+            </Button>
+          </div>
+        </GlassSection>
+
+        <GlassSection
+          title={en.settings.maintenanceTitle}
+          description={en.settings.maintenanceBody}
+          testId={testIds.settings.maintenanceCard}
+        >
           <SystemStatusRow
-            label={en.shell.activeLedger}
-            labelTestId={testIds.settings.rowLabel("active-ledger")}
-            rowTestId={testIds.settings.row("active-ledger")}
-            value={ledgerName}
-            valueTestId={testIds.settings.rowValue("active-ledger")}
+            label={en.settings.updateAvailable}
+            value={isUpdateReady ? en.shell.enabled : en.settings.updateCurrent}
           />
-          <SystemStatusRow
-            label={en.shell.role}
-            labelTestId={testIds.settings.rowLabel("active-role")}
-            rowTestId={testIds.settings.row("active-role")}
-            value={workspaceRole}
-            valueTestId={testIds.settings.rowValue("active-role")}
-          />
-          <SystemStatusRow
-            label={en.shell.syncMode}
-            labelTestId={testIds.settings.rowLabel("sync-mode")}
-            rowTestId={testIds.settings.row("sync-mode")}
-            value={en.shell.enabled}
-            valueTestId={testIds.settings.rowValue("sync-mode")}
-          />
-          <SystemStatusRow
-            label={en.shell.themePreference}
-            labelTestId={testIds.settings.rowLabel("theme-preference")}
-            rowTestId={testIds.settings.row("theme-preference")}
-            value={formatThemeLabel(theme)}
-            valueTestId={testIds.settings.rowValue("theme-preference")}
-          />
-        </div>
-      </GlassSection>
-      <GlassSection title={en.shell.systemStatus} testId={testIds.settings.systemStatus}>
-        <RuntimeStatusChips
-          apiStatus={apiStatus}
-          isOnline={isOnline}
-          openConflictCount={openConflictCount}
-          pendingOutboxCount={pendingOutboxCount}
-          surface="settings"
-        />
-        <div className="mt-3">
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link to="/sync">{en.shell.syncCenter}</Link>
+          <div className="mt-3">
+            <Button
+              disabled={!isUpdateReady}
+              onClick={onApplyUpdate}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <RefreshCcw aria-hidden="true" />
+              {en.shell.updateNow}
+            </Button>
+          </div>
+        </GlassSection>
+
+        <GlassSection
+          title={en.settings.sessionTitle}
+          description={en.settings.sessionBody}
+          testId={testIds.settings.sessionCard}
+        >
+          <Button
+            className="w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            data-testid={testIds.settings.logoutButton}
+            disabled={isLoggingOut}
+            onClick={onLogout}
+            type="button"
+            variant="outline"
+          >
+            <LogOut aria-hidden="true" />
+            <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
           </Button>
-        </div>
-      </GlassSection>
+        </GlassSection>
+
+        <GlassSection
+          title={en.settings.diagnosticsTitle}
+          description={en.settings.diagnosticsBody}
+          testId={testIds.settings.diagnosticsCard}
+        >
+          <Button
+            className="w-full justify-start"
+            data-testid={testIds.settings.copyDiagnosticsButton}
+            onClick={() => void handleCopyDiagnostics()}
+            type="button"
+            variant="outline"
+          >
+            <Copy aria-hidden="true" />
+            {en.settings.copyDiagnostics}
+          </Button>
+        </GlassSection>
+      </aside>
     </section>
   );
 }

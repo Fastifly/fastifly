@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription } from "@ui/alert";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
+import { Check, RotateCcw, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
 import { useImportJobsQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
@@ -30,12 +31,16 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
       });
     },
     onSuccess: async () => {
+      toast.success(en.imports.previewReady);
       if (!ledgerContext) {
         return;
       }
       await queryClient.invalidateQueries({
         queryKey: ["finance", "imports", ledgerContext.workspaceId, ledgerContext.ledgerId],
       });
+    },
+    onError: () => {
+      toast.error(en.imports.createFailed);
     },
   });
   const commitMutation = useMutation({
@@ -49,6 +54,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
       });
     },
     onSuccess: async () => {
+      toast.success(en.imports.commitSuccess);
       if (!ledgerContext) {
         return;
       }
@@ -60,6 +66,9 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
           queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
         }),
       ]);
+    },
+    onError: () => {
+      toast.error(en.imports.commitFailed);
     },
   });
   const undoMutation = useMutation({
@@ -73,6 +82,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
       });
     },
     onSuccess: async () => {
+      toast.success(en.imports.undoSuccess);
       if (!ledgerContext) {
         return;
       }
@@ -84,6 +94,9 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
           queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
         }),
       ]);
+    },
+    onError: () => {
+      toast.error(en.imports.undoFailed);
     },
   });
   const importJobs = importJobsQuery.data ?? [];
@@ -100,6 +113,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
               size="sm"
               type="button"
             >
+              <Upload aria-hidden="true" />
               {createMutation.isPending ? en.imports.uploading : en.imports.upload}
             </Button>
           </div>
@@ -134,6 +148,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
                         size="sm"
                         type="button"
                       >
+                        <Check aria-hidden="true" />
                         {en.imports.commit}
                       </Button>
                       <Button
@@ -147,6 +162,7 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
                         type="button"
                         variant="outline"
                       >
+                        <RotateCcw aria-hidden="true" />
                         {en.imports.undo}
                       </Button>
                     </div>
@@ -166,21 +182,6 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
               </p>
             )}
           </div>
-          {createMutation.isError ? (
-            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
-              <AlertDescription>{en.imports.createFailed}</AlertDescription>
-            </Alert>
-          ) : null}
-          {commitMutation.isError ? (
-            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
-              <AlertDescription>{en.imports.commitFailed}</AlertDescription>
-            </Alert>
-          ) : null}
-          {undoMutation.isError ? (
-            <Alert className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200">
-              <AlertDescription>{en.imports.undoFailed}</AlertDescription>
-            </Alert>
-          ) : null}
         </div>
       </GlassSection>
     </section>

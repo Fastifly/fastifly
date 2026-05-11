@@ -1,10 +1,10 @@
 import { formatMoneyMinor } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Alert, AlertDescription } from "@ui/alert";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import { AlertTriangle, Menu } from "lucide-react";
-import { type PropsWithChildren, useEffect, useMemo, useState } from "react";
+import { Menu } from "lucide-react";
+import { type PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { apiClient } from "../../api/client";
 import {
   useAccountsQuery,
@@ -53,6 +53,9 @@ export function AppShell({ children }: PropsWithChildren) {
   const [pendingOutboxCount, setPendingOutboxCount] = useState(() =>
     readPendingOutboxCount(window.localStorage),
   );
+  const previousOpenConflictCountRef = useRef(0);
+  const previousPendingOutboxCountRef = useRef(0);
+  const updateToastShownRef = useRef(false);
   const health = useHealthQuery();
   const shouldLoadAuthContext = !isAuthRoute;
   const meContext = useMeContextQuery(shouldLoadAuthContext);
@@ -76,6 +79,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const syncStatusQuery = useSyncStatusQuery(ledgerContext);
   const syncConflictsQuery = useSyncConflictsQuery(ledgerContext);
   const transactionsQuery = useTransactionsQuery(ledgerContext);
+  const openConflictCount = syncStatusQuery.data?.data.openConflicts ?? 0;
   const latestAuthError = meContext.error ?? accountsQuery.error ?? transactionsQuery.error;
   const sessionExpired =
     sessionExpiredFromEvent ||
@@ -159,6 +163,61 @@ export function AppShell({ children }: PropsWithChildren) {
   }, [hadAuthenticatedSession, isAuthRoute]);
 
   useEffect(() => {
+    if (isUpdateReady && !updateToastShownRef.current) {
+      toast(en.shell.updateReady, {
+        action: {
+          label: en.shell.updateNow,
+          onClick: () => {
+            setIsUpdateReady(false);
+            void activateServiceWorkerUpdate();
+          },
+        },
+        duration: Number.POSITIVE_INFINITY,
+        id: "app-update-ready",
+      });
+      updateToastShownRef.current = true;
+      return;
+    }
+
+    if (!isUpdateReady && updateToastShownRef.current) {
+      toast.dismiss("app-update-ready");
+      updateToastShownRef.current = false;
+    }
+  }, [isUpdateReady]);
+
+  useEffect(() => {
+    const previous = previousOpenConflictCountRef.current;
+    if (openConflictCount > 0 && openConflictCount !== previous) {
+      toast.warning(formatOpenConflictMessage(openConflictCount), {
+        action: {
+          label: en.shell.reviewConflicts,
+          onClick: () => {
+            void navigate({ to: "/sync" });
+          },
+        },
+        id: "sync-conflict-alert",
+      });
+    }
+    if (openConflictCount === 0 && previous > 0) {
+      toast.dismiss("sync-conflict-alert");
+    }
+    previousOpenConflictCountRef.current = openConflictCount;
+  }, [navigate, openConflictCount]);
+
+  useEffect(() => {
+    const previous = previousPendingOutboxCountRef.current;
+    if (pendingOutboxCount > 0 && pendingOutboxCount !== previous) {
+      toast.info(formatPendingSyncMessage(pendingOutboxCount), {
+        id: "pending-sync-alert",
+      });
+    }
+    if (pendingOutboxCount === 0 && previous > 0) {
+      toast.dismiss("pending-sync-alert");
+    }
+    previousPendingOutboxCountRef.current = pendingOutboxCount;
+  }, [pendingOutboxCount]);
+
+  useEffect(() => {
     if (sessionExpired) {
       return;
     }
@@ -188,7 +247,6 @@ export function AppShell({ children }: PropsWithChildren) {
   const mobileTabs = getMobilePrimaryNavigation();
   const accounts = accountsQuery.data?.data ?? [];
   const reportingCurrencyCode = meContext.data?.data.activeLedger.baseCurrencyCode ?? "INR";
-  const openConflictCount = syncStatusQuery.data?.data.openConflicts ?? 0;
   const syncServerRevision = syncStatusQuery.data?.data.serverRevision ?? "0";
   const syncLastOperationAt = syncStatusQuery.data?.data.lastOperationAt ?? null;
   const syncConflicts = syncConflictsQuery.data?.data.conflicts ?? [];
@@ -255,98 +313,64 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div
-      className="min-h-screen overflow-x-hidden bg-background text-foreground"
+      className="h-dvh overflow-hidden bg-background text-foreground"
       data-testid={testIds.shell.app}
     >
       <main
-        className="relative mx-auto min-h-screen w-full max-w-[1500px] px-3 pt-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:px-5 md:pb-8 xl:px-8 xl:pb-8"
+        className="relative mx-auto flex h-full w-full max-w-[1500px] flex-col px-3 pt-3 md:px-5 xl:px-8"
         data-testid={testIds.shell.main}
       >
-        <TopBar
-          accountsCount={accounts.length}
-          currentNavigationItem={currentNavigationItem}
-          isOnline={isOnline}
-          onToggleTheme={() => setTheme(cycleTheme(theme))}
-          theme={theme}
-          transactionsCount={transactions.length}
-        />
-        <DesktopNavigation currentSlug={currentNavigationItem.slug} />
-        {children}
+        <div className="shrink-0">
+          <TopBar
+            accountsCount={accounts.length}
+            currentNavigationItem={currentNavigationItem}
+            isOnline={isOnline}
+            onToggleTheme={() => setTheme(cycleTheme(theme))}
+            theme={theme}
+            transactionsCount={transactions.length}
+          />
+          <DesktopNavigation currentSlug={currentNavigationItem.slug} />
+          {children}
+        </div>
 
-        {isUpdateReady ? (
-          <Alert
-            className="mt-3 border-cyan-500/30 bg-cyan-500/10 text-cyan-800 dark:text-cyan-100"
-            data-testid={testIds.shell.updateAlert}
-          >
-            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-              <span>{en.shell.updateReady}</span>
-              <Button
-                className="h-7 px-2.5"
-                onClick={() => {
-                  setIsUpdateReady(false);
-                  void activateServiceWorkerUpdate();
-                }}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                {en.shell.updateNow}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {openConflictCount > 0 ? (
-          <Alert
-            className="mt-3 border-rose-500/30 bg-rose-500/10 text-rose-800 dark:text-rose-200"
-            data-testid={testIds.shell.syncConflictAlert}
-          >
-            <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-              <span>{formatOpenConflictMessage(openConflictCount)}</span>
-              <Button asChild className="h-7 px-2.5" size="sm" type="button" variant="outline">
-                <Link to="/sync">{en.shell.reviewConflicts}</Link>
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {pendingOutboxCount > 0 ? (
-          <Alert
-            className="mt-3 border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-            data-testid={testIds.shell.pendingSyncAlert}
-          >
-            <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-            <AlertDescription>{formatPendingSyncMessage(pendingOutboxCount)}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <PageBody
-          accounts={accounts}
-          accountPreview={accountPreview}
-          accountsLoading={accountsQuery.isPending}
-          apiStatus={apiStatus}
-          cashAndBank={cashAndBank}
-          cashflow={cashflow}
-          income={income}
-          isOnline={isOnline}
-          ledgerContext={ledgerContext}
-          liabilities={liabilities}
-          moneySummaryValue={moneySummaryValue}
-          pageSlug={currentNavigationItem.slug}
-          pendingOutboxCount={pendingOutboxCount}
-          openConflictCount={openConflictCount}
-          syncConflicts={syncConflicts}
-          syncLastOperationAt={syncLastOperationAt}
-          syncServerRevision={syncServerRevision}
-          spending={spending}
-          spendingRate={spendingRate}
-          theme={theme}
-          transferCount={transferCount}
-          workspaceName={meContext.data.data.activeWorkspace.name}
-          workspaceRole={meContext.data.data.activeWorkspace.role}
-          ledgerName={meContext.data.data.activeLedger.name}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-8 xl:pb-8">
+          <PageBody
+            accounts={accounts}
+            accountPreview={accountPreview}
+            accountsLoading={accountsQuery.isPending}
+            apiStatus={apiStatus}
+            cashAndBank={cashAndBank}
+            cashflow={cashflow}
+            income={income}
+            isOnline={isOnline}
+            isLoggingOut={logoutMutation.isPending}
+            isUpdateReady={isUpdateReady}
+            ledgerContext={ledgerContext}
+            liabilities={liabilities}
+            moneySummaryValue={moneySummaryValue}
+            onApplyUpdate={() => {
+              setIsUpdateReady(false);
+              void activateServiceWorkerUpdate();
+            }}
+            onLogout={() => logoutMutation.mutate()}
+            onThemeChange={(nextTheme) => setTheme(nextTheme)}
+            pageSlug={currentNavigationItem.slug}
+            pendingOutboxCount={pendingOutboxCount}
+            openConflictCount={openConflictCount}
+            syncConflicts={syncConflicts}
+            syncLastOperationAt={syncLastOperationAt}
+            syncServerRevision={syncServerRevision}
+            spending={spending}
+            spendingRate={spendingRate}
+            theme={theme}
+            transferCount={transferCount}
+            workspaceId={meContext.data.data.activeWorkspace.id}
+            workspaceName={meContext.data.data.activeWorkspace.name}
+            workspaceRole={meContext.data.data.activeWorkspace.role}
+            ledgerName={meContext.data.data.activeLedger.name}
+            ledgerId={meContext.data.data.activeLedger.id}
+          />
+        </div>
       </main>
 
       <nav
