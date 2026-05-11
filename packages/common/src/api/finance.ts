@@ -256,10 +256,7 @@ export const RuleConditionSchema = z
     descriptionContains: z.string().trim().min(1).max(500).optional(),
     type: z.enum(["expense", "income", "transfer"]).optional(),
   })
-  .refine(
-    (value) => Object.keys(value).length > 0,
-    "At least one rule condition is required.",
-  );
+  .refine((value) => Object.keys(value).length > 0, "At least one rule condition is required.");
 
 export const RuleActionSchema = z.strictObject({
   status: z.enum(["pending", "cleared", "reconciled", "void"]),

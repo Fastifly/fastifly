@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { createUuidV7, type SyncedId } from "@fastifly/common";
 import { makeTestApiConfig } from "@fastifly/config";
 import {
+  createConfiguredSqliteClient,
   createInProcessLedgerWriteBoundary,
   createLedgerFinanceMutationService,
   createSqliteAccountRepository,
@@ -18,17 +19,15 @@ import {
   createSqliteWorkflowRepository,
   createSyncQueryService,
   createSyncReplayService,
-  createConfiguredSqliteClient,
   LedgerMutationRunner,
 } from "@fastifly/db";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
-
+import { runMigrations } from "../../../../packages/db/src/migrations/maintenance-cli.js";
 import { buildApiApp } from "../app.js";
 import { createRuntimeAuthorization } from "../runtime.js";
 import { createFinanceWorkflowService } from "../services/finance-workflows.js";
 import { injectWithCsrf } from "./helpers/csrf.js";
-import { runMigrations } from "../../../../packages/db/src/migrations/maintenance-cli.js";
 
 type AuthSession = {
   readonly cookie: string;
@@ -71,7 +70,8 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(generateRecoveryCodes.statusCode).toBe(201);
     expect(
-      generateRecoveryCodes.json<{ data: { recoveryCodes: readonly string[] } }>().data.recoveryCodes,
+      generateRecoveryCodes.json<{ data: { recoveryCodes: readonly string[] } }>().data
+        .recoveryCodes,
     ).toHaveLength(10);
 
     const revokeRecoveryCodes = await requestWithCsrf(app, owner.cookie, {
@@ -122,7 +122,9 @@ describe("api e2e workflows (sqlite)", () => {
     expect(
       membersAfterAccept
         .json<{ data: { members: ReadonlyArray<{ user: { id: string }; role: string }> } }>()
-        .data.members.some((member) => member.user.id === invitee.userId && member.role === "editor"),
+        .data.members.some(
+          (member) => member.user.id === invitee.userId && member.role === "editor",
+        ),
     ).toBe(true);
 
     const updateMemberRole = await requestWithCsrf(app, owner.cookie, {
@@ -211,7 +213,8 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(accountPage.statusCode).toBe(200);
     expect(
-      accountPage.json<{ data: unknown[]; pageInfo: { hasNextPage: boolean } }>().pageInfo.hasNextPage,
+      accountPage.json<{ data: unknown[]; pageInfo: { hasNextPage: boolean } }>().pageInfo
+        .hasNextPage,
     ).toBe(true);
 
     await createTransaction(app, owner, {
@@ -269,9 +272,9 @@ describe("api e2e workflows (sqlite)", () => {
     expect(listExpense.statusCode).toBe(200);
     const expenseItems = listExpense.json<{ data: Array<{ type: string }> }>().data;
     expect(expenseItems.length).toBeGreaterThan(0);
-    expect(
-      expenseItems.every((group) => group.type === "expense" || group.type === "split"),
-    ).toBe(true);
+    expect(expenseItems.every((group) => group.type === "expense" || group.type === "split")).toBe(
+      true,
+    );
 
     const detail = await app.inject({
       headers: { cookie: owner.cookie },
@@ -280,8 +283,8 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(detail.statusCode).toBe(200);
     expect(
-      detail.json<{ data: { transactionGroup: { journals: Array<{ postings: unknown[] }> } } }>().data
-        .transactionGroup.journals.length,
+      detail.json<{ data: { transactionGroup: { journals: Array<{ postings: unknown[] }> } } }>()
+        .data.transactionGroup.journals.length,
     ).toBeGreaterThan(0);
 
     const checkingBalance = await getAccountBalanceMinor(app, owner, checking);
@@ -334,9 +337,9 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(listDevices.statusCode).toBe(200);
     expect(
-      listDevices.json<{ data: Array<{ deviceKey: string; id: string }> }>().data.some(
-        (device) => device.id === deviceId && device.deviceKey === "ios-sync-device",
-      ),
+      listDevices
+        .json<{ data: Array<{ deviceKey: string; id: string }> }>()
+        .data.some((device) => device.id === deviceId && device.deviceKey === "ios-sync-device"),
     ).toBe(true);
 
     const push = await requestWithCsrf(app, owner.cookie, {
@@ -366,7 +369,8 @@ describe("api e2e workflows (sqlite)", () => {
       url: "/api/v1/sync/push",
     });
     expect(push.statusCode).toBe(200);
-    const firstPushPayload = push.json<{ data: { accepted: Array<{ serverRevision: string }> } }>().data;
+    const firstPushPayload = push.json<{ data: { accepted: Array<{ serverRevision: string }> } }>()
+      .data;
     expect(firstPushPayload.accepted.length).toBe(1);
     const firstServerRevision = firstPushPayload.accepted[0]?.serverRevision;
     expect(firstServerRevision).toBeDefined();
@@ -432,7 +436,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: "/api/v1/sync/pull",
     });
     expect(pull.statusCode).toBe(200);
-    expect(pull.json<{ data: { operations: unknown[] } }>().data.operations.length).toBeGreaterThan(0);
+    expect(pull.json<{ data: { operations: unknown[] } }>().data.operations.length).toBeGreaterThan(
+      0,
+    );
 
     const revokeDevice = await requestWithCsrf(app, owner.cookie, {
       method: "POST",
@@ -535,7 +541,8 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
     });
     expect(createCheckingFirst.statusCode).toBe(201);
-    const checkingId = createCheckingFirst.json<{ data: { account: { id: string } } }>().data.account.id;
+    const checkingId = createCheckingFirst.json<{ data: { account: { id: string } } }>().data
+      .account.id;
 
     const createCheckingReplay = await requestWithCsrf(app, activeCookie, {
       headers: { "idempotency-key": "idem-account-create-1" },
@@ -579,7 +586,8 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/accounts`,
     });
     expect(createGroceries.statusCode).toBe(201);
-    const groceriesId = createGroceries.json<{ data: { account: { id: string } } }>().data.account.id;
+    const groceriesId = createGroceries.json<{ data: { account: { id: string } } }>().data.account
+      .id;
 
     const createTransactionFirst = await requestWithCsrf(app, activeCookie, {
       headers: { "idempotency-key": "idem-transaction-create-1" },
@@ -595,8 +603,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${scope.activeWorkspace.id}/ledgers/${scope.activeLedger.id}/transactions`,
     });
     expect(createTransactionFirst.statusCode).toBe(201);
-    const firstGroupId = createTransactionFirst.json<{ data: { transactionGroup: { id: string } } }>().data
-      .transactionGroup.id;
+    const firstGroupId = createTransactionFirst.json<{
+      data: { transactionGroup: { id: string } };
+    }>().data.transactionGroup.id;
 
     const createTransactionReplay = await requestWithCsrf(app, activeCookie, {
       headers: { "idempotency-key": "idem-transaction-create-1" },
@@ -614,8 +623,8 @@ describe("api e2e workflows (sqlite)", () => {
     expect(createTransactionReplay.statusCode).toBe(201);
     expect(createTransactionReplay.headers["idempotency-replayed"]).toBe("true");
     expect(
-      createTransactionReplay.json<{ data: { transactionGroup: { id: string } } }>().data.transactionGroup
-        .id,
+      createTransactionReplay.json<{ data: { transactionGroup: { id: string } } }>().data
+        .transactionGroup.id,
     ).toBe(firstGroupId);
 
     const createTransactionConflict = await requestWithCsrf(app, activeCookie, {
@@ -883,7 +892,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: "/api/v1/sync/status",
     });
     expect(statusBeforeResolve.statusCode).toBe(200);
-    expect(statusBeforeResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(1);
+    expect(statusBeforeResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(
+      1,
+    );
 
     const resolve = await requestWithCsrf(app, owner.cookie, {
       method: "POST",
@@ -907,9 +918,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: "/api/v1/sync/conflicts",
     });
     expect(conflictsAfterResolve.statusCode).toBe(200);
-    expect(conflictsAfterResolve.json<{ data: { conflicts: unknown[] } }>().data.conflicts).toHaveLength(
-      0,
-    );
+    expect(
+      conflictsAfterResolve.json<{ data: { conflicts: unknown[] } }>().data.conflicts,
+    ).toHaveLength(0);
 
     const statusAfterResolve = await app.inject({
       headers: { cookie: owner.cookie },
@@ -921,7 +932,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: "/api/v1/sync/status",
     });
     expect(statusAfterResolve.statusCode).toBe(200);
-    expect(statusAfterResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(0);
+    expect(statusAfterResolve.json<{ data: { openConflicts: number } }>().data.openConflicts).toBe(
+      0,
+    );
   });
 
   it("executes the full import, rule, and recurring workflow", async () => {
@@ -966,8 +979,8 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/csv`,
     });
     expect(createImport.statusCode).toBe(201);
-    const importJob = createImport.json<{ data: { importJob: { id: string; status: string } } }>().data
-      .importJob;
+    const importJob = createImport.json<{ data: { importJob: { id: string; status: string } } }>()
+      .data.importJob;
     expect(importJob.status).toBe("preview_ready");
 
     const listImports = await app.inject({
@@ -977,7 +990,9 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(listImports.statusCode).toBe(200);
     expect(
-      listImports.json<{ data: Array<{ id: string }> }>().data.some((job) => job.id === importJob.id),
+      listImports
+        .json<{ data: Array<{ id: string }> }>()
+        .data.some((job) => job.id === importJob.id),
     ).toBe(true);
 
     const getImportBeforeCommit = await app.inject({
@@ -987,8 +1002,9 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(getImportBeforeCommit.statusCode).toBe(200);
     expect(
-      getImportBeforeCommit.json<{ data: { importJob: { previewRows: unknown[]; status: string } } }>()
-        .data.importJob.previewRows.length,
+      getImportBeforeCommit.json<{
+        data: { importJob: { previewRows: unknown[]; status: string } };
+      }>().data.importJob.previewRows.length,
     ).toBe(2);
 
     const commitImport = await requestWithCsrf(app, owner.cookie, {
@@ -1006,8 +1022,9 @@ describe("api e2e workflows (sqlite)", () => {
       commitImport.json<{ data: { importJob: { status: string } } }>().data.importJob.status,
     ).toBe("committed");
 
-    const committedGroupIds = commitImport.json<{ data: { importJob: { committedGroupIds: string[] } } }>()
-      .data.importJob.committedGroupIds;
+    const committedGroupIds = commitImport.json<{
+      data: { importJob: { committedGroupIds: string[] } };
+    }>().data.importJob.committedGroupIds;
     expect(committedGroupIds.length).toBe(2);
 
     const listAfterCommit = await app.inject({
@@ -1052,9 +1069,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/rules/${ruleId}`,
     });
     expect(updateRule.statusCode).toBe(200);
-    expect(updateRule.json<{ data: { rule: { action: { status: string } } } }>().data.rule.action.status).toBe(
-      "reconciled",
-    );
+    expect(
+      updateRule.json<{ data: { rule: { action: { status: string } } } }>().data.rule.action.status,
+    ).toBe("reconciled");
 
     const listRules = await app.inject({
       headers: { cookie: owner.cookie },
@@ -1073,8 +1090,8 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(testRule.statusCode).toBe(200);
     expect(
-      testRule.json<{ data: { matchedTransactionGroups: unknown[] } }>().data.matchedTransactionGroups
-        .length,
+      testRule.json<{ data: { matchedTransactionGroups: unknown[] } }>().data
+        .matchedTransactionGroups.length,
     ).toBeGreaterThan(0);
 
     const applyRule = await requestWithCsrf(app, owner.cookie, {
@@ -1145,7 +1162,9 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(listRecurring.statusCode).toBe(200);
     expect(
-      listRecurring.json<{ data: Array<{ id: string }> }>().data.some((item) => item.id === templateId),
+      listRecurring
+        .json<{ data: Array<{ id: string }> }>()
+        .data.some((item) => item.id === templateId),
     ).toBe(true);
 
     const generateRecurring = await requestWithCsrf(app, owner.cookie, {
@@ -1156,8 +1175,8 @@ describe("api e2e workflows (sqlite)", () => {
     });
     expect(generateRecurring.statusCode).toBe(200);
     expect(
-      generateRecurring.json<{ data: { transactionGroup: { type: string } } }>().data.transactionGroup
-        .type,
+      generateRecurring.json<{ data: { transactionGroup: { type: string } } }>().data
+        .transactionGroup.type,
     ).toBe("expense");
 
     const undoImport = await requestWithCsrf(app, owner.cookie, {
@@ -1167,9 +1186,9 @@ describe("api e2e workflows (sqlite)", () => {
       url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/${importJob.id}/undo`,
     });
     expect(undoImport.statusCode).toBe(200);
-    expect(undoImport.json<{ data: { importJob: { status: string } } }>().data.importJob.status).toBe(
-      "undone",
-    );
+    expect(
+      undoImport.json<{ data: { importJob: { status: string } } }>().data.importJob.status,
+    ).toBe("undone");
 
     const listAfterUndo = await app.inject({
       headers: { cookie: owner.cookie },
@@ -1238,7 +1257,11 @@ async function createSqliteE2eApp(): Promise<FastifyInstance> {
     identityRepository,
     readiness: { migrations: "ok" },
     syncQueryService: createSyncQueryService({ syncRepository }),
-    syncReplayService: createSyncReplayService({ createId, financeMutationService, syncRepository }),
+    syncReplayService: createSyncReplayService({
+      createId,
+      financeMutationService,
+      syncRepository,
+    }),
     transactionQueryService,
     workflowService: createFinanceWorkflowService({
       financeMutationService,
@@ -1256,9 +1279,7 @@ async function createSqliteE2eApp(): Promise<FastifyInstance> {
   return app;
 }
 
-function seedCurrencies(
-  client: ReturnType<typeof createConfiguredSqliteClient>,
-): void {
+function seedCurrencies(client: ReturnType<typeof createConfiguredSqliteClient>): void {
   const statement = client.prepare(`
     INSERT OR IGNORE INTO currencies (
       code, name, decimal_places, symbol, created_at, updated_at
@@ -1386,9 +1407,7 @@ async function requestWithCsrf(
   });
 }
 
-function getSessionCookie(response: {
-  readonly headers: Record<string, unknown>;
-}): string {
+function getSessionCookie(response: { readonly headers: Record<string, unknown> }): string {
   const setCookie = response.headers["set-cookie"];
   const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
 
@@ -1399,7 +1418,7 @@ function getSessionCookie(response: {
 
     const pair = cookie.split(";")[0];
 
-    if (pair && pair.startsWith(`${SESSION_COOKIE_NAME}=`)) {
+    if (pair?.startsWith(`${SESSION_COOKIE_NAME}=`)) {
       return pair;
     }
   }

@@ -4,6 +4,7 @@ import {
   ArchiveAccountResponseSchema,
   type AuthResponse,
   AuthResponseSchema,
+  CommitImportJobResponseSchema,
   type CreateAccountRequest,
   CreateAccountResponseSchema,
   CreateImportCsvResponseSchema,
@@ -17,12 +18,12 @@ import {
   GetRecurringTemplateResponseSchema,
   GetRuleResponseSchema,
   type ImportJobResponse,
-  ListImportJobsResponseSchema,
   type ListAccountsResponse,
   ListAccountsResponseSchema,
   type ListBudgetsQuery,
   type ListBudgetsResponse,
   ListBudgetsResponseSchema,
+  ListImportJobsResponseSchema,
   ListRecurringTemplatesResponseSchema,
   ListRulesResponseSchema,
   type ListTransactionsQuery,
@@ -41,7 +42,6 @@ import {
   type SyncStatusResponse,
   SyncStatusResponseSchema,
   UndoImportJobResponseSchema,
-  CommitImportJobResponseSchema,
 } from "@fastifly/common";
 import createClient from "openapi-fetch";
 import { notifySessionExpired } from "../auth/session-events";
@@ -145,9 +145,7 @@ export type ApiClient = {
   readonly testRule: (
     input: LedgerPathInput & { readonly limit?: number; readonly ruleId: string },
   ) => Promise<readonly ListTransactionsResponse["data"][number][]>;
-  readonly undoImportJob: (
-    input: LedgerPathInput & { readonly importJobId: string },
-  ) => Promise<{
+  readonly undoImportJob: (input: LedgerPathInput & { readonly importJobId: string }) => Promise<{
     readonly archivedGroupIds: readonly string[];
     readonly importJob: ImportJobResponse;
   }>;
@@ -295,22 +293,25 @@ export const apiClient: ApiClient = {
     return await withCsrf(async (csrfToken) => {
       const response = CreateImportCsvResponseSchema.parse(
         await unwrapOpenApiResponse(
-          await openApiClient.POST("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/imports/csv", {
-            body: {
-              csvText,
-              ...(fileName !== undefined ? { fileName } : {}),
-            },
-            headers: {
-              "idempotency-key": makeIdempotencyKey(),
-              "x-csrf-token": csrfToken,
-            },
-            params: {
-              path: {
-                ledgerId,
-                workspaceId,
+          await openApiClient.POST(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/imports/csv",
+            {
+              body: {
+                csvText,
+                ...(fileName !== undefined ? { fileName } : {}),
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  workspaceId,
+                },
               },
             },
-          }),
+          ),
         ),
       );
       return response.data.importJob;
@@ -321,25 +322,28 @@ export const apiClient: ApiClient = {
     return await withCsrf(async (csrfToken) => {
       const response = CreateRecurringTemplateResponseSchema.parse(
         await unwrapOpenApiResponse(
-          await openApiClient.POST("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/recurring", {
-            body: {
-              cadence,
-              intervalCount,
-              nextRunAt,
-              payload,
-              status,
-            },
-            headers: {
-              "idempotency-key": makeIdempotencyKey(),
-              "x-csrf-token": csrfToken,
-            },
-            params: {
-              path: {
-                ledgerId,
-                workspaceId,
+          await openApiClient.POST(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/recurring",
+            {
+              body: {
+                cadence,
+                intervalCount,
+                nextRunAt,
+                payload,
+                status,
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  workspaceId,
+                },
               },
             },
-          }),
+          ),
         ),
       );
       return response.data.recurringTemplate;
@@ -507,15 +511,18 @@ export const apiClient: ApiClient = {
     const { ledgerId, ruleId, workspaceId } = input;
     const response = GetRuleResponseSchema.parse(
       await unwrapOpenApiResponse(
-        await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/rules/{ruleId}", {
-          params: {
-            path: {
-              ledgerId,
-              ruleId,
-              workspaceId,
+        await openApiClient.GET(
+          "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/rules/{ruleId}",
+          {
+            params: {
+              path: {
+                ledgerId,
+                ruleId,
+                workspaceId,
+              },
             },
           },
-        }),
+        ),
       ),
     );
     return response.data.rule;
@@ -728,8 +735,16 @@ export const apiClient: ApiClient = {
     });
   },
   async updateRecurringTemplate(input) {
-    const { cadence, intervalCount, ledgerId, nextRunAt, payload, status, templateId, workspaceId } =
-      input;
+    const {
+      cadence,
+      intervalCount,
+      ledgerId,
+      nextRunAt,
+      payload,
+      status,
+      templateId,
+      workspaceId,
+    } = input;
     return await withCsrf(async (csrfToken) => {
       const response = GetRecurringTemplateResponseSchema.parse(
         await unwrapOpenApiResponse(
@@ -766,25 +781,28 @@ export const apiClient: ApiClient = {
     return await withCsrf(async (csrfToken) => {
       const response = GetRuleResponseSchema.parse(
         await unwrapOpenApiResponse(
-          await openApiClient.PATCH("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/rules/{ruleId}", {
-            body: {
-              action,
-              condition: makeRuleConditionBody(condition),
-              enabled,
-              name,
-            },
-            headers: {
-              "idempotency-key": makeIdempotencyKey(),
-              "x-csrf-token": csrfToken,
-            },
-            params: {
-              path: {
-                ledgerId,
-                ruleId,
-                workspaceId,
+          await openApiClient.PATCH(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/rules/{ruleId}",
+            {
+              body: {
+                action,
+                condition: makeRuleConditionBody(condition),
+                enabled,
+                name,
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  ruleId,
+                  workspaceId,
+                },
               },
             },
-          }),
+          ),
         ),
       );
       return response.data.rule;
@@ -941,12 +959,8 @@ function makeCreateTransactionBody(input: CreateTransactionRequest) {
 
 function makeRuleConditionBody(condition: RuleResponse["condition"]) {
   return {
-    ...(condition.amountMaxMinor !== undefined
-      ? { amountMaxMinor: condition.amountMaxMinor }
-      : {}),
-    ...(condition.amountMinMinor !== undefined
-      ? { amountMinMinor: condition.amountMinMinor }
-      : {}),
+    ...(condition.amountMaxMinor !== undefined ? { amountMaxMinor: condition.amountMaxMinor } : {}),
+    ...(condition.amountMinMinor !== undefined ? { amountMinMinor: condition.amountMinMinor } : {}),
     ...(condition.descriptionContains !== undefined
       ? { descriptionContains: condition.descriptionContains }
       : {}),

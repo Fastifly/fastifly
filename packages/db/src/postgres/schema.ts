@@ -709,7 +709,10 @@ export const pgRecurringTemplates = pgTable(
       "recurring_templates_type_check",
       sql`${table.type} IN ('expense', 'income', 'transfer')`,
     ),
-    check("recurring_templates_cadence_check", sql`${table.cadence} IN ('daily', 'weekly', 'monthly')`),
+    check(
+      "recurring_templates_cadence_check",
+      sql`${table.cadence} IN ('daily', 'weekly', 'monthly')`,
+    ),
     check(
       "recurring_templates_status_check",
       sql`${table.status} IN ('active', 'paused', 'archived')`,

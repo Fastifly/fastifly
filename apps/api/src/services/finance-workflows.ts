@@ -106,9 +106,7 @@ export type FinanceWorkflowService = {
   readonly archiveRule: (
     input: WorkflowScope & { readonly ruleId: SyncedId; readonly updatedBy: SyncedId },
   ) => Promise<RuleRecord | null>;
-  readonly applyRule: (
-    input: ApplyRuleInput,
-  ) => Promise<{
+  readonly applyRule: (input: ApplyRuleInput) => Promise<{
     readonly matchedTransactionGroupIds: readonly SyncedId[];
     readonly rule: RuleRecord;
     readonly status: RuleRecord["action"]["status"];
@@ -131,9 +129,7 @@ export type FinanceWorkflowService = {
   readonly findRule: (
     input: WorkflowScope & { readonly ruleId: SyncedId },
   ) => Promise<RuleRecord | null>;
-  readonly generateRecurringTemplate: (
-    input: GenerateRecurringInput,
-  ) => Promise<{
+  readonly generateRecurringTemplate: (input: GenerateRecurringInput) => Promise<{
     readonly recurringTemplate: RecurringTemplateRecord;
     readonly transactionGroup: TransactionGroupRecord;
   }>;
@@ -143,9 +139,7 @@ export type FinanceWorkflowService = {
   ) => Promise<readonly RecurringTemplateRecord[]>;
   readonly listRules: (input: WorkflowScope) => Promise<readonly RuleRecord[]>;
   readonly testRule: (input: RuleMatchInput) => Promise<readonly TransactionGroupRecord[]>;
-  readonly undoImportJob: (
-    input: UndoImportInput,
-  ) => Promise<{
+  readonly undoImportJob: (input: UndoImportInput) => Promise<{
     readonly archivedGroupIds: readonly SyncedId[];
     readonly importJob: ImportJobRecord;
   }>;
@@ -415,7 +409,11 @@ export function createFinanceWorkflowService(
       const transactionGroup = readCreatedTransactionGroup(mutationResult);
 
       const generatedAt = new Date(occurredAt);
-      const nextRunAt = incrementRecurringDate(generatedAt, template.cadence, template.intervalCount);
+      const nextRunAt = incrementRecurringDate(
+        generatedAt,
+        template.cadence,
+        template.intervalCount,
+      );
       const recurringTemplate = await options.workflowRepository.markRecurringTemplateGenerated({
         ledgerId: input.scope.ledgerId,
         nextRunAt: nextRunAt.toISOString(),
@@ -578,9 +576,7 @@ async function collectRuleMatches(
   },
 ): Promise<readonly TransactionGroupRecord[]> {
   const rule =
-    typeof ruleOrRuleId === "string"
-      ? await input.ruleLookup?.(ruleOrRuleId)
-      : ruleOrRuleId;
+    typeof ruleOrRuleId === "string" ? await input.ruleLookup?.(ruleOrRuleId) : ruleOrRuleId;
   if (!rule) {
     throw new FinanceWorkflowServiceError("Rule was not found.", "RULE_NOT_FOUND");
   }
@@ -688,10 +684,7 @@ function parseImportCsv(csvText: string): readonly ImportPreviewRow[] {
 
   const headerLine = lines[0];
   if (!headerLine) {
-    throw new FinanceWorkflowServiceError(
-      "CSV must include a header row.",
-      "INVALID_IMPORT_CSV",
-    );
+    throw new FinanceWorkflowServiceError("CSV must include a header row.", "INVALID_IMPORT_CSV");
   }
 
   const headers = parseCsvLine(headerLine).map((value) => value.trim());
@@ -763,10 +756,10 @@ function parseCsvLine(line: string): string[] {
 
   for (let index = 0; index < line.length; index += 1) {
     const char = line[index];
-    if (char === "\"") {
+    if (char === '"') {
       const next = line[index + 1];
-      if (inQuotes && next === "\"") {
-        current += "\"";
+      if (inQuotes && next === '"') {
+        current += '"';
         index += 1;
         continue;
       }

@@ -6,9 +6,9 @@ import {
   Home,
   Landmark,
   PieChart,
-  Repeat,
   ReceiptText,
   RefreshCcw,
+  Repeat,
   Settings,
 } from "lucide-react";
 import { en } from "../i18n/en";

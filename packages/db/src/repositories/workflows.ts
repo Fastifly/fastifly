@@ -2,12 +2,7 @@ import { createUuidV7, type LedgerScope, parseSyncedId, type SyncedId } from "@f
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
-import {
-  pgImportJobs,
-  pgRecurringTemplates,
-  pgRules,
-} from "../postgres/schema.js";
-import { sqliteImportJobs, sqliteRecurringTemplates, sqliteRules } from "../sqlite/schema.js";
+import { pgImportJobs, pgRecurringTemplates, pgRules } from "../postgres/schema.js";
 import type {
   ImportJobStatus,
   RecurringCadence,
@@ -182,14 +177,20 @@ export type WorkflowRepository = {
   readonly findRecurringTemplate: (
     input: LedgerScope & { readonly recurringTemplateId: SyncedId },
   ) => Promise<RecurringTemplateRecord | null>;
-  readonly findRule: (input: LedgerScope & { readonly ruleId: SyncedId }) => Promise<RuleRecord | null>;
+  readonly findRule: (
+    input: LedgerScope & { readonly ruleId: SyncedId },
+  ) => Promise<RuleRecord | null>;
   readonly listImportJobs: (input: LedgerScope) => Promise<readonly ImportJobRecord[]>;
-  readonly listRecurringTemplates: (input: LedgerScope) => Promise<readonly RecurringTemplateRecord[]>;
+  readonly listRecurringTemplates: (
+    input: LedgerScope,
+  ) => Promise<readonly RecurringTemplateRecord[]>;
   readonly listRules: (input: LedgerScope) => Promise<readonly RuleRecord[]>;
   readonly markImportJobCommitted: (
     input: UpdateImportJobCommittedInput,
   ) => Promise<ImportJobRecord | null>;
-  readonly markImportJobUndone: (input: UpdateImportJobUndoneInput) => Promise<ImportJobRecord | null>;
+  readonly markImportJobUndone: (
+    input: UpdateImportJobUndoneInput,
+  ) => Promise<ImportJobRecord | null>;
   readonly markRecurringTemplateGenerated: (
     input: LedgerScope & { readonly recurringTemplateId: SyncedId; readonly nextRunAt: string },
   ) => Promise<RecurringTemplateRecord | null>;
@@ -340,7 +341,9 @@ export function createSqliteWorkflowRepository(
             LIMIT 1
           `,
         )
-        .get(scope.workspaceId, scope.ledgerId, input.importJobId) as SqliteImportJobRow | undefined;
+        .get(scope.workspaceId, scope.ledgerId, input.importJobId) as
+        | SqliteImportJobRow
+        | undefined;
       return row ? toImportJobRecord(row) : null;
     },
 
@@ -615,11 +618,9 @@ export function createSqliteWorkflowRepository(
             LIMIT 1
           `,
         )
-        .get(
-          scope.workspaceId,
-          scope.ledgerId,
-          input.recurringTemplateId,
-        ) as SqliteRecurringTemplateRow | undefined;
+        .get(scope.workspaceId, scope.ledgerId, input.recurringTemplateId) as
+        | SqliteRecurringTemplateRow
+        | undefined;
       return row ? toRecurringTemplateRecord(row) : null;
     },
 
@@ -657,7 +658,10 @@ export function createSqliteWorkflowRepository(
           scope.ledgerId,
           input.recurringTemplateId,
         );
-      return this.findRecurringTemplate({ ...scope, recurringTemplateId: input.recurringTemplateId });
+      return this.findRecurringTemplate({
+        ...scope,
+        recurringTemplateId: input.recurringTemplateId,
+      });
     },
 
     async archiveRecurringTemplate(input) {
@@ -700,11 +704,9 @@ export function createSqliteWorkflowRepository(
             LIMIT 1
           `,
         )
-        .get(
-          scope.workspaceId,
-          scope.ledgerId,
-          input.recurringTemplateId,
-        ) as SqliteRecurringTemplateRow | undefined;
+        .get(scope.workspaceId, scope.ledgerId, input.recurringTemplateId) as
+        | SqliteRecurringTemplateRow
+        | undefined;
 
       return row ? toRecurringTemplateRecord(row) : null;
     },
@@ -733,7 +735,10 @@ export function createSqliteWorkflowRepository(
           scope.ledgerId,
           input.recurringTemplateId,
         );
-      return this.findRecurringTemplate({ ...scope, recurringTemplateId: input.recurringTemplateId });
+      return this.findRecurringTemplate({
+        ...scope,
+        recurringTemplateId: input.recurringTemplateId,
+      });
     },
   };
 }
@@ -770,7 +775,12 @@ export function createPostgresWorkflowRepository(
       const rows = await db
         .select()
         .from(pgImportJobs)
-        .where(and(eq(pgImportJobs.workspaceId, scope.workspaceId), eq(pgImportJobs.ledgerId, scope.ledgerId)))
+        .where(
+          and(
+            eq(pgImportJobs.workspaceId, scope.workspaceId),
+            eq(pgImportJobs.ledgerId, scope.ledgerId),
+          ),
+        )
         .orderBy(desc(pgImportJobs.createdAt));
       return rows.map(toImportJobRecord);
     },
@@ -1014,7 +1024,10 @@ export function createPostgresWorkflowRepository(
             isNull(pgRecurringTemplates.archivedAt),
           ),
         );
-      return this.findRecurringTemplate({ ...scope, recurringTemplateId: input.recurringTemplateId });
+      return this.findRecurringTemplate({
+        ...scope,
+        recurringTemplateId: input.recurringTemplateId,
+      });
     },
 
     async archiveRecurringTemplate(input) {
@@ -1058,7 +1071,10 @@ export function createPostgresWorkflowRepository(
             isNull(pgRecurringTemplates.archivedAt),
           ),
         );
-      return this.findRecurringTemplate({ ...scope, recurringTemplateId: input.recurringTemplateId });
+      return this.findRecurringTemplate({
+        ...scope,
+        recurringTemplateId: input.recurringTemplateId,
+      });
     },
   };
 }
@@ -1212,9 +1228,7 @@ function parseRuleAction(value: unknown): RuleAction {
   const parsed = parseJson(value);
   const record = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
   const status =
-    record.status === "pending" ||
-    record.status === "reconciled" ||
-    record.status === "void"
+    record.status === "pending" || record.status === "reconciled" || record.status === "void"
       ? (record.status as RuleAction["status"])
       : "cleared";
   return {
@@ -1238,8 +1252,7 @@ function parseRecurringPayload(value: unknown): RecurringTemplatePayload {
           typeof lineRecord.budgetId === "string" ? parseSyncedId(lineRecord.budgetId) : null,
         categoryId:
           typeof lineRecord.categoryId === "string" ? parseSyncedId(lineRecord.categoryId) : null,
-        description:
-          typeof lineRecord.description === "string" ? lineRecord.description : null,
+        description: typeof lineRecord.description === "string" ? lineRecord.description : null,
         destinationAccountId: parseSyncedId(
           typeof lineRecord.destinationAccountId === "string"
             ? lineRecord.destinationAccountId
@@ -1274,7 +1287,11 @@ function readValue(record: Record<string, unknown>, key: string, altKey?: string
   return undefined;
 }
 
-function readRequiredValue(record: Record<string, unknown>, key: string, altKey?: string): Date | string {
+function readRequiredValue(
+  record: Record<string, unknown>,
+  key: string,
+  altKey?: string,
+): Date | string {
   const value = readValue(record, key, altKey);
   if (value instanceof Date || typeof value === "string") {
     return value;
@@ -1290,7 +1307,11 @@ function readRequiredString(record: Record<string, unknown>, key: string, altKey
   throw new Error(`Missing required string: ${key}`);
 }
 
-function readOptionalString(record: Record<string, unknown>, key: string, altKey?: string): string | null {
+function readOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+  altKey?: string,
+): string | null {
   const value = readValue(record, key, altKey);
   return typeof value === "string" ? value : null;
 }
@@ -1314,15 +1335,26 @@ function readRequiredNumber(record: Record<string, unknown>, key: string, altKey
   throw new Error(`Missing required number: ${key}`);
 }
 
-function readRequiredImportJobStatus(record: Record<string, unknown>, key: string): ImportJobStatus {
+function readRequiredImportJobStatus(
+  record: Record<string, unknown>,
+  key: string,
+): ImportJobStatus {
   const value = readValue(record, key);
-  if (value === "preview_ready" || value === "committed" || value === "undone" || value === "failed") {
+  if (
+    value === "preview_ready" ||
+    value === "committed" ||
+    value === "undone" ||
+    value === "failed"
+  ) {
     return value;
   }
   throw new Error("Invalid import job status");
 }
 
-function readRequiredRecurringCadence(record: Record<string, unknown>, key: string): RecurringCadence {
+function readRequiredRecurringCadence(
+  record: Record<string, unknown>,
+  key: string,
+): RecurringCadence {
   const value = readValue(record, key);
   if (value === "daily" || value === "weekly" || value === "monthly") {
     return value;
@@ -1330,7 +1362,10 @@ function readRequiredRecurringCadence(record: Record<string, unknown>, key: stri
   throw new Error("Invalid recurring cadence");
 }
 
-function readRequiredRecurringStatus(record: Record<string, unknown>, key: string): RecurringTemplateStatus {
+function readRequiredRecurringStatus(
+  record: Record<string, unknown>,
+  key: string,
+): RecurringTemplateStatus {
   const value = readValue(record, key);
   if (value === "active" || value === "paused" || value === "archived") {
     return value;

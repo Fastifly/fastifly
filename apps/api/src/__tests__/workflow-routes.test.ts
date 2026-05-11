@@ -203,7 +203,9 @@ function makeRecurringTemplate(
   };
 }
 
-function makeWorkflowService(state: ReturnType<typeof createUserWorkspaceContext>): FinanceWorkflowService {
+function makeWorkflowService(
+  state: ReturnType<typeof createUserWorkspaceContext>,
+): FinanceWorkflowService {
   const scope = {
     ledgerId: state.context.activeLedger.id,
     workspaceId: state.context.activeWorkspace.id,
@@ -279,15 +281,15 @@ function makeWorkflowService(state: ReturnType<typeof createUserWorkspaceContext
                 reportingCurrencyCode: "INR",
               },
             ],
-                type: "expense" as const,
-              },
-            ],
-            ledgerId: scope.ledgerId,
-            title: "Rent",
             type: "expense" as const,
-            workspaceId: scope.workspaceId,
           },
-        })),
+        ],
+        ledgerId: scope.ledgerId,
+        title: "Rent",
+        type: "expense" as const,
+        workspaceId: scope.workspaceId,
+      },
+    })),
     listImportJobs: vi.fn(async () => [importJob]),
     listRecurringTemplates: vi.fn(async () => [recurringTemplate]),
     listRules: vi.fn(async () => [rule]),
