@@ -440,7 +440,33 @@ select:focus-visible {
   font-weight: 700;
 }
 
+.ff-desktop-nav {
+  display: none;
+}
+
+.ff-desktop-nav-link {
+  border: 1px solid var(--ff-border);
+  border-radius: 8px;
+}
+
+.ff-desktop-nav-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 @media (min-width: 1280px) {
+  .ff-topbar {
+    margin-bottom: 0.75rem;
+  }
+
+  .ff-desktop-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
   .ff-page-grid {
     grid-template-columns: minmax(0, 1.7fr) minmax(22rem, 0.8fr);
   }
