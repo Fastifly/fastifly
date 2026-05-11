@@ -79,14 +79,20 @@ Database path example:
 /app/data/fastifly.db
 ```
 
-### Recommended CLI
-
-Fastifly should provide:
+### Current CLI (v0.1)
 
 ```bash
-fastifly backup create
-fastifly backup restore <backup-file>
+DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup create
+DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup create --output /app/backups/fastifly.backup.db
+DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup restore /app/backups/fastifly.backup.db --yes
 ```
+
+Notes:
+
+- backup commands are SQLite-only for now
+- `DATABASE_URL` must be a file path (not `:memory:`)
+- restore is destructive and requires `--yes`
+- restore creates an emergency snapshot of the current destination DB when it exists
 
 Optional:
 
@@ -148,7 +154,7 @@ This prevents restored historical backups from accidentally reusing stale sync, 
 Example:
 
 ```bash
-docker compose -f docker-compose.sqlite.yml exec fastifly   fastifly backup create
+docker compose -f docker-compose.sqlite.yml exec fastifly   env DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup create
 ```
 
 Copy backup from volume or configured backup directory.
@@ -189,13 +195,13 @@ Restore should:
 ### Recommended restore command
 
 ```bash
-fastifly backup restore ./backups/fastifly-backup.sqlite
+DATABASE_DRIVER=sqlite DATABASE_URL=./data/fastifly.db fastifly backup restore ./backups/fastifly-backup.sqlite --yes
 ```
 
 With Docker:
 
 ```bash
-docker compose -f docker-compose.sqlite.yml exec fastifly   fastifly backup restore /app/backups/fastifly-backup.sqlite
+docker compose -f docker-compose.sqlite.yml exec fastifly   env DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup restore /app/backups/fastifly-backup.sqlite --yes
 ```
 
 ### SQLite restore checklist
@@ -292,7 +298,7 @@ docker compose -f docker-compose.postgres.yml exec postgres   pg_restore -U fast
 Before every production migration:
 
 ```bash
-fastifly backup create
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly backup create
 DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
 DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
 DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status

@@ -167,9 +167,9 @@ Snapshots and report caches must be rebuildable.
 Initial planned commands:
 
 ```bash
-fastifly integrity report
-fastifly integrity sums
-fastifly integrity env
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity report
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity sums
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity env
 
 fastifly correction amounts
 fastifly correction currencies
@@ -186,8 +186,8 @@ DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate up
 DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate status
 DATABASE_DRIVER=postgres DATABASE_URL=postgres://fastifly:...@host:5432/fastifly fastifly migrate up
 
-fastifly backup create
-fastifly backup restore
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly backup create
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly backup restore /path/to/backup.db --yes
 
 fastifly user list
 fastifly user reset-password <username>
@@ -205,15 +205,15 @@ Docker examples:
 ```bash
 docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
 docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
-docker compose exec fastifly fastifly integrity report
-docker compose exec fastifly fastifly backup create
+docker compose exec fastifly env DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly integrity report
+docker compose exec fastifly env DATABASE_DRIVER=sqlite DATABASE_URL=/app/data/fastifly.db fastifly backup create
 ```
 
 Local examples:
 
 ```bash
 DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly migrate status
-fastifly integrity report
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity report
 ```
 
 ---
@@ -223,7 +223,7 @@ fastifly integrity report
 Command:
 
 ```bash
-fastifly integrity env
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity env
 ```
 
 Checks:
@@ -247,7 +247,7 @@ Checks:
 Command:
 
 ```bash
-fastifly integrity sums
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity sums
 ```
 
 Checks:
@@ -278,7 +278,7 @@ recommended correction
 Command:
 
 ```bash
-fastifly integrity report
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly integrity report
 ```
 
 Checks:
@@ -473,7 +473,7 @@ Only if safely supported.
 ### Create backup
 
 ```bash
-fastifly backup create
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly backup create
 ```
 
 SQLite:
@@ -490,7 +490,7 @@ PostgreSQL:
 ### Restore backup
 
 ```bash
-fastifly backup restore <file>
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly backup restore <file> --yes
 ```
 
 Rules:
