@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@ui/sheet";
 import { AlertTriangle, CheckCircle2, LogOut, RefreshCcw, X, XCircle } from "lucide-react";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
@@ -153,6 +153,9 @@ export function MobileMoreDrawer({
         <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-300/80 dark:bg-white/24" />
         <SheetHeader className="flex-row items-center justify-between gap-3 p-0">
           <SheetTitle className="text-[22px]">Fastifly</SheetTitle>
+          <SheetDescription className="sr-only">
+            {en.shell.mobileNavigationDescription}
+          </SheetDescription>
           <Button
             type="button"
             variant="outline"
@@ -195,12 +198,12 @@ export function MobileMoreDrawer({
         </nav>
 
         <Button
-          className="mt-3 w-full"
+          className="mt-3 w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
           disabled={isLoggingOut}
           data-testid={testIds.navigation.logoutButton}
           onClick={onLogout}
           type="button"
-          variant="destructive"
+          variant="outline"
         >
           <LogOut aria-hidden="true" data-icon="inline-start" />
           <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>

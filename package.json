@@ -21,6 +21,8 @@
     "format": "biome format --write .",
     "lint:packages": "turbo run lint",
     "test": "turbo run test",
+    "test:api:e2e": "pnpm --filter @fastifly/api run test:e2e",
+    "test:api:e2e:postgres": "pnpm --filter @fastifly/api run test:e2e:postgres",
     "test:sqlite": "pnpm --filter @fastifly/db test:sqlite",
     "test:postgres:pglite": "pnpm --filter @fastifly/db test:postgres:pglite",
     "test:postgres": "pnpm --filter @fastifly/db test:postgres",

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [
+    { "path": "../../packages/common" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/authz" },
+    { "path": "../../packages/db" }
+  ]
+}

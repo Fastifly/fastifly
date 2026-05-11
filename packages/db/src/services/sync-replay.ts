@@ -101,13 +101,10 @@ export function createSyncReplayService(options: SyncReplayServiceOptions): Sync
           operation.localSequence,
         );
         if (duplicatedSequence) {
-          const result = await recordRejectedOperation(options.syncRepository, {
-            actorUserId: input.actorUserId,
-            operation,
+          rejected.push({
+            operationId: operation.operationId,
             reason: "duplicate_local_sequence",
-            receivedAt: now(),
           });
-          rejected.push(result);
           continue;
         }
 

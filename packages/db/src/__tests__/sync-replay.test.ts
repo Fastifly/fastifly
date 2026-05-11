@@ -86,6 +86,54 @@ describe("sync replay service", () => {
     expect(financeMutationService.createExpense).not.toHaveBeenCalled();
   });
 
+  it("rejects duplicate localSequence operations without mutating existing operation records", async () => {
+    const syncRepository = new FakeSyncRepository({ currentRevision: 1 });
+    syncRepository.operations.set("operation_accepted", {
+      ...makeOperationRecord("operation_accepted"),
+      localSequence: "1",
+      serverRevision: 1,
+      status: "accepted",
+    });
+    const financeMutationService = makeFinanceMutationService();
+    const service = createSyncReplayService({
+      createId: createUuidV7,
+      financeMutationService,
+      syncRepository,
+    });
+
+    const result = await service.push({
+      actorUserId,
+      deviceId,
+      ledgerId,
+      operations: [
+        createOperation({
+          baseRevision: null,
+          localSequence: "1",
+          operationId: "operation_duplicate_sequence",
+          operationType: "transaction_group.create_expense.v1",
+        }),
+      ],
+      workspaceId,
+    });
+
+    expect(result.accepted).toEqual([]);
+    expect(result.conflicts).toEqual([]);
+    expect(result.rejected).toEqual([
+      {
+        operationId: "operation_duplicate_sequence",
+        reason: "duplicate_local_sequence",
+      },
+    ]);
+    expect(financeMutationService.createExpense).not.toHaveBeenCalled();
+    expect(syncRepository.operations.get("operation_accepted")).toMatchObject({
+      id: "operation_accepted",
+      localSequence: "1",
+      serverRevision: 1,
+      status: "accepted",
+    });
+    expect(syncRepository.operations.get("operation_duplicate_sequence")).toBeUndefined();
+  });
+
   it("records stale base revisions as explicit conflicts", async () => {
     const syncRepository = new FakeSyncRepository({ currentRevision: 3 });
     const service = createSyncReplayService({

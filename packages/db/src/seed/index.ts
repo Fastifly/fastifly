@@ -8,6 +8,7 @@ import {
   type PostgresDatabase,
 } from "../postgres/client.js";
 import {
+  pgBudgetLimits,
   pgBudgets,
   pgCategories,
   pgCurrencies,
@@ -37,6 +38,7 @@ import {
   type SqliteDatabase,
 } from "../sqlite/client.js";
 import {
+  sqliteBudgetLimits,
   sqliteBudgets,
   sqliteCategories,
   sqliteCurrencies,
@@ -86,6 +88,36 @@ const seedCurrencies = [
   { code: "INR", decimalPlaces: 2, name: "Indian Rupee", symbol: "₹" },
   { code: "USD", decimalPlaces: 2, name: "US Dollar", symbol: "$" },
   { code: "EUR", decimalPlaces: 2, name: "Euro", symbol: "€" },
+] as const;
+
+const seedBudgetLimits = [
+  {
+    amountMinor: 40_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+    categoryId: SEED_IDS.CATEGORY_FOOD,
+    currencyCode: "INR",
+    endDate: "2026-05-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_FOOD_MAY_2026,
+    startDate: "2026-05-01",
+  },
+  {
+    amountMinor: 75_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+    categoryId: SEED_IDS.CATEGORY_HOUSING,
+    currencyCode: "INR",
+    endDate: "2026-05-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_LIVING_MAY_2026,
+    startDate: "2026-05-01",
+  },
+  {
+    amountMinor: 12_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+    categoryId: SEED_IDS.CATEGORY_TRANSPORT,
+    currencyCode: "INR",
+    endDate: "2026-05-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_TRANSPORT_MAY_2026,
+    startDate: "2026-05-01",
+  },
 ] as const;
 
 const seedAccounts = [
@@ -203,7 +235,13 @@ const demoTransactions = [
     occurredAt: "2026-05-02T10:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 45_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_RENT }],
+    lines: [
+      {
+        amountMinor: 45_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_RENT,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_GROCERIES,
@@ -214,7 +252,13 @@ const demoTransactions = [
     occurredAt: "2026-05-04T18:30:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 6_850_00n, destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES }],
+    lines: [
+      {
+        amountMinor: 6_850_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_DINING,
@@ -225,7 +269,13 @@ const demoTransactions = [
     occurredAt: "2026-05-05T20:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
     currencyCode: "INR",
-    lines: [{ amountMinor: 2_400_00n, destinationAccountId: SEED_IDS.ACCOUNT_DINING }],
+    lines: [
+      {
+        amountMinor: 2_400_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_DINING,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_TRANSFER_SAVINGS,
@@ -250,7 +300,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-07T12:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 3_250_00n, destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES }],
+    lines: [
+      {
+        amountMinor: 3_250_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_CASH_WITHDRAWAL,
@@ -272,7 +328,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-08T19:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CASH,
     currencyCode: "INR",
-    lines: [{ amountMinor: 850_00n, destinationAccountId: SEED_IDS.ACCOUNT_HEALTH }],
+    lines: [
+      {
+        amountMinor: 850_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_INTEREST,
@@ -297,11 +359,13 @@ const e2eTransactions = [
     lines: [
       {
         amountMinor: 4_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
         description: "Food staples",
         destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
       },
       {
         amountMinor: 1_300_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
         description: "Home supplies",
         destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
       },
@@ -316,7 +380,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-10T15:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
     currencyCode: "INR",
-    lines: [{ amountMinor: 3_750_00n, destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING }],
+    lines: [
+      {
+        amountMinor: 3_750_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_BUS_PASS,
@@ -327,7 +397,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-11T08:30:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 1_500_00n, destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT }],
+    lines: [
+      {
+        amountMinor: 1_500_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+        destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_COFFEE,
@@ -338,7 +414,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-11T17:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CASH,
     currencyCode: "INR",
-    lines: [{ amountMinor: 240_00n, destinationAccountId: SEED_IDS.ACCOUNT_DINING }],
+    lines: [
+      {
+        amountMinor: 240_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_DINING,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_PENDING_BILL,
@@ -350,7 +432,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-12T09:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 1_199_00n, destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES }],
+    lines: [
+      {
+        amountMinor: 1_199_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_QA_GROCERIES_2,
@@ -361,7 +449,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-12T19:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 1_120_00n, destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES }],
+    lines: [
+      {
+        amountMinor: 1_120_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_QA_DINING_2,
@@ -372,7 +466,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-13T13:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
     currencyCode: "INR",
-    lines: [{ amountMinor: 680_00n, destinationAccountId: SEED_IDS.ACCOUNT_DINING }],
+    lines: [
+      {
+        amountMinor: 680_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_DINING,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_QA_TRANSPORT_2,
@@ -383,7 +483,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-13T21:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 520_00n, destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT }],
+    lines: [
+      {
+        amountMinor: 520_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+        destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
+      },
+    ],
   },
   {
     id: SEED_IDS.TX_QA_HEALTH_2,
@@ -394,7 +500,13 @@ const e2eTransactions = [
     occurredAt: "2026-05-14T10:30:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
-    lines: [{ amountMinor: 2_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_HEALTH }],
+    lines: [
+      {
+        amountMinor: 2_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
+      },
+    ],
   },
 ] as const satisfies readonly SeedTransaction[];
 
@@ -474,6 +586,7 @@ async function seedEssentialPostgres(db: PostgresDatabase): Promise<void> {
 async function seedDemoSqlite(client: SqliteClient, db: SqliteDatabase): Promise<void> {
   await seedFoundationSqlite(db);
   await seedReferenceDataSqlite(db);
+  await seedBudgetLimitsSqlite(db);
   await seedAccountsSqlite(client);
   await seedTransactionsSqlite(client, demoTransactions);
 }
@@ -481,6 +594,7 @@ async function seedDemoSqlite(client: SqliteClient, db: SqliteDatabase): Promise
 async function seedDemoPostgres(db: PostgresDatabase): Promise<void> {
   await seedFoundationPostgres(db);
   await seedReferenceDataPostgres(db);
+  await seedBudgetLimitsPostgres(db);
   await seedAccountsPostgres(db);
   await seedTransactionsPostgres(db, demoTransactions);
 }
@@ -803,6 +917,59 @@ async function seedReferenceDataPostgres(db: PostgresDatabase): Promise<void> {
     .onConflictDoUpdate({ target: pgBudgets.id, set: { updatedAt: now } });
 }
 
+async function seedBudgetLimitsSqlite(db: SqliteDatabase): Promise<void> {
+  for (const budgetLimit of seedBudgetLimits) {
+    const amountMinor = toSqliteIntegerMoneyMinor(budgetLimit.amountMinor);
+    await db
+      .insert(sqliteBudgetLimits)
+      .values({
+        amountMinor,
+        budgetId: budgetLimit.budgetId,
+        categoryId: budgetLimit.categoryId,
+        createdAt: SEED_NOW,
+        currencyCode: budgetLimit.currencyCode,
+        endDate: budgetLimit.endDate,
+        id: budgetLimit.id,
+        startDate: budgetLimit.startDate,
+        updatedAt: SEED_NOW,
+      })
+      .onConflictDoUpdate({
+        target: sqliteBudgetLimits.id,
+        set: {
+          amountMinor,
+          budgetId: budgetLimit.budgetId,
+          categoryId: budgetLimit.categoryId,
+          currencyCode: budgetLimit.currencyCode,
+          endDate: budgetLimit.endDate,
+          startDate: budgetLimit.startDate,
+          updatedAt: SEED_NOW,
+        },
+      });
+  }
+}
+
+async function seedBudgetLimitsPostgres(db: PostgresDatabase): Promise<void> {
+  const now = new Date(SEED_NOW);
+
+  for (const budgetLimit of seedBudgetLimits) {
+    await db
+      .insert(pgBudgetLimits)
+      .values(budgetLimitRow(budgetLimit.id, budgetLimit, now))
+      .onConflictDoUpdate({
+        target: pgBudgetLimits.id,
+        set: {
+          amountMinor: budgetLimit.amountMinor,
+          budgetId: budgetLimit.budgetId,
+          categoryId: budgetLimit.categoryId,
+          currencyCode: budgetLimit.currencyCode,
+          endDate: budgetLimit.endDate,
+          startDate: budgetLimit.startDate,
+          updatedAt: now,
+        },
+      });
+  }
+}
+
 async function seedAccountsSqlite(client: SqliteClient): Promise<void> {
   const lookupRepository = createSqliteAccountRepository(client);
 
@@ -1005,4 +1172,36 @@ function budgetRow<TNow extends Date | string = string>(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function budgetLimitRow<TNow extends Date | string = string>(
+  id: SyncedId,
+  input: {
+    readonly budgetId: SyncedId;
+    readonly categoryId: SyncedId;
+    readonly amountMinor: bigint;
+    readonly currencyCode: string;
+    readonly startDate: string;
+    readonly endDate: string;
+  },
+  now: TNow,
+) {
+  return {
+    id,
+    budgetId: input.budgetId,
+    categoryId: input.categoryId,
+    amountMinor: input.amountMinor,
+    currencyCode: input.currencyCode,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function toSqliteIntegerMoneyMinor(value: bigint): number {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+    throw new RangeError(`SQLite seed amount ${value} exceeds Number safe integer range.`);
+  }
+  return Number(value);
 }

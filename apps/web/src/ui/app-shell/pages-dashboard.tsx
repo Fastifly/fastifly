@@ -88,32 +88,26 @@ export function DashboardPage({
             >
               {moneySummaryValue}
             </p>
-            <p
-              className="mt-3.5 max-w-xl text-[0.875rem] text-[var(--ff-text-muted)] leading-[1.45]"
-              data-testid={testIds.dashboard.netWorthDescription}
-            >
-              {en.shell.derivedBalances}
-            </p>
-            <div
-              className="mt-5 grid grid-cols-2 gap-2.5 max-[380px]:gap-2"
-              data-testid={testIds.dashboard.summaryMetrics}
-            >
-              <MetricTile
-                compact
-                icon={WalletCards}
-                label={en.shell.cashAndBank}
-                testId={testIds.dashboard.cashAndBankMetric}
-                value={cashAndBank}
-              />
-              <MetricTile
-                compact
-                icon={RefreshCcw}
-                label={en.shell.liabilities}
-                testId={testIds.dashboard.liabilitiesMetric}
-                tone="rose"
-                value={liabilities}
-              />
-            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="ff-glass-panel" data-testid={testIds.dashboard.summaryMetrics}>
+          <CardContent className="grid grid-cols-2 gap-2.5 p-4 max-[380px]:gap-2 max-[380px]:p-3">
+            <MetricTile
+              compact
+              icon={WalletCards}
+              label={en.shell.cashAndBank}
+              testId={testIds.dashboard.cashAndBankMetric}
+              value={cashAndBank}
+            />
+            <MetricTile
+              compact
+              icon={RefreshCcw}
+              label={en.shell.liabilities}
+              testId={testIds.dashboard.liabilitiesMetric}
+              tone="rose"
+              value={liabilities}
+            />
           </CardContent>
         </Card>
 
