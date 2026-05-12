@@ -14,6 +14,11 @@ import {
   makeRecurringFormValuesFromTemplate,
   type RecurringFormValues,
 } from "../../../finance/recurring-form";
+import {
+  getTransactionQuickAddState,
+  type SimpleTransactionType,
+  type TransactionQuickAddReason,
+} from "../../../finance/transaction-form";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
@@ -145,6 +150,34 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
     [recurringQuery.data],
   );
   const createDefaults = useMemo(() => deriveRecurringCreateDefaults(templates), [templates]);
+  const recurringQuickAddState = useMemo(
+    () =>
+      getTransactionQuickAddState({
+        accounts,
+        categories,
+        categoriesLoading: categoriesQuery.isPending,
+        hasLedgerContext: Boolean(ledgerContext),
+      }),
+    [accounts, categories, categoriesQuery.isPending, ledgerContext],
+  );
+  const recurringCreateType = chooseRecurringCreateType(
+    recurringQuickAddState.availability,
+    createDefaults.type,
+  );
+  const dialogCreateDefaults = useMemo(
+    () => ({
+      ...createDefaults,
+      type: recurringCreateType,
+    }),
+    [createDefaults, recurringCreateType],
+  );
+  const recurringCreateBlocked = !ledgerContext || !recurringQuickAddState.canCreateAny;
+  const recurringCreateReason = !ledgerContext
+    ? en.accounts.ledgerRequired
+    : mapRecurringCreateReasonToMessage(recurringQuickAddState.reason);
+  const recurringCreateSuggestion = recurringCreateBlocked
+    ? getRecurringCreateSuggestion(recurringQuickAddState.reason)
+    : undefined;
   const activeCount = templates.filter((item) => item.status === "active").length;
   const pausedCount = templates.filter((item) => item.status === "paused").length;
   const dueSoonCount = templates.filter(
@@ -183,13 +216,9 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
               </span>
             </p>
             <BlockedActionGate
-              blocked={!ledgerContext || accounts.length < 2}
-              reason={!ledgerContext ? en.accounts.ledgerRequired : en.shell.noAccountsForRecurring}
-              suggestion={
-                !ledgerContext || accounts.length < 2
-                  ? { label: en.shell.openAccounts, to: "/accounts" }
-                  : undefined
-              }
+              blocked={recurringCreateBlocked}
+              reason={recurringCreateReason}
+              suggestion={recurringCreateSuggestion}
             >
               <Button
                 data-testid={testIds.recurring.createButton}
@@ -206,23 +235,28 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
             </BlockedActionGate>
           </div>
 
-          {!ledgerContext || accounts.length < 2 ? (
+          {recurringCreateBlocked ? (
             <p
               className="rounded-lg border border-border bg-muted/50 px-2.5 py-2 text-[12px] text-muted-foreground"
               data-testid={testIds.recurring.createErrorAlert}
             >
-              {ledgerContext ? (
-                <>
-                  {en.shell.noAccountsForRecurring}{" "}
-                  <Link
-                    className="font-medium text-primary underline underline-offset-2"
-                    to="/accounts"
-                  >
-                    {en.accounts.addAccount}
-                  </Link>
-                </>
-              ) : (
-                en.accounts.ledgerRequired
+              {ledgerContext
+                ? mapRecurringCreateReasonToMessage(recurringQuickAddState.reason)
+                : en.accounts.ledgerRequired}{" "}
+              {recurringQuickAddState.reason === "add-category" ? (
+                <Link
+                  className="font-medium text-primary underline underline-offset-2"
+                  to="/categories"
+                >
+                  {en.categories.addCategory}
+                </Link>
+              ) : recurringQuickAddState.reason === "ledger-required" ? null : (
+                <Link
+                  className="font-medium text-primary underline underline-offset-2"
+                  to="/accounts"
+                >
+                  {en.accounts.addAccount}
+                </Link>
               )}
             </p>
           ) : null}
@@ -383,7 +417,7 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
       <RecurringCreateDialog
         accounts={accounts}
         categories={categories}
-        createDefaults={createDefaults}
+        createDefaults={dialogCreateDefaults}
         initialValues={
           editingTemplate ? makeRecurringFormValuesFromTemplate(editingTemplate, categories) : null
         }
@@ -402,6 +436,57 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
       />
     </section>
   );
+}
+
+function chooseRecurringCreateType(
+  availability: {
+    readonly expense: boolean;
+    readonly income: boolean;
+    readonly transfer: boolean;
+  },
+  preferred?: SimpleTransactionType | undefined,
+): SimpleTransactionType {
+  if (preferred && availability[preferred]) {
+    return preferred;
+  }
+  if (availability.expense) {
+    return "expense";
+  }
+  if (availability.income) {
+    return "income";
+  }
+  return "transfer";
+}
+
+function mapRecurringCreateReasonToMessage(reason: TransactionQuickAddReason): string {
+  switch (reason) {
+    case "ledger-required":
+      return en.accounts.ledgerRequired;
+    case "add-account":
+      return en.transactions.prerequisites.addAccount;
+    case "add-category":
+      return en.transactions.prerequisites.addCategory;
+    case "add-second-account":
+      return en.transactions.prerequisites.addSecondAccount;
+    case "add-compatible-setup":
+      return en.transactions.prerequisites.addCompatibleSetup;
+    case "categories-loading":
+      return en.transactions.prerequisites.loadingCategories;
+    case "ok":
+      return "";
+  }
+}
+
+function getRecurringCreateSuggestion(
+  reason: TransactionQuickAddReason,
+): { label: string; to: "/accounts" | "/categories" } | undefined {
+  if (reason === "add-category") {
+    return { label: en.categories.addCategory, to: "/categories" };
+  }
+  if (reason === "ok") {
+    return undefined;
+  }
+  return { label: en.shell.openAccounts, to: "/accounts" };
 }
 
 function StatusBadge({

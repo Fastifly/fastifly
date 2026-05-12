@@ -123,7 +123,6 @@ export const en = {
     accountBalances: "Account balances",
     noAccountsBody: "No accounts yet. Add your first account to get started.",
     noAccountsForTransactions: "Add at least one account before recording transactions.",
-    noAccountsForRecurring: "Add at least two accounts before creating a subscription.",
     cashAndBank: "Cash and bank",
     liabilities: "Liabilities",
     accounts: "Accounts",
