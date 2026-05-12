@@ -166,6 +166,13 @@ Run migrations before the first start and before starting a new version:
 docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
 ```
 
+Seed baseline reference data (recommended at least once on a fresh database):
+
+```bash
+docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate \
+  node ./node_modules/@fastifly/db/dist/seed/cli.js essential
+```
+
 Start:
 
 ```bash
@@ -277,6 +284,13 @@ Run migrations before the first start and before starting a new version:
 docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
 ```
 
+Seed baseline reference data (recommended at least once on a fresh database):
+
+```bash
+docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate \
+  node ./node_modules/@fastifly/db/dist/seed/cli.js essential
+```
+
 Start:
 
 ```bash
@@ -315,6 +329,8 @@ With Docker:
 ```bash
 docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate
 docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate
+docker compose -f docker-compose.sqlite.yml run --rm fastifly-migrate node ./node_modules/@fastifly/db/dist/seed/cli.js essential
+docker compose -f docker-compose.postgres.yml run --rm fastifly-migrate node ./node_modules/@fastifly/db/dist/seed/cli.js essential
 ```
 
 Required production upgrade order:
@@ -325,8 +341,9 @@ Required production upgrade order:
 3. Pull new image.
 4. Run migration status.
 5. Run migration up.
-6. Restart app.
-7. Check /ready.
+6. Run at least `essential` seed on first bootstrap.
+7. Restart app.
+8. Check /ready.
 ```
 
 Never run production migrations without a backup.

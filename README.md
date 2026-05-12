@@ -199,13 +199,14 @@ To clean or seed the currently running Tilt database:
 
 ```bash
 pnpm db:clean
-pnpm db:seed
+pnpm db:seed:essential
+pnpm db:seed:demo
+pnpm db:seed:e2e
 ```
 
-These trigger Tilt's manual `db-clean` and `db-seed` resources on port `10360`.
-Both commands use the active Tilt database mode and connection URL. If Tilt was
-started with `FASTIFLY_DEV_SEED=none`, `pnpm db:seed` uses the full `e2e` demo
-seed.
+These trigger Tilt's manual `db-clean`, `db-seed-essential`,
+`db-seed-demo`, and `db-seed-e2e` resources on port `10360`.
+All commands use the active Tilt database mode and connection URL.
 
 Tilt uses fixed development ports. If a port is busy, stop the conflicting
 process before running Tilt.

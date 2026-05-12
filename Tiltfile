@@ -97,8 +97,6 @@ local_resource(
 seed_cmd = 'echo "Database migrated; seed disabled."'
 if seed_level != 'none':
     seed_cmd = 'pnpm --filter @fastifly/db db:seed:%s' % seed_level
-manual_seed_level = 'e2e' if seed_level == 'none' else seed_level
-manual_seed_cmd = 'pnpm --filter @fastifly/db db:seed:%s' % manual_seed_level
 
 local_resource(
     'db-ready',
@@ -119,8 +117,28 @@ local_resource(
 )
 
 local_resource(
-    'db-seed',
-    cmd=manual_seed_cmd,
+    'db-seed-essential',
+    cmd='pnpm --filter @fastifly/db db:seed:essential',
+    resource_deps=['db-migrate'],
+    env=runtime_env,
+    labels=['database'],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+)
+
+local_resource(
+    'db-seed-demo',
+    cmd='pnpm --filter @fastifly/db db:seed:demo',
+    resource_deps=['db-migrate'],
+    env=runtime_env,
+    labels=['database'],
+    auto_init=False,
+    trigger_mode=TRIGGER_MODE_MANUAL,
+)
+
+local_resource(
+    'db-seed-e2e',
+    cmd='pnpm --filter @fastifly/db db:seed:e2e',
     resource_deps=['db-migrate'],
     env=runtime_env,
     labels=['database'],

@@ -37,10 +37,13 @@
     "logs:api": "tilt logs --port 10360 --source runtime --follow api",
     "logs:api:error": "tilt logs --port 10360 --source runtime --level error --follow api",
     "db:clean": "tilt trigger db-clean --port 10360",
-    "db:seed": "tilt trigger db-seed --port 10360",
-    "db:seed:essential": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:essential",
-    "db:seed:demo": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:demo",
-    "db:seed:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"
+    "db:seed": "tilt trigger db-seed-e2e --port 10360",
+    "db:seed:essential": "tilt trigger db-seed-essential --port 10360",
+    "db:seed:demo": "tilt trigger db-seed-demo --port 10360",
+    "db:seed:e2e": "tilt trigger db-seed-e2e --port 10360",
+    "db:seed:direct:essential": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:essential",
+    "db:seed:direct:demo": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:demo",
+    "db:seed:direct:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",

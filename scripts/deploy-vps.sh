@@ -13,6 +13,8 @@ Options:
   --db <sqlite|postgres>       Database mode. Default: sqlite
   --app-port <value>           Host port for Fastifly. Default: 3000
   --app-url <value>            Public app URL. Default: http://<host>
+  --seed-level <none|essential|demo|e2e>
+                               Seed level after migrations. Default: essential
   --domain <value>             Domain for TLS proxy (example: fastifly.example.com).
   --setup-caddy                Install/configure Caddy as HTTPS reverse proxy for --domain.
   --cookie-secure <true|false> Cookie secure flag. Auto from app URL if omitted.
@@ -23,6 +25,7 @@ Options:
 
 Examples:
   scripts/deploy-vps.sh --host 156.67.25.168 --db sqlite --app-url http://156.67.25.168
+  scripts/deploy-vps.sh --host 156.67.25.168 --db sqlite --seed-level none
   scripts/deploy-vps.sh --host 156.67.25.168 --domain fastifly.nbb.ai --setup-caddy
   scripts/deploy-vps.sh --host fastifly.example.com --db postgres --app-url https://fastifly.example.com --setup-caddy --domain fastifly.example.com
 USAGE
@@ -53,6 +56,7 @@ APP_DIR="/opt/fastifly"
 DB_MODE="sqlite"
 FASTIFLY_PORT="3000"
 APP_URL=""
+SEED_LEVEL="essential"
 DOMAIN=""
 COOKIE_SECURE=""
 SESSION_SECRET=""
@@ -84,6 +88,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --app-url)
       APP_URL="${2:-}"
+      shift 2
+      ;;
+    --seed-level)
+      SEED_LEVEL="${2:-}"
       shift 2
       ;;
     --domain)
@@ -130,6 +138,11 @@ fi
 
 if [[ "$DB_MODE" != "sqlite" && "$DB_MODE" != "postgres" ]]; then
   printf '--db must be sqlite or postgres\n' >&2
+  exit 1
+fi
+
+if [[ "$SEED_LEVEL" != "none" && "$SEED_LEVEL" != "essential" && "$SEED_LEVEL" != "demo" && "$SEED_LEVEL" != "e2e" ]]; then
+  printf '--seed-level must be one of: none, essential, demo, e2e\n' >&2
   exit 1
 fi
 
@@ -261,6 +274,13 @@ fi
 
 log "Running migrations"
 ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE run --rm fastifly-migrate"
+
+if [[ "$SEED_LEVEL" != "none" ]]; then
+  log "Seeding database with '$SEED_LEVEL' data"
+  ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE run --rm fastifly-migrate node ./node_modules/@fastifly/db/dist/seed/cli.js $SEED_LEVEL"
+else
+  log "Skipping database seed (--seed-level none)"
+fi
 
 log "Starting Fastifly stack"
 ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE up -d --build"
