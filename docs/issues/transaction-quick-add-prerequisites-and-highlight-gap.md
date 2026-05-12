@@ -1,6 +1,6 @@
 # Transaction Quick Add Prerequisites And Highlight Gap
 
-Status: open
+Status: resolved
 Phase: 9
 Severity: medium
 
@@ -39,8 +39,18 @@ This causes onboarding friction even when backend behavior is correct.
 3. Keep disabled states explicit:
    - add a tooltip/helper text for why each disabled action is unavailable.
 
-## Blocking Milestone
+## Resolution
 
-- Should be resolved before broader public beta onboarding QA, because it affects first successful
-  transaction creation after initial setup.
+Implemented in:
 
+- `fix(web): add per-type quick-add gating reasons and active-account checks`
+- `fix(web): harden recurring create guardrails with compatibility gating`
+- `refactor(web): centralize quick-add guidance messaging and suggestions`
+
+Delivered changes:
+
+- Per-type quick-add reason codes (`expense`, `income`, `transfer`) instead of one shared reason.
+- Active-account filtering in source/destination compatibility checks.
+- Accurate disabled-state guidance and destination suggestions for each quick action.
+- Recurring/subscription create uses compatibility-based readiness instead of an account-count heuristic.
+- Shared quick-add guidance helper used by both transaction and recurring UI surfaces.
