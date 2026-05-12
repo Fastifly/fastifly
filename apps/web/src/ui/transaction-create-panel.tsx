@@ -46,6 +46,10 @@ import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import { BlockedActionGate } from "./blocked-action-gate";
 import { buildCategoryNameById, CategoryToken } from "./category-metadata";
+import {
+  mapQuickAddReasonToMessage,
+  mapQuickAddReasonToMessageForType,
+} from "./quick-add-guidance";
 
 type TransactionCreatePanelProps = {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -663,54 +667,6 @@ function destinationLabel(type: SimpleTransactionType): string {
   }
 
   return en.transactions.toAccount;
-}
-
-function mapQuickAddReasonToMessage(reason: TransactionQuickAddReason): string {
-  switch (reason) {
-    case "ledger-required":
-      return en.transactions.ledgerRequired;
-    case "add-account":
-      return en.transactions.prerequisites.addAccount;
-    case "add-category":
-      return en.transactions.prerequisites.addCategory;
-    case "add-second-account":
-      return en.transactions.prerequisites.addSecondAccount;
-    case "add-compatible-setup":
-      return en.transactions.prerequisites.addCompatibleSetup;
-    case "categories-loading":
-      return en.transactions.prerequisites.loadingCategories;
-    case "ok":
-      return "";
-  }
-}
-
-function mapQuickAddReasonToMessageForType({
-  reason,
-  type,
-}: {
-  readonly reason: TransactionQuickAddReason;
-  readonly type: SimpleTransactionType;
-}): string {
-  switch (reason) {
-    case "ledger-required":
-      return en.transactions.ledgerRequired;
-    case "add-account":
-      return en.transactions.prerequisites.addAccount;
-    case "add-category":
-      return en.transactions.prerequisites.addCategory;
-    case "add-second-account":
-      return en.transactions.prerequisites.addSecondAccount;
-    case "add-compatible-setup":
-      return type === "expense"
-        ? en.transactions.prerequisites.addCompatibleSetupExpense
-        : type === "income"
-          ? en.transactions.prerequisites.addCompatibleSetupIncome
-          : en.transactions.prerequisites.addCompatibleSetupTransfer;
-    case "categories-loading":
-      return en.transactions.prerequisites.loadingCategories;
-    case "ok":
-      return "";
-  }
 }
 
 function getTransactionFormError(error: unknown): string {

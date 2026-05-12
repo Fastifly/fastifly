@@ -17,12 +17,12 @@ import {
 import {
   getTransactionQuickAddState,
   type SimpleTransactionType,
-  type TransactionQuickAddReason,
 } from "../../../finance/transaction-form";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
 import { buildCategoryNameById, CategoryToken } from "../../category-metadata";
+import { getQuickAddSuggestion, mapQuickAddReasonToMessage } from "../../quick-add-guidance";
 import { GlassSection } from "../shared-components";
 import { formatDateTime } from "../utils";
 import { RecurringCreateDialog } from "./recurring-create-dialog";
@@ -174,9 +174,9 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
   const recurringCreateBlocked = !ledgerContext || !recurringQuickAddState.canCreateAny;
   const recurringCreateReason = !ledgerContext
     ? en.accounts.ledgerRequired
-    : mapRecurringCreateReasonToMessage(recurringQuickAddState.reason);
+    : mapQuickAddReasonToMessage(recurringQuickAddState.reason);
   const recurringCreateSuggestion = recurringCreateBlocked
-    ? getRecurringCreateSuggestion(recurringQuickAddState.reason)
+    ? getQuickAddSuggestion(recurringQuickAddState.reason)
     : undefined;
   const activeCount = templates.filter((item) => item.status === "active").length;
   const pausedCount = templates.filter((item) => item.status === "paused").length;
@@ -241,7 +241,7 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
               data-testid={testIds.recurring.createErrorAlert}
             >
               {ledgerContext
-                ? mapRecurringCreateReasonToMessage(recurringQuickAddState.reason)
+                ? mapQuickAddReasonToMessage(recurringQuickAddState.reason)
                 : en.accounts.ledgerRequired}{" "}
               {recurringQuickAddState.reason === "add-category" ? (
                 <Link
@@ -456,37 +456,6 @@ function chooseRecurringCreateType(
     return "income";
   }
   return "transfer";
-}
-
-function mapRecurringCreateReasonToMessage(reason: TransactionQuickAddReason): string {
-  switch (reason) {
-    case "ledger-required":
-      return en.accounts.ledgerRequired;
-    case "add-account":
-      return en.transactions.prerequisites.addAccount;
-    case "add-category":
-      return en.transactions.prerequisites.addCategory;
-    case "add-second-account":
-      return en.transactions.prerequisites.addSecondAccount;
-    case "add-compatible-setup":
-      return en.transactions.prerequisites.addCompatibleSetup;
-    case "categories-loading":
-      return en.transactions.prerequisites.loadingCategories;
-    case "ok":
-      return "";
-  }
-}
-
-function getRecurringCreateSuggestion(
-  reason: TransactionQuickAddReason,
-): { label: string; to: "/accounts" | "/categories" } | undefined {
-  if (reason === "add-category") {
-    return { label: en.categories.addCategory, to: "/categories" };
-  }
-  if (reason === "ok") {
-    return undefined;
-  }
-  return { label: en.shell.openAccounts, to: "/accounts" };
 }
 
 function StatusBadge({
