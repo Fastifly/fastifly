@@ -39,6 +39,35 @@ describe("transaction form helpers", () => {
     ).toEqual(["acct_cash"]);
   });
 
+  it("ignores inactive accounts while deriving source and destination options", () => {
+    const inactiveAccounts = [
+      account("acct_active_bank", "Active Bank", "asset", "bank"),
+      {
+        ...account("acct_inactive_bank", "Inactive Bank", "asset", "bank"),
+        isActive: false,
+      },
+      account("acct_income", "Salary", "revenue", "external"),
+      account("acct_expense", "Groceries", "expense", "external"),
+    ] as const;
+    const inactiveCategories = [category("cat_expense", "Groceries", "acct_expense")] as const;
+
+    expect(
+      getSourceAccountsForTransaction(inactiveAccounts, "expense").map((item) => item.id),
+    ).toEqual(["acct_active_bank"]);
+    expect(
+      getDestinationAccountsForTransaction(inactiveAccounts, "acct_active_bank", "transfer").map(
+        (item) => item.id,
+      ),
+    ).toEqual([]);
+    expect(
+      getExpenseCategoriesForTransaction(
+        inactiveCategories,
+        inactiveAccounts,
+        "acct_active_bank",
+      ).map((item) => item.id),
+    ).toEqual(["cat_expense"]);
+  });
+
   it("builds the API request without float money parsing", () => {
     expect(
       buildCreateTransactionRequest(
@@ -176,6 +205,43 @@ describe("transaction form helpers", () => {
     ).toMatchObject({
       canCreateAny: true,
       reason: "ok",
+      reasons: {
+        expense: "ok",
+        income: "ok",
+        transfer: "ok",
+      },
+    });
+  });
+
+  it("returns type-specific quick-add reasons when only one flow is currently possible", () => {
+    const expenseOnlyAccounts = [
+      account("acct_bank_only", "Bank", "asset", "bank"),
+      account("acct_grocery_expense", "Groceries", "expense", "external"),
+    ] as const;
+    const expenseOnlyCategories = [
+      category("cat_grocery_expense", "Groceries", "acct_grocery_expense"),
+    ] as const;
+
+    expect(
+      getTransactionQuickAddState({
+        accounts: expenseOnlyAccounts,
+        categories: expenseOnlyCategories,
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      availability: {
+        expense: true,
+        income: false,
+        transfer: false,
+      },
+      canCreateAny: true,
+      reason: "ok",
+      reasons: {
+        expense: "ok",
+        income: "add-compatible-setup",
+        transfer: "add-second-account",
+      },
     });
   });
 });

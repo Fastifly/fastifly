@@ -34,6 +34,11 @@ export type TransactionQuickAddState = {
     readonly transfer: boolean;
   };
   readonly canCreateAny: boolean;
+  readonly reasons: {
+    readonly expense: TransactionQuickAddReason;
+    readonly income: TransactionQuickAddReason;
+    readonly transfer: TransactionQuickAddReason;
+  };
   readonly reason: TransactionQuickAddReason;
 };
 
@@ -42,6 +47,10 @@ export function getSourceAccountsForTransaction(
   type: SimpleTransactionType,
 ): readonly AccountWithBalanceResponse[] {
   return accounts.filter((account) => {
+    if (!account.isActive) {
+      return false;
+    }
+
     if (type === "income") {
       return account.kind === "revenue";
     }
@@ -56,11 +65,14 @@ export function getDestinationAccountsForTransaction(
   type: SimpleTransactionType,
 ): readonly AccountWithBalanceResponse[] {
   const sourceAccount = accounts.find((account) => account.id === sourceAccountId);
-  if (!sourceAccount) {
+  if (!sourceAccount?.isActive) {
     return [];
   }
 
   return accounts.filter((account) => {
+    if (!account.isActive) {
+      return false;
+    }
     if (account.id === sourceAccount.id) {
       return false;
     }
@@ -188,6 +200,12 @@ export function getTransactionQuickAddState({
   readonly categoriesLoading: boolean;
   readonly hasLedgerContext: boolean;
 }): TransactionQuickAddState {
+  const ledgerMissingReasons = {
+    expense: "ledger-required",
+    income: "ledger-required",
+    transfer: "ledger-required",
+  } as const;
+
   if (!hasLedgerContext) {
     return {
       availability: {
@@ -196,6 +214,7 @@ export function getTransactionQuickAddState({
         transfer: false,
       },
       canCreateAny: false,
+      reasons: ledgerMissingReasons,
       reason: "ledger-required",
     };
   }
@@ -203,6 +222,9 @@ export function getTransactionQuickAddState({
   const expenseSources = getSourceAccountsForTransaction(accounts, "expense");
   const incomeSources = getSourceAccountsForTransaction(accounts, "income");
   const transferSources = getSourceAccountsForTransaction(accounts, "transfer");
+  const assetOrLiabilityAccounts = accounts.filter(
+    (account) => account.isActive && (account.kind === "asset" || account.kind === "liability"),
+  );
   const hasAnyExpenseCategoryOption = expenseSources.some(
     (sourceAccount) =>
       getExpenseCategoriesForTransaction(categories, accounts, sourceAccount.id).length > 0,
@@ -218,6 +240,38 @@ export function getTransactionQuickAddState({
       getDestinationAccountsForTransaction(accounts, sourceAccount.id, "transfer").length > 0,
   );
 
+  const expenseReason: TransactionQuickAddReason = expenseReady
+    ? "ok"
+    : categoriesLoading && expenseSources.length > 0
+      ? "categories-loading"
+      : expenseSources.length === 0
+        ? "add-account"
+        : categories.length === 0
+          ? "add-category"
+          : "add-compatible-setup";
+
+  const incomeReason: TransactionQuickAddReason = incomeReady
+    ? "ok"
+    : assetOrLiabilityAccounts.length === 0
+      ? "add-account"
+      : incomeSources.length === 0
+        ? "add-compatible-setup"
+        : "add-compatible-setup";
+
+  const transferReason: TransactionQuickAddReason = transferReady
+    ? "ok"
+    : transferSources.length === 0
+      ? "add-account"
+      : transferSources.length < 2
+        ? "add-second-account"
+        : "add-compatible-setup";
+
+  const reasons = {
+    expense: expenseReason,
+    income: incomeReason,
+    transfer: transferReason,
+  } as const;
+
   const canCreateAny = expenseReady || incomeReady || transferReady;
   if (canCreateAny) {
     return {
@@ -226,17 +280,22 @@ export function getTransactionQuickAddState({
         income: incomeReady,
         transfer: transferReady,
       },
+      reasons,
       canCreateAny: true,
       reason: "ok",
     };
   }
 
-  const assetOrLiabilityAccounts = accounts.filter(
-    (account) => account.kind === "asset" || account.kind === "liability",
-  );
-
   let reason: TransactionQuickAddReason = "add-compatible-setup";
-  if (categoriesLoading && expenseSources.length > 0) {
+  if (
+    expenseReason !== "ok" &&
+    incomeReason !== "ok" &&
+    transferReason !== "ok" &&
+    expenseReason === incomeReason &&
+    incomeReason === transferReason
+  ) {
+    reason = expenseReason;
+  } else if (categoriesLoading && expenseSources.length > 0) {
     reason = "categories-loading";
   } else if (assetOrLiabilityAccounts.length === 0) {
     reason = "add-account";
@@ -255,6 +314,7 @@ export function getTransactionQuickAddState({
       transfer: false,
     },
     canCreateAny: false,
+    reasons,
     reason,
   };
 }

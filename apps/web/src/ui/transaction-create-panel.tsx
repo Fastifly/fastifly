@@ -162,9 +162,9 @@ export function TransactionCreatePanel({
         blocked={!canCreate || !canCreateExpense}
         colored={isVerticalActions || isInlineActions}
         fullWidth={isVerticalActions || isInlineActions}
-        reasonCode={quickAddState.reason}
+        reasonCode={quickAddState.reasons.expense}
         reason={mapQuickAddReasonToMessageForType({
-          reason: quickAddState.reason,
+          reason: quickAddState.reasons.expense,
           type: "expense",
         })}
         icon={ArrowUpRight}
@@ -176,9 +176,9 @@ export function TransactionCreatePanel({
         blocked={!canCreate || !canCreateIncome}
         colored={isVerticalActions || isInlineActions}
         fullWidth={isVerticalActions || isInlineActions}
-        reasonCode={quickAddState.reason}
+        reasonCode={quickAddState.reasons.income}
         reason={mapQuickAddReasonToMessageForType({
-          reason: quickAddState.reason,
+          reason: quickAddState.reasons.income,
           type: "income",
         })}
         icon={ArrowDownLeft}
@@ -190,9 +190,9 @@ export function TransactionCreatePanel({
         blocked={!canCreate || !canCreateTransfer}
         colored={isVerticalActions || isInlineActions}
         fullWidth={isVerticalActions || isInlineActions}
-        reasonCode={quickAddState.reason}
+        reasonCode={quickAddState.reasons.transfer}
         reason={mapQuickAddReasonToMessageForType({
-          reason: quickAddState.reason,
+          reason: quickAddState.reasons.transfer,
           type: "transfer",
         })}
         icon={RefreshCcw}
@@ -640,17 +640,7 @@ function QuickTransactionButton({
                     label: en.shell.openAccounts,
                     to: "/accounts",
                   }
-              : blocked && reasonCode === "ok"
-                ? type === "expense"
-                  ? {
-                      label: en.categories.addCategory,
-                      to: "/categories",
-                    }
-                  : {
-                      label: en.shell.openAccounts,
-                      to: "/accounts",
-                    }
-                : undefined;
+              : undefined;
 
   return (
     <BlockedActionGate blocked={blocked} reason={reason} suggestion={suggestion}>
@@ -719,11 +709,7 @@ function mapQuickAddReasonToMessageForType({
     case "categories-loading":
       return en.transactions.prerequisites.loadingCategories;
     case "ok":
-      return type === "expense"
-        ? en.transactions.prerequisites.addCompatibleSetupExpense
-        : type === "income"
-          ? en.transactions.prerequisites.addCompatibleSetupIncome
-          : en.transactions.prerequisites.addCompatibleSetupTransfer;
+      return "";
   }
 }
 
