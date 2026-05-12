@@ -97,7 +97,7 @@ export function getExpenseCategoriesForTransaction(
       return false;
     }
     const destinationAccount = accountById.get(category.counterpartyAccountId);
-    if (!destinationAccount || !destinationAccount.isActive) {
+    if (!destinationAccount?.isActive) {
       return false;
     }
     if (destinationAccount.currencyCode !== sourceAccount.currencyCode) {
@@ -123,12 +123,10 @@ export function buildCreateTransactionRequest(
 
   if (values.type === "expense") {
     const category = categories.find((item) => item.id === values.categoryId);
-    if (!category || !category.counterpartyAccountId) {
+    if (!category?.counterpartyAccountId) {
       throw new Error("Choose a valid category for this expense.");
     }
-    destinationAccount = accounts.find(
-      (account) => account.id === category.counterpartyAccountId,
-    );
+    destinationAccount = accounts.find((account) => account.id === category.counterpartyAccountId);
     if (!destinationAccount) {
       throw new Error("Category account mapping is missing.");
     }
@@ -210,8 +208,7 @@ export function getTransactionQuickAddState({
       getExpenseCategoriesForTransaction(categories, accounts, sourceAccount.id).length > 0,
   );
 
-  const expenseReady =
-    !categoriesLoading && hasAnyExpenseCategoryOption;
+  const expenseReady = !categoriesLoading && hasAnyExpenseCategoryOption;
   const incomeReady = incomeSources.some(
     (sourceAccount) =>
       getDestinationAccountsForTransaction(accounts, sourceAccount.id, "income").length > 0,

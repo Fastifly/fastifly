@@ -4,7 +4,12 @@ import {
   makeApiError,
   makeValidationError,
 } from "@fastifly/common";
-import { FinanceMutationError, LedgerMutationError, TransactionWriteError } from "@fastifly/db";
+import {
+  CategoryRepositoryError,
+  FinanceMutationError,
+  LedgerMutationError,
+  TransactionWriteError,
+} from "@fastifly/db";
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { FinanceWorkflowServiceError } from "./services/finance-workflows.js";
 
@@ -36,11 +41,7 @@ function isFastifyError(error: unknown): error is FastifyError {
 }
 
 function isFastifyValidationError(error: unknown): error is FastifyError {
-  return (
-    isFastifyError(error) &&
-    error.statusCode === 400 &&
-    Array.isArray(error.validation)
-  );
+  return isFastifyError(error) && error.statusCode === 400 && Array.isArray(error.validation);
 }
 
 function toLedgerMutationHttpError(error: LedgerMutationError): {
@@ -160,6 +161,27 @@ function toTransactionWriteHttpError(error: TransactionWriteError): {
   }
 }
 
+function toCategoryRepositoryHttpError(error: CategoryRepositoryError): {
+  readonly statusCode: number;
+  readonly code: ApiErrorCode;
+  readonly message: string;
+} {
+  switch (error.code) {
+    case "PARENT_NOT_FOUND_OR_ARCHIVED":
+      return {
+        code: "NOT_FOUND",
+        message: "Parent category was not found or is archived.",
+        statusCode: 404,
+      };
+    case "PARENT_CANNOT_BE_SELF":
+      return {
+        code: "BAD_REQUEST",
+        message: "A category cannot be its own parent.",
+        statusCode: 400,
+      };
+  }
+}
+
 function toFinanceWorkflowHttpError(error: FinanceWorkflowServiceError): {
   readonly statusCode: number;
   readonly code: ApiErrorCode;
@@ -257,14 +279,17 @@ function logInternalServerError(
     return;
   }
 
-  request.log.error({
-    code,
-    ...(error instanceof Error ? { err: error } : { error }),
-    method: request.method,
-    requestId: getRequestId(request),
-    statusCode,
-    url: request.url,
-  }, "Request failed with internal server error");
+  request.log.error(
+    {
+      code,
+      ...(error instanceof Error ? { err: error } : { error }),
+      method: request.method,
+      requestId: getRequestId(request),
+      statusCode,
+      url: request.url,
+    },
+    "Request failed with internal server error",
+  );
 }
 
 export function registerErrorHandlers(app: FastifyInstance): void {
@@ -328,6 +353,22 @@ export function registerErrorHandlers(app: FastifyInstance): void {
 
     if (error instanceof TransactionWriteError) {
       const mappedError = toTransactionWriteHttpError(error);
+      logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
+      sendError(
+        reply,
+        mappedError.statusCode,
+        makeApiError({
+          code: mappedError.code,
+          message: mappedError.message,
+          details: {},
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof CategoryRepositoryError) {
+      const mappedError = toCategoryRepositoryHttpError(error);
       logInternalServerError(request, error, mappedError.statusCode, mappedError.code);
       sendError(
         reply,

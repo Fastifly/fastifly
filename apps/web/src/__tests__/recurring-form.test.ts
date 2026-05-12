@@ -223,39 +223,42 @@ describe("recurring form helpers", () => {
   });
 
   it("maps existing template values for edit prefill", () => {
-    const values = makeRecurringFormValuesFromTemplate({
-      archivedAt: null,
-      cadence: "monthly",
-      createdAt: "2026-05-10T00:00:00.000Z",
-      createdBy: "019dfbac-0000-7000-8000-000000000003",
-      id: "019dfbac-0000-7000-8000-000000000004",
-      intervalCount: 1,
-      lastGeneratedAt: null,
-      ledgerId: "019dfbac-0000-7000-8000-000000000001",
-      nextRunAt: "2026-05-15T12:00:00.000Z",
-      payload: {
-        currencyCode: "INR",
-        description: "Netflix",
-        lines: [
-          {
-            amountMinor: "49999",
-            budgetId: null,
-            categoryId: "cat_groceries",
-            description: "Netflix",
-            destinationAccountId: "acct_groceries",
-            reportingAmountMinor: null,
-            reportingCurrencyCode: null,
-          },
-        ],
-        sourceAccountId: "acct_bank",
-        title: "Netflix subscription",
-        type: "expense",
+    const values = makeRecurringFormValuesFromTemplate(
+      {
+        archivedAt: null,
+        cadence: "monthly",
+        createdAt: "2026-05-10T00:00:00.000Z",
+        createdBy: "019dfbac-0000-7000-8000-000000000003",
+        id: "019dfbac-0000-7000-8000-000000000004",
+        intervalCount: 1,
+        lastGeneratedAt: null,
+        ledgerId: "019dfbac-0000-7000-8000-000000000001",
+        nextRunAt: "2026-05-15T12:00:00.000Z",
+        payload: {
+          currencyCode: "INR",
+          description: "Netflix",
+          lines: [
+            {
+              amountMinor: "49999",
+              budgetId: null,
+              categoryId: "cat_groceries",
+              description: "Netflix",
+              destinationAccountId: "acct_groceries",
+              reportingAmountMinor: null,
+              reportingCurrencyCode: null,
+            },
+          ],
+          sourceAccountId: "acct_bank",
+          title: "Netflix subscription",
+          type: "expense",
+        },
+        status: "active",
+        updatedAt: "2026-05-10T00:00:00.000Z",
+        updatedBy: "019dfbac-0000-7000-8000-000000000003",
+        workspaceId: "019dfbac-0000-7000-8000-000000000002",
       },
-      status: "active",
-      updatedAt: "2026-05-10T00:00:00.000Z",
-      updatedBy: "019dfbac-0000-7000-8000-000000000003",
-      workspaceId: "019dfbac-0000-7000-8000-000000000002",
-    }, categories);
+      categories,
+    );
 
     expect(values).toEqual({
       amount: "499.99",
@@ -296,11 +299,7 @@ function account(
   };
 }
 
-function category(
-  id: string,
-  name: string,
-  counterpartyAccountId: string,
-): CategoryResponse {
+function category(id: string, name: string, counterpartyAccountId: string): CategoryResponse {
   return {
     archivedAt: null,
     color: null,

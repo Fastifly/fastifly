@@ -1,4 +1,11 @@
-import { createUuidV7, encodeFinanceCursor, type LedgerScope, parseFinanceCursor, parseSyncedId, type SyncedId } from "@fastifly/common";
+import {
+  createUuidV7,
+  encodeFinanceCursor,
+  type LedgerScope,
+  parseFinanceCursor,
+  parseSyncedId,
+  type SyncedId,
+} from "@fastifly/common";
 import { and, asc, eq, gt, isNull, or, type SQL } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
@@ -42,6 +49,14 @@ export type ArchiveCategoryInput = LedgerScope & {
   readonly categoryId: SyncedId;
 };
 
+export type UpdateCategoryInput = LedgerScope & {
+  readonly categoryId: SyncedId;
+  readonly color?: string | null;
+  readonly icon?: string | null;
+  readonly name?: string;
+  readonly parentId?: SyncedId | null;
+};
+
 export type FindCategoryInput = LedgerScope & {
   readonly categoryId: SyncedId;
 };
@@ -55,6 +70,7 @@ export type ListCategoriesInput = LedgerScope & {
 export type CategoryRepository = {
   readonly createCategory: (input: CreateCategoryInput) => MaybePromise<CategoryRecord>;
   readonly archiveCategory: (input: ArchiveCategoryInput) => MaybePromise<CategoryRecord | null>;
+  readonly updateCategory: (input: UpdateCategoryInput) => MaybePromise<CategoryRecord | null>;
   readonly findCategory: (input: FindCategoryInput) => MaybePromise<CategoryRecord | null>;
   readonly listCategories: (
     input: ListCategoriesInput,
@@ -63,7 +79,7 @@ export type CategoryRepository = {
 
 type MaybePromise<T> = T | Promise<T>;
 
-type CategoryRepositoryErrorCode = "PARENT_NOT_FOUND_OR_ARCHIVED";
+type CategoryRepositoryErrorCode = "PARENT_NOT_FOUND_OR_ARCHIVED" | "PARENT_CANNOT_BE_SELF";
 
 export class CategoryRepositoryError extends Error {
   constructor(
@@ -174,6 +190,72 @@ export function createSqliteCategoryRepository(
       return row ? toSqliteCategoryRecord(row) : null;
     },
 
+    updateCategory(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeUpdateCategoryInput(input);
+      const now = makeTimestamp(resolved.clock);
+
+      return client
+        .transaction(() => {
+          const current = client
+            .prepare<unknown[], SqliteCategoryRow>(
+              `
+                SELECT *
+                FROM categories
+                WHERE id = ?
+                  AND workspace_id = ?
+                  AND ledger_id = ?
+                  AND archived_at IS NULL
+                LIMIT 1
+              `,
+            )
+            .get(input.categoryId, scope.workspaceId, scope.ledgerId);
+          if (!current) {
+            return null;
+          }
+
+          if (normalized.parentId === input.categoryId) {
+            throw new CategoryRepositoryError(
+              "A category cannot be its own parent.",
+              "PARENT_CANNOT_BE_SELF",
+            );
+          }
+          if (normalized.parentId) {
+            assertSqliteParentCategory(client, scope, normalized.parentId);
+          }
+
+          const row = client
+            .prepare<unknown[], SqliteCategoryRow>(
+              `
+                UPDATE categories
+                SET
+                  name = ?,
+                  parent_id = ?,
+                  color = ?,
+                  icon = ?,
+                  updated_at = ?
+                WHERE id = ?
+                  AND workspace_id = ?
+                  AND ledger_id = ?
+                  AND archived_at IS NULL
+                RETURNING *
+              `,
+            )
+            .get(
+              normalized.name ?? current.name,
+              normalized.parentId !== undefined ? normalized.parentId : current.parent_id,
+              normalized.color !== undefined ? normalized.color : current.color,
+              normalized.icon !== undefined ? normalized.icon : current.icon,
+              now,
+              input.categoryId,
+              scope.workspaceId,
+              scope.ledgerId,
+            );
+          return row ? toSqliteCategoryRecord(row) : null;
+        })
+        .immediate();
+    },
+
     findCategory(input) {
       const scope = assertLedgerScope(input);
       const row = client
@@ -195,9 +277,7 @@ export function createSqliteCategoryRepository(
     listCategories(input) {
       const scope = assertLedgerScope(input);
       const limit = normalizeCategoryQueryLimit(input.limit);
-      const cursor = input.cursor
-        ? parseFinanceCursor(input.cursor, CATEGORY_CURSOR_KIND)
-        : null;
+      const cursor = input.cursor ? parseFinanceCursor(input.cursor, CATEGORY_CURSOR_KIND) : null;
       const includeArchived = Boolean(input.includeArchived);
       const archivedClause = includeArchived ? "" : "AND archived_at IS NULL";
       const cursorClause = cursor ? "AND (name > ? OR (name = ? AND id > ?))" : "";
@@ -285,6 +365,60 @@ export function createPostgresCategoryRepository(
       return row ? toPostgresCategoryRecord(row) : null;
     },
 
+    async updateCategory(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeUpdateCategoryInput(input);
+      const now = resolved.clock.now();
+
+      const currentRows = await db
+        .select()
+        .from(pgCategories)
+        .where(
+          and(
+            eq(pgCategories.id, input.categoryId),
+            eq(pgCategories.workspaceId, scope.workspaceId),
+            eq(pgCategories.ledgerId, scope.ledgerId),
+            isNull(pgCategories.archivedAt),
+          ),
+        )
+        .limit(1);
+      const current = currentRows[0];
+      if (!current) {
+        return null;
+      }
+
+      if (normalized.parentId === input.categoryId) {
+        throw new CategoryRepositoryError(
+          "A category cannot be its own parent.",
+          "PARENT_CANNOT_BE_SELF",
+        );
+      }
+      if (normalized.parentId) {
+        await assertPostgresParentCategory(db, scope, normalized.parentId);
+      }
+
+      const rows = await db
+        .update(pgCategories)
+        .set({
+          color: normalized.color !== undefined ? normalized.color : current.color,
+          icon: normalized.icon !== undefined ? normalized.icon : current.icon,
+          name: normalized.name ?? current.name,
+          parentId: normalized.parentId !== undefined ? normalized.parentId : current.parentId,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(pgCategories.id, input.categoryId),
+            eq(pgCategories.workspaceId, scope.workspaceId),
+            eq(pgCategories.ledgerId, scope.ledgerId),
+            isNull(pgCategories.archivedAt),
+          ),
+        )
+        .returning();
+      const row = rows[0];
+      return row ? toPostgresCategoryRecord(row) : null;
+    },
+
     async findCategory(input) {
       const scope = assertLedgerScope(input);
       const rows = await db
@@ -306,9 +440,7 @@ export function createPostgresCategoryRepository(
     async listCategories(input) {
       const scope = assertLedgerScope(input);
       const limit = normalizeCategoryQueryLimit(input.limit);
-      const cursor = input.cursor
-        ? parseFinanceCursor(input.cursor, CATEGORY_CURSOR_KIND)
-        : null;
+      const cursor = input.cursor ? parseFinanceCursor(input.cursor, CATEGORY_CURSOR_KIND) : null;
       const conditions: SQL[] = [
         eq(pgCategories.workspaceId, scope.workspaceId),
         eq(pgCategories.ledgerId, scope.ledgerId),
@@ -356,6 +488,44 @@ function normalizeCreateCategoryInput(input: CreateCategoryInput): {
     color: normalizeOptionalField(input.color),
     icon: normalizeOptionalField(input.icon),
   };
+}
+
+function normalizeUpdateCategoryInput(input: UpdateCategoryInput): {
+  readonly color?: string | null;
+  readonly icon?: string | null;
+  readonly name?: string;
+  readonly parentId?: SyncedId | null;
+} {
+  return {
+    ...(input.name !== undefined
+      ? {
+          name: normalizeRequiredName(input.name),
+        }
+      : {}),
+    ...(input.color !== undefined
+      ? {
+          color: normalizeOptionalField(input.color),
+        }
+      : {}),
+    ...(input.icon !== undefined
+      ? {
+          icon: normalizeOptionalField(input.icon),
+        }
+      : {}),
+    ...(input.parentId !== undefined
+      ? {
+          parentId: input.parentId,
+        }
+      : {}),
+  };
+}
+
+function normalizeRequiredName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Category name is required.");
+  }
+  return trimmed;
 }
 
 function normalizeOptionalField(value: string | null | undefined): string | null {

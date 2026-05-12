@@ -12,14 +12,13 @@ import {
 } from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
-import { Check } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, CircleOff } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getDestinationAccountsForRecurring,
   getExpenseCategoriesForRecurring,
   getMinimumFutureDateInput,
-  getRecurringFormIssues,
   getSourceAccountsForRecurring,
   makeRecurringFormDefaults,
   type RecurringCreateDefaults,
@@ -27,6 +26,8 @@ import {
 } from "../../../finance/recurring-form";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
+import { BlockedActionGate } from "../../blocked-action-gate";
+import { buildCategoryNameById, getCategoryIconComponent } from "../../category-metadata";
 import {
   AccountChooser,
   FormField,
@@ -62,6 +63,7 @@ export function RecurringCreateDialog({
 }: RecurringCreateDialogProps) {
   const [showDescription, setShowDescription] = useState(false);
   const minimumStartDate = useMemo(() => getMinimumFutureDateInput(), []);
+  const categoryNameById = useMemo(() => buildCategoryNameById(categories), [categories]);
   const defaultValues = useMemo(
     () =>
       initialValues ??
@@ -155,11 +157,7 @@ export function RecurringCreateDialog({
               );
               const expenseCategories =
                 values.type === "expense"
-                  ? getExpenseCategoriesForRecurring(
-                      categories,
-                      accounts,
-                      values.sourceAccountId,
-                    )
+                  ? getExpenseCategoriesForRecurring(categories, accounts, values.sourceAccountId)
                   : [];
               const sourcePreferredIds =
                 values.type === "expense"
@@ -301,7 +299,10 @@ export function RecurringCreateDialog({
                           <OptionChooser
                             onValueChange={field.handleChange}
                             options={expenseCategories.map((category) => ({
-                              label: category.name,
+                              label: renderRecurringCategoryOption({
+                                category,
+                                categoryNameById,
+                              }),
                               value: category.id,
                             }))}
                             preferredOptionIds={destinationPreferredIds}
@@ -317,9 +318,11 @@ export function RecurringCreateDialog({
                             value={field.state.value}
                           />
                         )}
-                        {(values.type === "expense"
-                          ? expenseCategories.length === 0
-                          : destinationAccounts.length === 0) ? (
+                        {(
+                          values.type === "expense"
+                            ? expenseCategories.length === 0
+                            : destinationAccounts.length === 0
+                        ) ? (
                           <ShadcnFieldError>
                             {en.recurring.noCompatibleDestinationAccounts}
                           </ShadcnFieldError>
@@ -413,31 +416,18 @@ export function RecurringCreateDialog({
                 {en.rules.cancel}
               </Button>
             </DialogClose>
-            <form.Subscribe
-              selector={(state) => ({ canSubmit: state.canSubmit, values: state.values })}
-            >
-              {({ canSubmit, values }) => {
-                const hasGuardrailIssues =
-                  getRecurringFormIssues(values, accounts, categories).length > 0;
-
-                return (
-                  <Button
-                    data-testid={testIds.recurring.createSaveButton}
-                    disabled={isSubmitting || !canSubmit || hasGuardrailIssues}
-                    type="submit"
-                  >
-                    <Check aria-hidden="true" />
-                    {isSubmitting
-                      ? mode === "create"
-                        ? en.recurring.creating
-                        : en.recurring.updating
-                      : mode === "create"
-                        ? en.recurring.save
-                        : en.recurring.update}
-                  </Button>
-                );
-              }}
-            </form.Subscribe>
+            <BlockedActionGate blocked={isSubmitting} reason={en.actionGate.inProgress}>
+              <Button data-testid={testIds.recurring.createSaveButton} type="submit">
+                <Check aria-hidden="true" />
+                {isSubmitting
+                  ? mode === "create"
+                    ? en.recurring.creating
+                    : en.recurring.updating
+                  : mode === "create"
+                    ? en.recurring.save
+                    : en.recurring.update}
+              </Button>
+            </BlockedActionGate>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -452,4 +442,32 @@ function hasNameToken(name: string, ...tokens: readonly string[]): boolean {
   }
 
   return tokens.some((token) => normalized.includes(token));
+}
+
+function renderRecurringCategoryOption(input: {
+  readonly category: CategoryResponse;
+  readonly categoryNameById: ReadonlyMap<string, string>;
+}): ReactNode {
+  const { category, categoryNameById } = input;
+  const parentName = category.parentId ? (categoryNameById.get(category.parentId) ?? null) : null;
+  const CategoryIcon = getCategoryIconComponent(category.icon);
+
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+        style={{ backgroundColor: category.color ?? "#94a3b8" }}
+      />
+      {CategoryIcon ? (
+        <CategoryIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      ) : (
+        <CircleOff aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate">
+        {category.name}
+        {parentName ? <span className="text-muted-foreground"> · {parentName}</span> : null}
+      </span>
+    </span>
+  );
 }

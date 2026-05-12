@@ -15,9 +15,7 @@ const accounts = [
   account("acct_salary", "Salary", "revenue", "external"),
   account("acct_groceries", "Groceries", "expense", "external"),
 ] as const;
-const categories = [
-  category("cat_groceries", "Groceries", "acct_groceries"),
-] as const;
+const categories = [category("cat_groceries", "Groceries", "acct_groceries")] as const;
 
 describe("transaction form helpers", () => {
   it("offers compatible accounts for each simple transaction type", () => {
@@ -207,11 +205,7 @@ function account(
   };
 }
 
-function category(
-  id: string,
-  name: string,
-  counterpartyAccountId: string,
-): CategoryResponse {
+function category(id: string, name: string, counterpartyAccountId: string): CategoryResponse {
   return {
     archivedAt: null,
     color: null,

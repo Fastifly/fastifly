@@ -6,8 +6,8 @@ import type {
 import { parseDecimalMoneyToMinor } from "@fastifly/common";
 
 import {
-  getExpenseCategoriesForTransaction,
   getDestinationAccountsForTransaction,
+  getExpenseCategoriesForTransaction,
   getSourceAccountsForTransaction,
   type SimpleTransactionType,
 } from "./transaction-form";
@@ -109,13 +109,11 @@ export function buildCreateRecurringTemplateRequest(
 
   if (values.type === "expense") {
     const category = categories.find((item) => item.id === values.categoryId);
-    if (!category || !category.counterpartyAccountId) {
+    if (!category?.counterpartyAccountId) {
       throw new Error("Choose a valid category for this subscription.");
     }
 
-    destinationAccount = accounts.find(
-      (account) => account.id === category.counterpartyAccountId,
-    );
+    destinationAccount = accounts.find((account) => account.id === category.counterpartyAccountId);
     if (!destinationAccount) {
       throw new Error("Category account mapping is missing.");
     }
@@ -292,7 +290,9 @@ export function makeRecurringFormDefaults(
     resolvedType === "expense"
       ? undefined
       : ((createDefaults.destinationAccountId
-          ? destinationOptions?.find((account) => account.id === createDefaults.destinationAccountId)
+          ? destinationOptions?.find(
+              (account) => account.id === createDefaults.destinationAccountId,
+            )
           : null) ?? destinationOptions?.[0]);
   const categoryOptions =
     sourceAccount && resolvedType === "expense"

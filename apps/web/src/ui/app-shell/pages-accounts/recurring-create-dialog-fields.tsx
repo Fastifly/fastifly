@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import { en } from "../../../i18n/en";
 
 type ChoiceOption = {
-  readonly label: string;
+  readonly label: ReactNode;
   readonly value: string;
 };
 
@@ -83,11 +83,7 @@ export function OptionChooser({
 
   return (
     <div className="space-y-2" data-testid={selectTestId}>
-      <InlineChoiceGroup
-        onValueChange={onValueChange}
-        options={quickOptions}
-        value={quickValue}
-      />
+      <InlineChoiceGroup onValueChange={onValueChange} options={quickOptions} value={quickValue} />
 
       <Select onValueChange={onValueChange} {...(overflowValue ? { value: overflowValue } : {})}>
         <SelectTrigger>
@@ -116,7 +112,7 @@ export function InlineChoiceGroup({
 }: {
   readonly onValueChange: (value: string) => void;
   readonly options: readonly {
-    readonly label: string;
+    readonly label: ReactNode;
     readonly value: string;
   }[];
   readonly testId?: string;
@@ -139,7 +135,7 @@ export function InlineChoiceGroup({
             key={option.value}
           >
             <RadioGroupItem className="size-3.5" id={id} value={option.value} />
-            <span className="truncate">{option.label}</span>
+            <span className="min-w-0 truncate">{option.label}</span>
           </Label>
         );
       })}

@@ -65,7 +65,10 @@ export function deriveRecurringCreateDefaults(
   const preferredDestinationAccountId =
     preferredType === "expense"
       ? undefined
-      : pickMostCommon(sourceScopedCandidates, (template) => template.payload.lines[0]?.destinationAccountId);
+      : pickMostCommon(
+          sourceScopedCandidates,
+          (template) => template.payload.lines[0]?.destinationAccountId,
+        );
 
   return {
     type: preferredType,
