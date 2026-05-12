@@ -47,8 +47,14 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
       }>().data.category;
       expect(rentCategory.counterpartyAccountId).toBeTruthy();
 
-      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId!;
-      const rentCounterpartyAccountId = rentCategory.counterpartyAccountId!;
+      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId;
+      if (!groceriesCounterpartyAccountId) {
+        throw new Error("Expected RAW Groceries category to include a counterparty account.");
+      }
+      const rentCounterpartyAccountId = rentCategory.counterpartyAccountId;
+      if (!rentCounterpartyAccountId) {
+        throw new Error("Expected Rent category to include a counterparty account.");
+      }
 
       const csvText = [
         "type,sourceAccountId,destinationAccountId,amountMinor,currencyCode,occurredAt,description",

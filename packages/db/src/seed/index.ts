@@ -212,6 +212,13 @@ const seedAccounts = [
     sequenceBase: 33_000,
     subtype: "external",
   },
+  {
+    id: SEED_IDS.ACCOUNT_ENTERTAINMENT,
+    kind: "expense",
+    name: "Entertainment",
+    sequenceBase: 34_000,
+    subtype: "external",
+  },
 ] as const satisfies readonly SeedAccount[];
 
 const demoTransactions = [
@@ -531,14 +538,17 @@ export async function seedDatabase(input: SeedDatabaseInput): Promise<void> {
 
 export async function seedSqlite(client: SqliteClient, level: SeedLevel): Promise<void> {
   const db = createSqliteDatabaseFromClient(client);
-  await seedEssentialSqlite(db);
+  await runSeedStage("sqlite:essential-currencies", () => seedEssentialSqlite(db));
   if (level === "essential") {
+    await runSeedStage("sqlite:foundation", () => seedFoundationSqlite(db));
+    await runSeedStage("sqlite:accounts", () => seedAccountsSqlite(client));
+    await runSeedStage("sqlite:reference-data", () => seedReferenceDataSqlite(db));
     return;
   }
 
-  await seedDemoSqlite(client, db);
+  await runSeedStage("sqlite:demo", () => seedDemoSqlite(client, db));
   if (level === "e2e") {
-    await seedE2eSqlite(client, db);
+    await runSeedStage("sqlite:e2e", () => seedE2eSqlite(client, db));
   }
 }
 
@@ -548,14 +558,25 @@ export async function seedPostgres(client: PostgresClient, level: SeedLevel): Pr
 }
 
 export async function seedPostgresDatabase(db: PostgresDatabase, level: SeedLevel): Promise<void> {
-  await seedEssentialPostgres(db);
+  await runSeedStage("postgres:essential-currencies", () => seedEssentialPostgres(db));
   if (level === "essential") {
+    await runSeedStage("postgres:foundation", () => seedFoundationPostgres(db));
+    await runSeedStage("postgres:accounts", () => seedAccountsPostgres(db));
+    await runSeedStage("postgres:reference-data", () => seedReferenceDataPostgres(db));
     return;
   }
 
-  await seedDemoPostgres(db);
+  await runSeedStage("postgres:demo", () => seedDemoPostgres(db));
   if (level === "e2e") {
-    await seedE2ePostgres(db);
+    await runSeedStage("postgres:e2e", () => seedE2ePostgres(db));
+  }
+}
+
+async function runSeedStage(label: string, task: () => Promise<void>): Promise<void> {
+  try {
+    await task();
+  } catch (error) {
+    throw new Error(`Seed stage failed: ${label}`, { cause: error });
   }
 }
 
@@ -584,19 +605,23 @@ async function seedEssentialPostgres(db: PostgresDatabase): Promise<void> {
 }
 
 async function seedDemoSqlite(client: SqliteClient, db: SqliteDatabase): Promise<void> {
-  await seedFoundationSqlite(db);
-  await seedReferenceDataSqlite(db);
-  await seedBudgetLimitsSqlite(db);
-  await seedAccountsSqlite(client);
-  await seedTransactionsSqlite(client, demoTransactions);
+  await runSeedStage("sqlite:demo:foundation", () => seedFoundationSqlite(db));
+  await runSeedStage("sqlite:demo:accounts", () => seedAccountsSqlite(client));
+  await runSeedStage("sqlite:demo:reference-data", () => seedReferenceDataSqlite(db));
+  await runSeedStage("sqlite:demo:budget-limits", () => seedBudgetLimitsSqlite(db));
+  await runSeedStage("sqlite:demo:transactions", () =>
+    seedTransactionsSqlite(client, demoTransactions),
+  );
 }
 
 async function seedDemoPostgres(db: PostgresDatabase): Promise<void> {
-  await seedFoundationPostgres(db);
-  await seedReferenceDataPostgres(db);
-  await seedBudgetLimitsPostgres(db);
-  await seedAccountsPostgres(db);
-  await seedTransactionsPostgres(db, demoTransactions);
+  await runSeedStage("postgres:demo:foundation", () => seedFoundationPostgres(db));
+  await runSeedStage("postgres:demo:accounts", () => seedAccountsPostgres(db));
+  await runSeedStage("postgres:demo:reference-data", () => seedReferenceDataPostgres(db));
+  await runSeedStage("postgres:demo:budget-limits", () => seedBudgetLimitsPostgres(db));
+  await runSeedStage("postgres:demo:transactions", () =>
+    seedTransactionsPostgres(db, demoTransactions),
+  );
 }
 
 async function seedE2eSqlite(client: SqliteClient, db: SqliteDatabase): Promise<void> {
@@ -806,25 +831,70 @@ async function seedReferenceDataSqlite(db: SqliteDatabase): Promise<void> {
   await db
     .insert(sqliteCategories)
     .values([
-      categoryRow(SEED_IDS.CATEGORY_FOOD, "Food", null, "#10b981", "utensils"),
-      categoryRow(
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_FOOD,
+        "Food",
+        null,
+        SEED_IDS.ACCOUNT_GROCERIES,
+        "#10b981",
+        "utensils",
+      ),
+      categoryRowWithCounterparty(
         SEED_IDS.CATEGORY_GROCERIES,
         "Groceries",
         SEED_IDS.CATEGORY_FOOD,
+        SEED_IDS.ACCOUNT_GROCERIES,
         "#22c55e",
         "shopping-basket",
       ),
-      categoryRow(
+      categoryRowWithCounterparty(
         SEED_IDS.CATEGORY_DINING,
         "Dining Out",
         SEED_IDS.CATEGORY_FOOD,
-        "#f97316",
-        "coffee",
+        SEED_IDS.ACCOUNT_DINING,
+        "#34d399",
+        "utensils-crossed",
       ),
-      categoryRow(SEED_IDS.CATEGORY_HOUSING, "Housing", null, "#6366f1", "home"),
-      categoryRow(SEED_IDS.CATEGORY_TRANSPORT, "Transport", null, "#0ea5e9", "train"),
-      categoryRow(SEED_IDS.CATEGORY_HEALTH, "Healthcare", null, "#ef4444", "heart-pulse"),
-      categoryRow(SEED_IDS.CATEGORY_SHOPPING, "Shopping", null, "#a855f7", "shopping-bag"),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_HOUSING,
+        "Housing",
+        null,
+        SEED_IDS.ACCOUNT_RENT,
+        "#64748b",
+        "house",
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_TRANSPORT,
+        "Transport",
+        null,
+        SEED_IDS.ACCOUNT_TRANSPORT,
+        "#0ea5e9",
+        "train",
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_HEALTH,
+        "Healthcare",
+        null,
+        SEED_IDS.ACCOUNT_HEALTH,
+        "#ef4444",
+        "heart-pulse",
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_SHOPPING,
+        "Shopping",
+        null,
+        SEED_IDS.ACCOUNT_SHOPPING,
+        "#a855f7",
+        "shopping-bag",
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_ENTERTAINMENT,
+        "Entertainment",
+        null,
+        SEED_IDS.ACCOUNT_ENTERTAINMENT,
+        "#f59e0b",
+        "clapperboard",
+      ),
     ])
     .onConflictDoUpdate({ target: sqliteCategories.id, set: { updatedAt: SEED_NOW } });
 
@@ -863,27 +933,78 @@ async function seedReferenceDataPostgres(db: PostgresDatabase): Promise<void> {
   await db
     .insert(pgCategories)
     .values([
-      categoryRow(SEED_IDS.CATEGORY_FOOD, "Food", null, "#10b981", "utensils", now),
-      categoryRow(
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_FOOD,
+        "Food",
+        null,
+        SEED_IDS.ACCOUNT_GROCERIES,
+        "#10b981",
+        "utensils",
+        now,
+      ),
+      categoryRowWithCounterparty(
         SEED_IDS.CATEGORY_GROCERIES,
         "Groceries",
         SEED_IDS.CATEGORY_FOOD,
+        SEED_IDS.ACCOUNT_GROCERIES,
         "#22c55e",
         "shopping-basket",
         now,
       ),
-      categoryRow(
+      categoryRowWithCounterparty(
         SEED_IDS.CATEGORY_DINING,
         "Dining Out",
         SEED_IDS.CATEGORY_FOOD,
-        "#f97316",
-        "coffee",
+        SEED_IDS.ACCOUNT_DINING,
+        "#34d399",
+        "utensils-crossed",
         now,
       ),
-      categoryRow(SEED_IDS.CATEGORY_HOUSING, "Housing", null, "#6366f1", "home", now),
-      categoryRow(SEED_IDS.CATEGORY_TRANSPORT, "Transport", null, "#0ea5e9", "train", now),
-      categoryRow(SEED_IDS.CATEGORY_HEALTH, "Healthcare", null, "#ef4444", "heart-pulse", now),
-      categoryRow(SEED_IDS.CATEGORY_SHOPPING, "Shopping", null, "#a855f7", "shopping-bag", now),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_HOUSING,
+        "Housing",
+        null,
+        SEED_IDS.ACCOUNT_RENT,
+        "#64748b",
+        "house",
+        now,
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_TRANSPORT,
+        "Transport",
+        null,
+        SEED_IDS.ACCOUNT_TRANSPORT,
+        "#0ea5e9",
+        "train",
+        now,
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_HEALTH,
+        "Healthcare",
+        null,
+        SEED_IDS.ACCOUNT_HEALTH,
+        "#ef4444",
+        "heart-pulse",
+        now,
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_SHOPPING,
+        "Shopping",
+        null,
+        SEED_IDS.ACCOUNT_SHOPPING,
+        "#a855f7",
+        "shopping-bag",
+        now,
+      ),
+      categoryRowWithCounterparty(
+        SEED_IDS.CATEGORY_ENTERTAINMENT,
+        "Entertainment",
+        null,
+        SEED_IDS.ACCOUNT_ENTERTAINMENT,
+        "#f59e0b",
+        "clapperboard",
+        now,
+      ),
     ])
     .onConflictDoUpdate({ target: pgCategories.id, set: { updatedAt: now } });
 
@@ -1101,10 +1222,11 @@ function createSeedIdGenerator(first: SyncedId, sequenceBase: number): () => Syn
   };
 }
 
-function categoryRow<TNow extends Date | string = string>(
+function categoryRowWithCounterparty<TNow extends Date | string = string>(
   id: SyncedId,
   name: string,
   parentId: SyncedId | null,
+  counterpartyAccountId: SyncedId,
   color: string,
   icon: string,
   now: TNow = SEED_NOW as TNow,
@@ -1114,6 +1236,7 @@ function categoryRow<TNow extends Date | string = string>(
     workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
     ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
     parentId,
+    counterpartyAccountId,
     name,
     color,
     icon,

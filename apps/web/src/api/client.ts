@@ -37,6 +37,8 @@ import {
   type LoginCredentials,
   type MeContextResponse,
   MeContextResponseSchema,
+  type NetWorthTrendResponse,
+  NetWorthTrendResponseSchema,
   type RecurringTemplateResponse,
   type RegisterCredentials,
   RuleApplyResponseSchema,
@@ -47,6 +49,8 @@ import {
   type SyncStatusResponse,
   SyncStatusResponseSchema,
   UndoImportJobResponseSchema,
+  type UpdateCategoryRequest,
+  UpdateCategoryResponseSchema,
 } from "@fastifly/common";
 import createClient from "openapi-fetch";
 import { notifySessionExpired } from "../auth/session-events";
@@ -89,6 +93,9 @@ export type ApiClient = {
   ) => Promise<ImportJobResponse>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
   readonly createCategory: (input: LedgerPathInput & CreateCategoryRequest) => Promise<void>;
+  readonly updateCategory: (
+    input: LedgerPathInput & { readonly categoryId: string } & UpdateCategoryRequest,
+  ) => Promise<void>;
   readonly createImportCsv: (
     input: LedgerPathInput & {
       readonly csvText: string;
@@ -127,6 +134,9 @@ export type ApiClient = {
     input: LedgerPathInput & { readonly importJobId: string },
   ) => Promise<ImportJobResponse>;
   readonly getMeContext: () => Promise<MeContextResponse>;
+  readonly getNetWorthTrend: (
+    input: LedgerPathInput & { readonly months?: number },
+  ) => Promise<NetWorthTrendResponse["data"]>;
   readonly getRecurringTemplate: (
     input: LedgerPathInput & { readonly templateId: string },
   ) => Promise<RecurringTemplateResponse>;
@@ -382,6 +392,37 @@ export const apiClient: ApiClient = {
       );
     });
   },
+  async updateCategory(input) {
+    const { categoryId, ledgerId, workspaceId, ...body } = input;
+    await withCsrf(async (csrfToken) => {
+      UpdateCategoryResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.PATCH(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories/{categoryId}",
+            {
+              body: {
+                ...(body.name !== undefined ? { name: body.name } : {}),
+                ...(body.color !== undefined ? { color: body.color } : {}),
+                ...(body.icon !== undefined ? { icon: body.icon } : {}),
+                ...(body.parentId !== undefined ? { parentId: body.parentId } : {}),
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  categoryId,
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+    });
+  },
   async createImportCsv(input) {
     const { csvText, fileName, ledgerId, workspaceId } = input;
     return await withCsrf(async (csrfToken) => {
@@ -549,6 +590,28 @@ export const apiClient: ApiClient = {
     return MeContextResponseSchema.parse(
       await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/context")),
     );
+  },
+  async getNetWorthTrend(input) {
+    const { ledgerId, months, workspaceId } = input;
+    const response = NetWorthTrendResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET(
+          "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/reports/net-worth",
+          {
+            params: {
+              path: {
+                ledgerId,
+                workspaceId,
+              },
+              query: {
+                ...(months !== undefined ? { months } : {}),
+              },
+            },
+          },
+        ),
+      ),
+    );
+    return response.data;
   },
   async getHealth() {
     return await unwrapOpenApiResponse(await openApiClient.GET("/health"));

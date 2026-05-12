@@ -40,7 +40,7 @@ type SeedCountTable =
   | "users"
   | "workspace_members";
 
-const expectedSeededAccountCount = 13;
+const expectedSeededAccountCount = 14;
 const expectedSeededTransactionCount = 18;
 
 describe("seed data", () => {

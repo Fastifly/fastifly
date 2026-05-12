@@ -14,6 +14,7 @@ import {
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
+  createSqliteReportQueryService,
   createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
@@ -83,6 +84,7 @@ export async function createSqliteE2eSystem(
     deviceRepository: createSqliteDeviceRepository(sqliteClient, { createId }),
     financeMutationService,
     identityRepository,
+    reportQueryService: createSqliteReportQueryService(sqliteClient),
     readiness: { migrations: "ok" },
     syncQueryService: createSyncQueryService({ syncRepository }),
     syncReplayService: createSyncReplayService({

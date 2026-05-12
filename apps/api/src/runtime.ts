@@ -15,6 +15,7 @@ import {
   createPostgresDeviceRepository,
   createPostgresIdentityRepository,
   createPostgresLedgerMutationStore,
+  createPostgresReportQueryService,
   createPostgresSyncRepository,
   createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
@@ -26,6 +27,7 @@ import {
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
   createSqliteLedgerMutationStore,
+  createSqliteReportQueryService,
   createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
@@ -152,6 +154,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
         deviceRepository,
         financeMutationService,
         identityRepository,
+        reportQueryService: createSqliteReportQueryService(client),
         syncReplayService: createSyncReplayService({
           createId,
           financeMutationService,
@@ -226,6 +229,7 @@ async function createPostgresRuntimeDependencies(
         deviceRepository,
         financeMutationService,
         identityRepository,
+        reportQueryService: createPostgresReportQueryService(db),
         syncReplayService: createSyncReplayService({
           createId,
           financeMutationService,

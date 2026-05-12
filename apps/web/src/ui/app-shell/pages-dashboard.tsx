@@ -1,4 +1,4 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import type { AccountWithBalanceResponse, TransactionGroupResponse } from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
@@ -16,7 +16,11 @@ import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
 import { useQueryStates } from "nuqs";
 import { useMemo } from "react";
-import { useCategoriesQuery, useInfiniteTransactionsQuery } from "../../api/queries";
+import {
+  useCategoriesQuery,
+  useInfiniteTransactionsQuery,
+  useNetWorthTrendQuery,
+} from "../../api/queries";
 import {
   ALL_TRANSACTION_FILTER,
   buildTransactionListQuery,
@@ -30,6 +34,7 @@ import { testIds } from "../../testing/testid-registry";
 import { AccountCreateDialog } from "../account-create-panel";
 import { CategoryCreateDialog } from "../category-create-dialog";
 import { TransactionCreatePanel } from "../transaction-create-panel";
+import { DashboardCharts } from "./dashboard-charts";
 import {
   AccountsPage,
   BudgetPage,
@@ -58,7 +63,9 @@ export function DashboardPage({
   ledgerContext,
   liabilities,
   moneySummaryValue,
+  reportingCurrencyCode,
   spending,
+  transactions,
   transactionCount,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -72,11 +79,15 @@ export function DashboardPage({
   } | null;
   readonly liabilities: string;
   readonly moneySummaryValue: string;
+  readonly reportingCurrencyCode: string;
   readonly spending: string;
+  readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionCount: number;
 }) {
   const categoriesQuery = useCategoriesQuery(ledgerContext);
+  const netWorthTrendQuery = useNetWorthTrendQuery(ledgerContext, { months: 6 });
   const categoryCount = categoriesQuery.data?.data.length ?? 0;
+  const categories = categoriesQuery.data?.data ?? [];
   const setupItems = useMemo(
     () => [
       {
@@ -178,7 +189,6 @@ export function DashboardPage({
                           className="bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/25 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                           data-icon="inline-end"
                           data-testid={testIds.accounts.create.openButton}
-                          disabled={!ledgerContext}
                           size="sm"
                           type="button"
                         >
@@ -186,7 +196,6 @@ export function DashboardPage({
                           <ArrowRight aria-hidden="true" />
                         </Button>
                       }
-                      triggerDisabled={!ledgerContext}
                     />
                   ) : isAddCategoryStep ? (
                     <CategoryCreateDialog
@@ -196,7 +205,6 @@ export function DashboardPage({
                           className="bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/25 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                           data-icon="inline-end"
                           data-testid={testIds.categories.create.openButton}
-                          disabled={!ledgerContext}
                           size="sm"
                           type="button"
                         >
@@ -204,7 +212,6 @@ export function DashboardPage({
                           <ArrowRight aria-hidden="true" />
                         </Button>
                       }
-                      triggerDisabled={!ledgerContext}
                     />
                   ) : isFirstTransactionStep ? (
                     <div className="w-full min-w-0">
@@ -297,6 +304,13 @@ export function DashboardPage({
           />
         </section>
 
+        <DashboardCharts
+          categories={categories}
+          currencyCode={reportingCurrencyCode}
+          netWorthTrend={netWorthTrendQuery.data?.points ?? []}
+          transactions={transactions}
+        />
+
         <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
       </div>
 
@@ -329,6 +343,8 @@ export function PageBody({
   syncServerRevision,
   spending,
   spendingRate,
+  reportingCurrencyCode,
+  transactions,
   transactionCount,
   theme,
   transferCount,
@@ -373,6 +389,8 @@ export function PageBody({
   readonly syncServerRevision: string;
   readonly spending: string;
   readonly spendingRate: string;
+  readonly reportingCurrencyCode: string;
+  readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionCount: number;
   readonly theme: Theme;
   readonly onApplyUpdate: () => void;
@@ -474,7 +492,9 @@ export function PageBody({
       ledgerContext={ledgerContext}
       liabilities={liabilities}
       moneySummaryValue={moneySummaryValue}
+      reportingCurrencyCode={reportingCurrencyCode}
       spending={spending}
+      transactions={transactions}
       transactionCount={transactionCount}
     />
   );

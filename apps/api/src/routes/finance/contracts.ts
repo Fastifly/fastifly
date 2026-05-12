@@ -10,6 +10,7 @@ import type {
   CategoryRepository,
   LedgerFinanceMutationService,
   LedgerMutationSideEffectFlags,
+  ReportQueryService,
   TransactionQueryService,
 } from "@fastifly/db";
 import { z } from "zod/v4";
@@ -49,6 +50,7 @@ export type RegisterFinanceRoutesOptions = {
   readonly budgetQueryService?: BudgetQueryService | undefined;
   readonly categoryRepository?: CategoryRepository | undefined;
   readonly financeMutationService?: LedgerFinanceMutationService | undefined;
+  readonly reportQueryService?: ReportQueryService | undefined;
   readonly transactionQueryService?: TransactionQueryService | undefined;
   readonly workflowService?: FinanceWorkflowService | undefined;
 };

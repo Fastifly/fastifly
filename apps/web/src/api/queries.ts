@@ -4,6 +4,7 @@ import type {
   ListCategoriesResponse,
   ListTransactionsQuery,
   ListTransactionsResponse,
+  NetWorthTrendResponse,
   RecurringTemplateResponse,
   RuleResponse,
 } from "@fastifly/common";
@@ -67,6 +68,29 @@ export function useCategoriesQuery(input: LedgerQueryInput) {
       return apiClient.listCategories(input);
     },
     queryKey: ["finance", "categories", input?.workspaceId, input?.ledgerId],
+  });
+}
+
+export function useNetWorthTrendQuery(
+  input: LedgerQueryInput,
+  query: { readonly months?: number } = {},
+) {
+  return useQuery<NetWorthTrendResponse["data"]>({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.getNetWorthTrend({ ...input, ...query });
+    },
+    queryKey: [
+      "finance",
+      "reports",
+      "net-worth",
+      input?.workspaceId,
+      input?.ledgerId,
+      query.months ?? null,
+    ],
   });
 }
 

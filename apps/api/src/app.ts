@@ -10,6 +10,7 @@ import type {
   DeviceRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
+  ReportQueryService,
   SyncQueryService,
   SyncReplayService,
   TransactionQueryService,
@@ -45,6 +46,7 @@ export type BuildApiAppOptions = {
   readonly deviceRepository?: DeviceRepository;
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly identityRepository?: IdentityRepository;
+  readonly reportQueryService?: ReportQueryService;
   readonly readiness?: Partial<ReadinessState>;
   readonly syncQueryService?: SyncQueryService;
   readonly syncReplayService?: SyncReplayService;
@@ -180,6 +182,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     options.budgetQueryService ||
     options.categoryRepository ||
     options.financeMutationService ||
+    options.reportQueryService ||
     options.transactionQueryService ||
     options.workflowService
   ) {
@@ -188,6 +191,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       budgetQueryService: options.budgetQueryService,
       categoryRepository: options.categoryRepository,
       financeMutationService: options.financeMutationService,
+      reportQueryService: options.reportQueryService,
       transactionQueryService: options.transactionQueryService,
       workflowService: options.workflowService,
     });

@@ -109,6 +109,7 @@ export type {
   CreateCategoryInput,
   FindCategoryInput,
   ListCategoriesInput,
+  UpdateCategoryInput,
 } from "./repositories/categories.js";
 export {
   CategoryRepositoryError,
@@ -171,6 +172,17 @@ export {
   normalizeInviteeIdentifier,
   normalizeUsername,
 } from "./repositories/identity.js";
+export type {
+  GetNetWorthTrendInput,
+  NetWorthTrendDirection,
+  NetWorthTrendPointRecord,
+  NetWorthTrendRecord,
+  ReportQueryService,
+} from "./repositories/reports.js";
+export {
+  createPostgresReportQueryService,
+  createSqliteReportQueryService,
+} from "./repositories/reports.js";
 export type {
   RecordSyncConflictInput,
   RecordSyncOperationInput,

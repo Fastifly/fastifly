@@ -41,7 +41,10 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
         data: { category: { counterpartyAccountId: string | null; id: string } };
       }>().data.category;
       expect(groceriesCategory.counterpartyAccountId).toBeTruthy();
-      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId!;
+      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId;
+      if (!groceriesCounterpartyAccountId) {
+        throw new Error("Expected RAW Groceries category to include a counterparty account.");
+      }
 
       const healthBefore = await app.inject({ method: "GET", url: "/health" });
       expect(healthBefore.statusCode).toBe(200);

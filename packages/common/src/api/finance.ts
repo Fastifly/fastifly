@@ -85,6 +85,30 @@ export const CreateCategoryResponseSchema = z.strictObject({
   }),
 });
 
+export const UpdateCategoryRequestSchema = z
+  .strictObject({
+    color: z.string().trim().min(1).max(50).nullable().optional(),
+    icon: z.string().trim().min(1).max(50).nullable().optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    parentId: SyncedIdSchema.nullable().optional(),
+  })
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.color !== undefined ||
+      value.icon !== undefined ||
+      value.parentId !== undefined,
+    {
+      message: "At least one field must be provided.",
+    },
+  );
+
+export const UpdateCategoryResponseSchema = z.strictObject({
+  data: z.strictObject({
+    category: CategoryResponseSchema,
+  }),
+});
+
 export const ArchiveCategoryResponseSchema = z.strictObject({
   data: z.strictObject({
     category: CategoryResponseSchema,
@@ -216,6 +240,31 @@ export const ListTransactionsResponseSchema = paginatedResponseSchema(
 export const GetTransactionResponseSchema = z.strictObject({
   data: z.strictObject({
     transactionGroup: TransactionGroupResponseSchema,
+  }),
+});
+
+export const NetWorthTrendQuerySchema = z.strictObject({
+  asOfDate: IsoDateSchema.optional(),
+  months: z.coerce.number().int().min(1).max(24).optional(),
+});
+
+export const NetWorthTrendPointSchema = z.strictObject({
+  change: MoneyAmountSchema,
+  direction: z.enum(["up", "down", "flat"]),
+  monthKey: z.string().regex(/^\d{4}-\d{2}$/),
+  monthStart: IsoDateSchema,
+  netWorth: MoneyAmountSchema,
+});
+
+export const NetWorthTrendResponseSchema = z.strictObject({
+  data: z.strictObject({
+    currencyCode: CurrencyCodeSchema,
+    months: z.int().min(1).max(24),
+    points: z.array(NetWorthTrendPointSchema),
+    range: z.strictObject({
+      fromMonth: IsoDateSchema,
+      toMonth: IsoDateSchema,
+    }),
   }),
 });
 
@@ -452,6 +501,7 @@ export const GenerateRecurringTemplateResponseSchema = z.strictObject({
 export type BudgetSummaryResponse = z.infer<typeof BudgetSummaryResponseSchema>;
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
 export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequestSchema>;
+export type UpdateCategoryRequest = z.infer<typeof UpdateCategoryRequestSchema>;
 export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSchema>;
 export type AccountWithBalanceResponse = z.infer<typeof AccountWithBalanceResponseSchema>;
 export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
@@ -462,6 +512,8 @@ export type ListBudgetsResponse = z.infer<typeof ListBudgetsResponseSchema>;
 export type ListTransactionsQuery = z.infer<typeof ListTransactionsQuerySchema>;
 export type ListTransactionsResponse = z.infer<typeof ListTransactionsResponseSchema>;
 export type TransactionGroupResponse = z.infer<typeof TransactionGroupResponseSchema>;
+export type NetWorthTrendQuery = z.infer<typeof NetWorthTrendQuerySchema>;
+export type NetWorthTrendResponse = z.infer<typeof NetWorthTrendResponseSchema>;
 export type ImportJobResponse = z.infer<typeof ImportJobResponseSchema>;
 export type RuleResponse = z.infer<typeof RuleResponseSchema>;
 export type RecurringTemplateResponse = z.infer<typeof RecurringTemplateResponseSchema>;

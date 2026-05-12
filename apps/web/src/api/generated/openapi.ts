@@ -6318,6 +6318,7 @@ export interface paths {
               data: {
                 archivedAt: string | null;
                 color: string | null;
+                counterpartyAccountId: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 icon: string | null;
@@ -6523,6 +6524,7 @@ export interface paths {
                 category: {
                   archivedAt: string | null;
                   color: string | null;
+                  counterpartyAccountId: string | null;
                   /** Format: date-time */
                   createdAt: string;
                   icon: string | null;
@@ -6963,6 +6965,7 @@ export interface paths {
                 category: {
                   archivedAt: string | null;
                   color: string | null;
+                  counterpartyAccountId: string | null;
                   /** Format: date-time */
                   createdAt: string;
                   icon: string | null;
@@ -7132,7 +7135,207 @@ export interface paths {
     };
     options?: never;
     head?: never;
-    patch?: never;
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+          categoryId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            color?: string | null;
+            icon?: string | null;
+            name?: string;
+            parentId?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                category: {
+                  archivedAt: string | null;
+                  color: string | null;
+                  counterpartyAccountId: string | null;
+                  /** Format: date-time */
+                  createdAt: string;
+                  icon: string | null;
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: uuid */
+                  ledgerId: string;
+                  name: string;
+                  parentId: string | null;
+                  /** Format: date-time */
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
     trace?: never;
   };
   "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/transactions": {
@@ -7673,6 +7876,220 @@ export interface paths {
                   type: "expense" | "income" | "transfer" | "split";
                   /** Format: uuid */
                   workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/reports/net-worth": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          asOfDate?: string;
+          months?: number;
+        };
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                currencyCode: string;
+                months: number;
+                points: {
+                  change: {
+                    amountMinor: string;
+                    currencyCode: string;
+                  };
+                  /** @enum {string} */
+                  direction: "up" | "down" | "flat";
+                  monthKey: string;
+                  /** Format: date */
+                  monthStart: string;
+                  netWorth: {
+                    amountMinor: string;
+                    currencyCode: string;
+                  };
+                }[];
+                range: {
+                  /** Format: date */
+                  fromMonth: string;
+                  /** Format: date */
+                  toMonth: string;
                 };
               };
             };

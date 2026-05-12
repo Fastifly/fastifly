@@ -1,11 +1,12 @@
 import {
-  type CategoryResponseSchema,
   type BudgetSummaryResponseSchema,
+  type CategoryResponseSchema,
   type CreateTransactionRequestSchema,
   formatAmountMinor,
   type GetAccountResponseSchema,
   type ImportJobResponseSchema as importJobResponse,
   makeMoneyAmount,
+  type NetWorthTrendResponseSchema,
   type PageInfo,
   parseAmountMinor,
   parseSyncedId,
@@ -22,6 +23,7 @@ import type {
   CategoryRecord,
   CreateTransactionLineInput,
   ImportJobRecord,
+  NetWorthTrendRecord,
   RecurringTemplateRecord,
   RuleRecord,
   TransactionGroupRecord,
@@ -149,7 +151,31 @@ export function toBudgetSummaryResponse(
   };
 }
 
-export function toCategoryResponse(category: CategoryRecord): z.infer<typeof CategoryResponseSchema> {
+export function toNetWorthTrendResponse(
+  report: NetWorthTrendRecord,
+): z.infer<typeof NetWorthTrendResponseSchema> {
+  return {
+    data: {
+      currencyCode: report.currencyCode,
+      months: report.months,
+      points: report.points.map((point) => ({
+        change: makeMoneyAmount(point.changeMinor, report.currencyCode),
+        direction: point.direction,
+        monthKey: point.monthKey,
+        monthStart: point.monthStart,
+        netWorth: makeMoneyAmount(point.netWorthMinor, report.currencyCode),
+      })),
+      range: {
+        fromMonth: report.range.fromMonth,
+        toMonth: report.range.toMonth,
+      },
+    },
+  };
+}
+
+export function toCategoryResponse(
+  category: CategoryRecord,
+): z.infer<typeof CategoryResponseSchema> {
   return {
     archivedAt: category.archivedAt,
     color: category.color,

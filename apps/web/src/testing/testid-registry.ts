@@ -121,6 +121,14 @@ export const testIds = {
     monthlyMetrics: "dashboard-monthly-metrics",
     incomeMetric: "dashboard-income-metric",
     spendingMetric: "dashboard-spending-metric",
+    chartsSection: "dashboard-charts-section",
+    cashflowChart: "dashboard-cashflow-chart",
+    cashflowChartMonth: (monthKey: string) => `dashboard-cashflow-chart-month-${monthKey}`,
+    netWorthTrendChart: "dashboard-networth-trend-chart",
+    netWorthTrendChartMonth: (monthKey: string) =>
+      `dashboard-networth-trend-chart-month-${monthKey}`,
+    categoryChart: "dashboard-category-chart",
+    categoryChartItem: (categoryId: string) => `dashboard-category-chart-item-${categoryId}`,
     aside: "dashboard-aside",
     accountBalances: "dashboard-account-balances",
     accountBalancesList: "account-balances-list",
@@ -202,6 +210,9 @@ export const testIds = {
     page: "categories-page",
     list: "categories-list",
     emptyState: "categories-empty-state",
+    filters: {
+      searchInput: "categories-filter-search-input",
+    },
     create: {
       openButton: "category-create-open-button",
       dialog: "category-create-dialog",
@@ -209,7 +220,13 @@ export const testIds = {
       dialogDescription: "category-create-dialog-description",
       form: "category-create-form",
       nameInput: "category-name-input",
+      parentSelect: "category-parent-select",
+      iconInput: "category-icon-input",
+      colorInput: "category-color-input",
       submitButton: "category-create-submit-button",
+    },
+    edit: {
+      button: (id: string) => `category-${id}-edit-button`,
     },
     archive: {
       button: (id: string) => `category-${id}-archive-button`,
