@@ -34,7 +34,11 @@ import { useCategoriesQuery } from "../api/queries";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import { BlockedActionGate } from "./blocked-action-gate";
-import { CATEGORY_ICON_OPTIONS, getCategoryIconComponent } from "./category-metadata";
+import {
+  CATEGORY_ICON_OPTIONS,
+  CategoryToken,
+  getCategoryIconComponent,
+} from "./category-metadata";
 
 const NO_PARENT_VALUE = "__no-parent__";
 const DEFAULT_COLOR = "#4F46E5";
@@ -257,7 +261,12 @@ export function CategoryCreateDialog({
                   </SelectItem>
                   {sortedCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                      {CategoryToken({
+                        color: category.color,
+                        icon: category.icon,
+                        name: category.name,
+                        showParent: false,
+                      })}
                     </SelectItem>
                   ))}
                 </SelectGroup>

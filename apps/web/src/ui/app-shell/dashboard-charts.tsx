@@ -5,11 +5,10 @@ import {
   type TransactionGroupResponse,
 } from "@fastifly/common";
 import { Card, CardContent } from "@ui/card";
-import { CircleOff } from "lucide-react";
 import { useMemo } from "react";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
-import { getCategoryIconComponent } from "../category-metadata";
+import { CategoryToken } from "../category-metadata";
 import {
   buildMonthlyCashflowSeries,
   buildSpendingByCategorySeries,
@@ -288,7 +287,6 @@ function SpendingByCategoryChart({
             {data.map((item) => {
               const ratio =
                 totalMinor > 0n ? Number((item.amountMinor * 10000n) / totalMinor) / 100 : 0;
-              const CategoryIcon = getCategoryIconComponent(item.categoryIcon);
               return (
                 <div
                   className="space-y-1"
@@ -296,29 +294,14 @@ function SpendingByCategoryChart({
                   key={item.categoryId}
                 >
                   <div className="flex items-center justify-between gap-2 text-[12px]">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span
-                        aria-hidden="true"
-                        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
-                        style={{ backgroundColor: item.categoryColor ?? "#94a3b8" }}
-                      />
-                      {CategoryIcon ? (
-                        <CategoryIcon
-                          aria-hidden="true"
-                          className="size-3.5 shrink-0 text-muted-foreground"
-                        />
-                      ) : (
-                        <CircleOff
-                          aria-hidden="true"
-                          className="size-3.5 shrink-0 text-muted-foreground"
-                        />
-                      )}
-                      <p className="truncate font-medium text-foreground">
-                        {item.parentCategoryName
-                          ? `${item.categoryName} · ${item.parentCategoryName}`
-                          : item.categoryName}
-                      </p>
-                    </div>
+                    <p className="min-w-0 truncate font-medium text-foreground">
+                      {CategoryToken({
+                        color: item.categoryColor,
+                        icon: item.categoryIcon,
+                        name: item.categoryName,
+                        parentName: item.parentCategoryName,
+                      })}
+                    </p>
                     <p className="shrink-0 text-muted-foreground">
                       {formatMoneyMinor(item.amountMinor, currencyCode)}
                     </p>

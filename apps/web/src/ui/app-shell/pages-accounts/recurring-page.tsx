@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
-import { CircleOff, PauseCircle, PencilLine, PlayCircle, PlusCircle } from "lucide-react";
+import { PauseCircle, PencilLine, PlayCircle, PlusCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
@@ -17,7 +17,7 @@ import {
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
-import { buildCategoryNameById, getCategoryIconComponent } from "../../category-metadata";
+import { buildCategoryNameById, CategoryToken } from "../../category-metadata";
 import { GlassSection } from "../shared-components";
 import { formatDateTime } from "../utils";
 import { RecurringCreateDialog } from "./recurring-create-dialog";
@@ -240,9 +240,6 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                 const expenseCategoryParentName = expenseCategory?.parentId
                   ? (categoryNameById.get(expenseCategory.parentId) ?? null)
                   : null;
-                const ExpenseCategoryIcon = expenseCategory
-                  ? getCategoryIconComponent(expenseCategory.icon)
-                  : null;
 
                 return (
                   <Card
@@ -293,20 +290,15 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                           )}
                       </p>
                       {template.payload.type === "expense" ? (
-                        <p className="flex items-center gap-1.5 text-[0.75rem] text-muted-foreground">
-                          <span
-                            aria-hidden="true"
-                            className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
-                            style={{ backgroundColor: expenseCategory?.color ?? "#94a3b8" }}
-                          />
-                          {ExpenseCategoryIcon ? (
-                            <ExpenseCategoryIcon aria-hidden="true" className="size-3.5 shrink-0" />
-                          ) : (
-                            <CircleOff aria-hidden="true" className="size-3.5 shrink-0" />
-                          )}
-                          <span className="truncate">
-                            {expenseCategory ? expenseCategory.name : "—"}
-                          </span>
+                        <p className="text-[0.75rem] text-muted-foreground">
+                          {expenseCategory
+                            ? CategoryToken({
+                                color: expenseCategory.color,
+                                icon: expenseCategory.icon,
+                                name: expenseCategory.name,
+                                parentName: expenseCategoryParentName,
+                              })
+                            : "—"}
                         </p>
                       ) : null}
                       <p

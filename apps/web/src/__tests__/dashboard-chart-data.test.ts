@@ -134,18 +134,27 @@ describe("dashboard chart data helpers", () => {
     expect(series).toEqual([
       {
         amountMinor: 19000n,
+        categoryColor: null,
+        categoryIcon: null,
         categoryId: "cat-groceries",
         categoryName: "Groceries",
+        parentCategoryName: null,
       },
       {
         amountMinor: 14000n,
+        categoryColor: null,
+        categoryIcon: null,
         categoryId: "cat-utilities",
         categoryName: "Utilities",
+        parentCategoryName: null,
       },
       {
         amountMinor: 10000n,
+        categoryColor: null,
+        categoryIcon: null,
         categoryId: "uncategorized",
         categoryName: "Uncategorized",
+        parentCategoryName: null,
       },
     ]);
   });

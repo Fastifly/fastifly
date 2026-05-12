@@ -38,7 +38,11 @@ import { useCategoriesQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
-import { CATEGORY_ICON_OPTIONS, getCategoryIconComponent } from "../../category-metadata";
+import {
+  CATEGORY_ICON_OPTIONS,
+  CategoryToken,
+  getCategoryIconComponent,
+} from "../../category-metadata";
 import { GlassSection } from "../shared-components";
 import type { CategoriesPageProps } from "./types";
 
@@ -283,7 +287,6 @@ export function CategoriesPage({ ledgerContext }: CategoriesPageProps) {
                   </p>
                   <ul className="space-y-2">
                     {group.categories.map((category) => {
-                      const CategoryIcon = getCategoryIconComponent(category.icon);
                       const isArchiving =
                         archiveMutation.isPending && archivingCategoryId === category.id;
 
@@ -293,31 +296,23 @@ export function CategoriesPage({ ledgerContext }: CategoriesPageProps) {
                           data-testid={testIds.categories.card(category.id)}
                           key={category.id}
                         >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 dark:border-white/15 dark:bg-white/10 dark:text-white"
-                              style={{ color: category.color ?? DEFAULT_COLOR }}
+                          <div className="min-w-0">
+                            <p
+                              className="truncate font-medium text-slate-900 dark:text-white"
+                              data-testid={testIds.categories.cardName(category.id)}
                             >
-                              {CategoryIcon ? (
-                                <CategoryIcon aria-hidden="true" className="size-4" />
-                              ) : (
-                                <CircleOff aria-hidden="true" className="size-4" />
-                              )}
-                            </span>
-                            <div className="min-w-0">
-                              <p
-                                className="truncate font-medium text-slate-900 dark:text-white"
-                                data-testid={testIds.categories.cardName(category.id)}
-                              >
-                                {category.name}
-                              </p>
-                              <p
-                                className="truncate text-xs text-slate-600 dark:text-white/65"
-                                data-testid={testIds.categories.cardMeta(category.id)}
-                              >
-                                {category.color ?? DEFAULT_COLOR}
-                              </p>
-                            </div>
+                              {CategoryToken({
+                                color: category.color,
+                                icon: category.icon,
+                                name: category.name,
+                              })}
+                            </p>
+                            <p
+                              className="truncate text-xs text-slate-600 dark:text-white/65"
+                              data-testid={testIds.categories.cardMeta(category.id)}
+                            >
+                              {group.label}
+                            </p>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
@@ -505,7 +500,12 @@ function CategoryUpsertDialog({
                   </SelectItem>
                   {selectableParents.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                      {CategoryToken({
+                        color: category.color,
+                        icon: category.icon,
+                        name: category.name,
+                        showParent: false,
+                      })}
                     </SelectItem>
                   ))}
                 </SelectGroup>
