@@ -11,9 +11,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
+import { Label } from "@ui/label";
+import { RadioGroup, RadioGroupItem } from "@ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -37,14 +40,27 @@ import {
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 
-type AccountCreatePanelProps = {
-  readonly ledgerContext: {
-    readonly ledgerId: string;
-    readonly workspaceId: string;
-  } | null;
+type LedgerContext = {
+  readonly ledgerId: string;
+  readonly workspaceId: string;
+} | null;
+
+type AccountCreateDialogProps = {
+  readonly ledgerContext: LedgerContext;
+  readonly trigger: ReactNode;
+  readonly triggerDisabled?: boolean;
 };
 
-export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
+type AccountCreatePanelProps = {
+  readonly ledgerContext: LedgerContext;
+};
+
+export function AccountCreateDialog({
+  ledgerContext,
+  trigger,
+  triggerDisabled = false,
+}: AccountCreateDialogProps) {
+  const isTriggerDisabled = triggerDisabled || !ledgerContext;
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const mutation = useMutation({
@@ -98,216 +114,227 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
   }, [dialogOpen, form]);
 
   return (
-    <>
-      <Card className="gap-2 py-0" data-testid={testIds.accounts.create.panel}>
-        <CardHeader className="gap-1 px-4 pt-3 pb-1">
-          <div>
-            <CardTitle className="text-[1rem]" data-testid={testIds.accounts.create.title}>
-              {en.accounts.addAccount}
-            </CardTitle>
-            <CardDescription
-              className="text-[0.8125rem] leading-snug"
-              data-testid={testIds.accounts.create.description}
-            >
-              {en.accounts.addAccountBody}
-            </CardDescription>
-          </div>
-          <CardAction>
-            <Button
-              data-testid={testIds.accounts.create.openButton}
-              disabled={!ledgerContext}
-              onClick={() => {
-                setDialogOpen(true);
-              }}
-              size="sm"
-              type="button"
-            >
-              <PlusCircle aria-hidden="true" />
-              {en.accounts.addAccount}
-            </Button>
-          </CardAction>
-        </CardHeader>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogTrigger asChild disabled={isTriggerDisabled}>
+        {trigger}
+      </DialogTrigger>
 
-        <CardContent className="px-4 pb-3">
-          {!ledgerContext ? (
-            <p className="text-[13px] text-muted-foreground">{en.accounts.ledgerRequired}</p>
-          ) : null}
-        </CardContent>
-      </Card>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[34rem]"
+        data-testid={testIds.accounts.create.dialog}
+      >
+        <DialogHeader>
+          <DialogTitle data-testid={testIds.accounts.create.dialogTitle}>
+            {en.accounts.addAccount}
+          </DialogTitle>
+          <DialogDescription data-testid={testIds.accounts.create.dialogDescription}>
+            {en.accounts.addAccountBody}
+          </DialogDescription>
+        </DialogHeader>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[34rem]"
-          data-testid={testIds.accounts.create.dialog}
+        <form
+          className="flex flex-col gap-4"
+          data-testid={testIds.accounts.create.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
         >
-          <DialogHeader>
-            <DialogTitle data-testid={testIds.accounts.create.dialogTitle}>
-              {en.accounts.addAccount}
-            </DialogTitle>
-            <DialogDescription data-testid={testIds.accounts.create.dialogDescription}>
-              {en.accounts.addAccountBody}
-            </DialogDescription>
-          </DialogHeader>
-
-          <form
-            className="flex flex-col gap-4"
-            data-testid={testIds.accounts.create.form}
-            onSubmit={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void form.handleSubmit();
+          <form.Field
+            name="name"
+            validators={{
+              onChange: ({ value }) => (value.trim() ? undefined : en.accounts.accountNameRequired),
             }}
           >
-            <form.Field
-              name="name"
-              validators={{
-                onChange: ({ value }) =>
-                  value.trim() ? undefined : en.accounts.accountNameRequired,
-              }}
-            >
+            {(field) => (
+              <FormField
+                errors={field.state.meta.errors}
+                errorTestId={testIds.accounts.create.nameError}
+                inputId={field.name}
+                label={en.accounts.accountName}
+              >
+                <Input
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  autoComplete="off"
+                  data-testid={testIds.accounts.create.nameInput}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder={en.accounts.accountNamePlaceholder}
+                  value={field.state.value}
+                />
+              </FormField>
+            )}
+          </form.Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <form.Field name="type">
               {(field) => (
-                <FormField
-                  errors={field.state.meta.errors}
-                  errorTestId={testIds.accounts.create.nameError}
-                  inputId={field.name}
-                  label={en.accounts.accountName}
-                >
-                  <Input
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    autoComplete="off"
-                    data-testid={testIds.accounts.create.nameInput}
-                    id={field.name}
-                    name={field.name}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    placeholder={en.accounts.accountNamePlaceholder}
+                <Field className="sm:col-span-2">
+                  <FieldLabel>{en.accounts.accountType}</FieldLabel>
+                  <RadioGroup
+                    className="grid grid-cols-2 gap-1.5"
+                    data-testid={testIds.accounts.create.typeSelect}
+                    onValueChange={(value) => {
+                      const type = value as AccountFormType;
+                      field.handleChange(type);
+                      if (!getAccountTypeDefinition(type).supportsOpeningBalance) {
+                        form.setFieldValue("openingBalance", "");
+                      }
+                    }}
                     value={field.state.value}
-                  />
-                </FormField>
+                  >
+                    {ACCOUNT_FORM_TYPES.map((option) => {
+                      const id = `account-type-${option.type}`;
+                      return (
+                        <Label
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[0.8125rem] leading-none transition-colors hover:bg-accent/40"
+                          htmlFor={id}
+                          key={option.type}
+                        >
+                          <RadioGroupItem className="size-3.5" id={id} value={option.type} />
+                          <span className="truncate">{en.accounts.types[option.type]}</span>
+                        </Label>
+                      );
+                    })}
+                  </RadioGroup>
+                </Field>
               )}
             </form.Field>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <form.Field name="type">
-                {(field) => (
-                  <Field>
-                    <FieldLabel>{en.accounts.accountType}</FieldLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const type = value as AccountFormType;
-                        field.handleChange(type);
-                        if (!getAccountTypeDefinition(type).supportsOpeningBalance) {
-                          form.setFieldValue("openingBalance", "");
-                        }
-                      }}
-                      value={field.state.value}
-                    >
-                      <SelectTrigger data-testid={testIds.accounts.create.typeSelect}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {ACCOUNT_FORM_TYPES.map((option) => (
-                            <SelectItem key={option.type} value={option.type}>
-                              {en.accounts.types[option.type]}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              </form.Field>
+            <form.Field name="currencyCode">
+              {(field) => (
+                <Field>
+                  <FieldLabel>{en.accounts.currency}</FieldLabel>
+                  <Select onValueChange={field.handleChange} value={field.state.value}>
+                    <SelectTrigger data-testid={testIds.accounts.create.currencySelect}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="INR">INR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </form.Field>
+          </div>
 
-              <form.Field name="currencyCode">
-                {(field) => (
-                  <Field>
-                    <FieldLabel>{en.accounts.currency}</FieldLabel>
-                    <Select onValueChange={field.handleChange} value={field.state.value}>
-                      <SelectTrigger data-testid={testIds.accounts.create.currencySelect}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="INR">INR</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              </form.Field>
-            </div>
+          <form.Subscribe selector={(state) => state.values.type}>
+            {(type) =>
+              getAccountTypeDefinition(type).supportsOpeningBalance ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <form.Field name="openingBalance">
+                    {(field) => (
+                      <FormField
+                        errors={field.state.meta.errors}
+                        inputId={field.name}
+                        label={en.accounts.openingBalance}
+                      >
+                        <Input
+                          data-testid={testIds.accounts.create.openingBalanceInput}
+                          id={field.name}
+                          inputMode="decimal"
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          placeholder="0.00"
+                          value={field.state.value}
+                        />
+                      </FormField>
+                    )}
+                  </form.Field>
 
-            <form.Subscribe selector={(state) => state.values.type}>
-              {(type) =>
-                getAccountTypeDefinition(type).supportsOpeningBalance ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <form.Field name="openingBalance">
-                      {(field) => (
-                        <FormField
-                          errors={field.state.meta.errors}
-                          inputId={field.name}
-                          label={en.accounts.openingBalance}
-                        >
-                          <Input
-                            data-testid={testIds.accounts.create.openingBalanceInput}
-                            id={field.name}
-                            inputMode="decimal"
-                            name={field.name}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                            placeholder="0.00"
-                            value={field.state.value}
-                          />
-                        </FormField>
-                      )}
-                    </form.Field>
+                  <form.Field name="openingBalanceDate">
+                    {(field) => (
+                      <FormField
+                        errors={field.state.meta.errors}
+                        inputId={field.name}
+                        label={en.accounts.openingBalanceDate}
+                      >
+                        <Input
+                          data-testid={testIds.accounts.create.openingBalanceDateInput}
+                          id={field.name}
+                          name={field.name}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          type="date"
+                          value={field.state.value}
+                        />
+                      </FormField>
+                    )}
+                  </form.Field>
+                </div>
+              ) : null
+            }
+          </form.Subscribe>
 
-                    <form.Field name="openingBalanceDate">
-                      {(field) => (
-                        <FormField
-                          errors={field.state.meta.errors}
-                          inputId={field.name}
-                          label={en.accounts.openingBalanceDate}
-                        >
-                          <Input
-                            data-testid={testIds.accounts.create.openingBalanceDateInput}
-                            id={field.name}
-                            name={field.name}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                            type="date"
-                            value={field.state.value}
-                          />
-                        </FormField>
-                      )}
-                    </form.Field>
-                  </div>
-                ) : null
-              }
-            </form.Subscribe>
-
-            <DialogFooter className="gap-2 sm:gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {en.rules.cancel}
-                </Button>
-              </DialogClose>
-              <Button
-                data-testid={testIds.accounts.create.saveButton}
-                disabled={mutation.isPending}
-                type="submit"
-              >
-                <Check aria-hidden="true" />
-                {mutation.isPending ? en.accounts.saving : en.accounts.save}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {en.rules.cancel}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+            </DialogClose>
+            <Button
+              data-testid={testIds.accounts.create.saveButton}
+              disabled={mutation.isPending}
+              type="submit"
+            >
+              <Check aria-hidden="true" />
+              {mutation.isPending ? en.accounts.saving : en.accounts.save}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
+  return (
+    <Card className="gap-2 py-0" data-testid={testIds.accounts.create.panel}>
+      <CardHeader className="gap-1 px-4 pt-3 pb-1">
+        <div>
+          <CardTitle className="text-[1rem]" data-testid={testIds.accounts.create.title}>
+            {en.accounts.addAccount}
+          </CardTitle>
+          <CardDescription
+            className="text-[0.8125rem] leading-snug"
+            data-testid={testIds.accounts.create.description}
+          >
+            {en.accounts.addAccountBody}
+          </CardDescription>
+        </div>
+        <CardAction>
+          <AccountCreateDialog
+            ledgerContext={ledgerContext}
+            trigger={
+              <Button
+                data-testid={testIds.accounts.create.openButton}
+                disabled={!ledgerContext}
+                size="sm"
+                type="button"
+              >
+                <PlusCircle aria-hidden="true" />
+                {en.accounts.addAccount}
+              </Button>
+            }
+            triggerDisabled={!ledgerContext}
+          />
+        </CardAction>
+      </CardHeader>
+
+      <CardContent className="px-4 pb-3">
+        {!ledgerContext ? (
+          <p className="text-[13px] text-muted-foreground">{en.accounts.ledgerRequired}</p>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

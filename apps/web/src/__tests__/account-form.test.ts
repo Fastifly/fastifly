@@ -26,24 +26,24 @@ describe("account form", () => {
     });
   });
 
-  it("keeps income and expense accounts as external ledger accounts without opening balance", () => {
+  it("maps liability accounts and disables opening balance parsing when left empty", () => {
     expect(
       buildCreateAccountRequest({
-        ...makeAccountFormDefaults("income_source"),
-        name: "Salary",
-        openingBalance: "1000",
+        ...makeAccountFormDefaults("credit_card"),
+        name: "Card",
+        openingBalance: "",
       }),
     ).toEqual({
       currencyCode: "INR",
-      kind: "revenue",
-      name: "Salary",
-      subtype: "external",
+      kind: "liability",
+      name: "Card",
+      subtype: "credit_card",
     });
 
-    expect(getAccountTypeDefinition("expense_category")).toMatchObject({
-      kind: "expense",
-      subtype: "external",
-      supportsOpeningBalance: false,
+    expect(getAccountTypeDefinition("investment")).toMatchObject({
+      kind: "asset",
+      subtype: "investment",
+      supportsOpeningBalance: true,
     });
   });
 

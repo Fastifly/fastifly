@@ -1,6 +1,7 @@
 import type { AccountWithBalanceResponse, CreateTransactionRequest } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import {
@@ -28,12 +29,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { apiClient, FastiflyApiError } from "../api/client";
+import { useCategoriesQuery } from "../api/queries";
 import {
   buildCreateTransactionRequest,
   getDestinationAccountsForTransaction,
+  getExpenseCategoriesForTransaction,
   getSourceAccountsForTransaction,
+  getTransactionQuickAddState,
   makeTransactionFormDefaults,
   type SimpleTransactionType,
+  type TransactionQuickAddReason,
 } from "../finance/transaction-form";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
@@ -44,7 +49,7 @@ type TransactionCreatePanelProps = {
     readonly ledgerId: string;
     readonly workspaceId: string;
   } | null;
-  readonly variant?: "default" | "vertical-actions";
+  readonly variant?: "default" | "inline-actions" | "vertical-actions";
 };
 
 export function TransactionCreatePanel({
@@ -53,6 +58,8 @@ export function TransactionCreatePanel({
   variant = "default",
 }: TransactionCreatePanelProps) {
   const queryClient = useQueryClient();
+  const categoriesQuery = useCategoriesQuery(ledgerContext);
+  const categories = categoriesQuery.data?.data ?? [];
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<SimpleTransactionType>("expense");
   const mutation = useMutation({
@@ -85,32 +92,41 @@ export function TransactionCreatePanel({
     },
   });
   const form = useForm({
-    defaultValues: makeTransactionFormDefaults(accounts, selectedType),
+    defaultValues: makeTransactionFormDefaults(accounts, categories, selectedType),
     onSubmit: async ({ value }) => {
       try {
-        await mutation.mutateAsync(buildCreateTransactionRequest(value, accounts));
-        form.reset(makeTransactionFormDefaults(accounts, selectedType));
+        await mutation.mutateAsync(buildCreateTransactionRequest(value, accounts, categories));
+        form.reset(makeTransactionFormDefaults(accounts, categories, selectedType));
         setDialogOpen(false);
       } catch (error) {
         toast.error(getTransactionFormError(error));
       }
     },
   });
-  const canCreate = Boolean(ledgerContext) && accounts.length > 0;
-  const canCreateExpense = canCreateTransactionType(accounts, "expense");
-  const canCreateIncome = canCreateTransactionType(accounts, "income");
-  const canCreateTransfer = canCreateTransactionType(accounts, "transfer");
+  const quickAddState = getTransactionQuickAddState({
+    accounts,
+    categories,
+    categoriesLoading: categoriesQuery.isPending,
+    hasLedgerContext: Boolean(ledgerContext),
+  });
+  const canCreateExpense = quickAddState.availability.expense;
+  const canCreateIncome = quickAddState.availability.income;
+  const canCreateTransfer = quickAddState.availability.transfer;
+  const canCreate = quickAddState.canCreateAny;
+  const unavailableMessage = mapQuickAddReasonToMessage(quickAddState.reason);
   const dialogTitle = `Add ${en.transactions.types[selectedType].toLowerCase()}`;
+  const isInlineActions = variant === "inline-actions";
   const isVerticalActions = variant === "vertical-actions";
-  const actionLabels = isVerticalActions ? en.transactions.quickAdd : en.transactions.types;
+  const actionLabels =
+    isVerticalActions || isInlineActions ? en.transactions.quickAdd : en.transactions.types;
 
   useEffect(() => {
     if (!dialogOpen) {
       return;
     }
 
-    form.reset(makeTransactionFormDefaults(accounts, selectedType));
-  }, [accounts, dialogOpen, form, selectedType]);
+    form.reset(makeTransactionFormDefaults(accounts, categories, selectedType));
+  }, [accounts, categories, dialogOpen, form, selectedType]);
 
   const openDialogForType = (type: SimpleTransactionType) => {
     setSelectedType(type);
@@ -121,32 +137,36 @@ export function TransactionCreatePanel({
     <div
       className={cn(
         "grid gap-1.5",
-        isVerticalActions ? "grid-cols-3 [&>button]:w-full xl:grid-cols-1" : "grid-cols-3",
+        isVerticalActions
+          ? "grid-cols-3 [&>button]:w-full xl:grid-cols-1"
+          : isInlineActions
+            ? "grid-cols-1 [&>button]:w-full sm:grid-cols-3"
+            : "grid-cols-3",
       )}
       data-testid={testIds.transactionCreate.actions}
     >
       <QuickTransactionButton
-        colored={isVerticalActions}
+        colored={isVerticalActions || isInlineActions}
         disabled={!canCreate || !canCreateExpense}
-        fullWidth={isVerticalActions}
+        fullWidth={isVerticalActions || isInlineActions}
         icon={ArrowUpRight}
         label={actionLabels.expense}
         onClick={() => openDialogForType("expense")}
         type="expense"
       />
       <QuickTransactionButton
-        colored={isVerticalActions}
+        colored={isVerticalActions || isInlineActions}
         disabled={!canCreate || !canCreateIncome}
-        fullWidth={isVerticalActions}
+        fullWidth={isVerticalActions || isInlineActions}
         icon={ArrowDownLeft}
         label={actionLabels.income}
         onClick={() => openDialogForType("income")}
         type="income"
       />
       <QuickTransactionButton
-        colored={isVerticalActions}
+        colored={isVerticalActions || isInlineActions}
         disabled={!canCreate || !canCreateTransfer}
-        fullWidth={isVerticalActions}
+        fullWidth={isVerticalActions || isInlineActions}
         icon={RefreshCcw}
         label={actionLabels.transfer}
         onClick={() => openDialogForType("transfer")}
@@ -162,7 +182,56 @@ export function TransactionCreatePanel({
           className="rounded-lg border border-border bg-muted/50 px-2.5 py-2 text-[12px] text-muted-foreground"
           data-testid={testIds.transactionCreate.unavailableAlert}
         >
-          {ledgerContext ? en.shell.noAccountsBody : en.transactions.ledgerRequired}
+          {quickAddState.reason === "add-account" ? (
+            <>
+              {en.transactions.prerequisites.addAccount}{" "}
+              <Link
+                className="font-medium text-primary underline underline-offset-2"
+                to="/accounts"
+              >
+                {en.accounts.addAccount}
+              </Link>
+            </>
+          ) : quickAddState.reason === "add-category" ? (
+            <>
+              {en.transactions.prerequisites.addCategory}{" "}
+              <Link
+                className="font-medium text-primary underline underline-offset-2"
+                to="/categories"
+              >
+                {en.categories.addCategory}
+              </Link>
+            </>
+          ) : quickAddState.reason === "add-second-account" ? (
+            <>
+              {en.transactions.prerequisites.addSecondAccount}{" "}
+              <Link
+                className="font-medium text-primary underline underline-offset-2"
+                to="/accounts"
+              >
+                {en.accounts.addAccount}
+              </Link>
+            </>
+          ) : quickAddState.reason === "add-compatible-setup" ? (
+            <>
+              {en.transactions.prerequisites.addCompatibleSetup}{" "}
+              <Link
+                className="font-medium text-primary underline underline-offset-2"
+                to="/accounts"
+              >
+                {en.shell.openAccounts}
+              </Link>{" "}
+              ·{" "}
+              <Link
+                className="font-medium text-primary underline underline-offset-2"
+                to="/categories"
+              >
+                {en.categories.addCategory}
+              </Link>
+            </>
+          ) : (
+            unavailableMessage
+          )}
         </p>
       ) : null}
     </>
@@ -179,6 +248,11 @@ export function TransactionCreatePanel({
             {actionButtons}
             {panelAlerts}
           </div>
+        </div>
+      ) : isInlineActions ? (
+        <div className="flex flex-col gap-1" data-testid={testIds.transactionCreate.panel}>
+          {actionButtons}
+          {panelAlerts}
         </div>
       ) : (
         <Card size="sm" className="gap-1.5 py-0" data-testid={testIds.transactionCreate.panel}>
@@ -233,11 +307,22 @@ export function TransactionCreatePanel({
             <form.Subscribe selector={(state) => state.values}>
               {(values) => {
                 const sourceAccounts = getSourceAccountsForTransaction(accounts, values.type);
-                const destinationAccounts = getDestinationAccountsForTransaction(
-                  accounts,
-                  values.sourceAccountId,
-                  values.type,
-                );
+                const expenseCategories =
+                  values.type === "expense"
+                    ? getExpenseCategoriesForTransaction(
+                        categories,
+                        accounts,
+                        values.sourceAccountId,
+                      )
+                    : [];
+                const destinationAccounts =
+                  values.type === "expense"
+                    ? []
+                    : getDestinationAccountsForTransaction(
+                        accounts,
+                        values.sourceAccountId,
+                        values.type,
+                      );
 
                 return (
                   <div className="grid gap-4 md:grid-cols-2">
@@ -315,6 +400,18 @@ export function TransactionCreatePanel({
                           <Select
                             {...(field.state.value ? { value: field.state.value } : {})}
                             onValueChange={(sourceAccountId) => {
+                              if (values.type === "expense") {
+                                const firstCategory = getExpenseCategoriesForTransaction(
+                                  categories,
+                                  accounts,
+                                  sourceAccountId,
+                                )[0];
+                                field.handleChange(sourceAccountId);
+                                form.setFieldValue("categoryId", firstCategory?.id ?? "");
+                                form.setFieldValue("destinationAccountId", "");
+                                return;
+                              }
+
                               const destinationAccount = getDestinationAccountsForTransaction(
                                 accounts,
                                 sourceAccountId,
@@ -325,6 +422,7 @@ export function TransactionCreatePanel({
                                 "destinationAccountId",
                                 destinationAccount?.id ?? "",
                               );
+                              form.setFieldValue("categoryId", "");
                             }}
                           >
                             <SelectTrigger
@@ -350,7 +448,7 @@ export function TransactionCreatePanel({
                     </form.Field>
 
                     <form.Field
-                      name="destinationAccountId"
+                      name={values.type === "expense" ? "categoryId" : "destinationAccountId"}
                       validators={{
                         onChange: ({ value }) =>
                           value ? undefined : en.transactions.destinationAccountRequired,
@@ -377,11 +475,17 @@ export function TransactionCreatePanel({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                {destinationAccounts.map((account) => (
-                                  <SelectItem key={account.id} value={account.id}>
-                                    {account.name}
-                                  </SelectItem>
-                                ))}
+                                {values.type === "expense"
+                                  ? expenseCategories.map((category) => (
+                                      <SelectItem key={category.id} value={category.id}>
+                                        {category.name}
+                                      </SelectItem>
+                                    ))
+                                  : destinationAccounts.map((account) => (
+                                      <SelectItem key={account.id} value={account.id}>
+                                        {account.name}
+                                      </SelectItem>
+                                    ))}
                               </SelectGroup>
                             </SelectContent>
                           </Select>
@@ -502,17 +606,23 @@ function destinationLabel(type: SimpleTransactionType): string {
   return en.transactions.toAccount;
 }
 
-function canCreateTransactionType(
-  accounts: readonly AccountWithBalanceResponse[],
-  type: SimpleTransactionType,
-): boolean {
-  const sourceAccount = getSourceAccountsForTransaction(accounts, type)[0];
-
-  if (!sourceAccount) {
-    return false;
+function mapQuickAddReasonToMessage(reason: TransactionQuickAddReason): string {
+  switch (reason) {
+    case "ledger-required":
+      return en.transactions.ledgerRequired;
+    case "add-account":
+      return en.transactions.prerequisites.addAccount;
+    case "add-category":
+      return en.transactions.prerequisites.addCategory;
+    case "add-second-account":
+      return en.transactions.prerequisites.addSecondAccount;
+    case "add-compatible-setup":
+      return en.transactions.prerequisites.addCompatibleSetup;
+    case "categories-loading":
+      return en.transactions.prerequisites.loadingCategories;
+    case "ok":
+      return "";
   }
-
-  return getDestinationAccountsForTransaction(accounts, sourceAccount.id, type).length > 0;
 }
 
 function getTransactionFormError(error: unknown): string {

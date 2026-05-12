@@ -1,4 +1,4 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import { type AccountWithBalanceResponse, isUserHeldAccountKind } from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
@@ -43,6 +43,10 @@ export function ReportsPage({
   readonly spending: string;
   readonly transferCount: number;
 }) {
+  const userHeldAccountsCount = accounts.filter((account) =>
+    isUserHeldAccountKind(account.kind),
+  ).length;
+
   return (
     <section className="mt-2" data-testid={testIds.reports.page}>
       <GlassSection title={en.shell.reportSummary} description={en.shell.reportSummaryBody}>
@@ -74,7 +78,7 @@ export function ReportsPage({
             icon={Landmark}
             label={en.shell.accounts}
             testId={testIds.reports.accountsMetric}
-            value={accounts.length.toString()}
+            value={userHeldAccountsCount.toString()}
           />
           <MetricTile
             icon={ArrowDownLeft}
@@ -570,7 +574,19 @@ export function DashboardAside({
               className="py-3 text-[14px] text-slate-600 dark:text-white/62"
               data-testid={testIds.dashboard.accountBalancesEmpty}
             >
-              {accountsLoading ? en.shell.loadingData : en.shell.noAccountsBody}
+              {accountsLoading ? (
+                en.shell.loadingData
+              ) : (
+                <>
+                  {en.shell.noAccountsBody}{" "}
+                  <Link
+                    className="font-medium text-primary underline underline-offset-2"
+                    to="/accounts"
+                  >
+                    {en.accounts.addAccount}
+                  </Link>
+                </>
+              )}
             </p>
           )}
         </div>

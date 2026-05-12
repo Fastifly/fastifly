@@ -1,10 +1,12 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import type { AccountWithBalanceResponse, CategoryResponse } from "@fastifly/common";
 import { describe, expect, it } from "vitest";
 
 import {
   buildCreateTransactionRequest,
   getDestinationAccountsForTransaction,
+  getExpenseCategoriesForTransaction,
   getSourceAccountsForTransaction,
+  getTransactionQuickAddState,
 } from "../finance/transaction-form.js";
 
 const accounts = [
@@ -12,6 +14,9 @@ const accounts = [
   account("acct_cash", "Cash Wallet", "asset", "cash"),
   account("acct_salary", "Salary", "revenue", "external"),
   account("acct_groceries", "Groceries", "expense", "external"),
+] as const;
+const categories = [
+  category("cat_groceries", "Groceries", "acct_groceries"),
 ] as const;
 
 describe("transaction form helpers", () => {
@@ -23,6 +28,9 @@ describe("transaction form helpers", () => {
     expect(getSourceAccountsForTransaction(accounts, "income").map((item) => item.id)).toEqual([
       "acct_salary",
     ]);
+    expect(
+      getExpenseCategoriesForTransaction(categories, accounts, "acct_bank").map((item) => item.id),
+    ).toEqual(["cat_groceries"]);
     expect(
       getDestinationAccountsForTransaction(accounts, "acct_bank", "expense").map((item) => item.id),
     ).toEqual(["acct_groceries"]);
@@ -38,13 +46,15 @@ describe("transaction form helpers", () => {
       buildCreateTransactionRequest(
         {
           amount: "125.50",
+          categoryId: "cat_groceries",
           description: "Groceries",
-          destinationAccountId: "acct_groceries",
+          destinationAccountId: "",
           occurredOn: "2026-05-10",
           sourceAccountId: "acct_bank",
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toMatchObject({
       currencyCode: "INR",
@@ -52,7 +62,13 @@ describe("transaction form helpers", () => {
       occurredAt: "2026-05-10T12:00:00.000Z",
       source: "manual",
       sourceAccountId: "acct_bank",
-      transactions: [{ amountMinor: "12550", destinationAccountId: "acct_groceries" }],
+      transactions: [
+        {
+          amountMinor: "12550",
+          categoryId: "cat_groceries",
+          destinationAccountId: "acct_groceries",
+        },
+      ],
       type: "expense",
     });
   });
@@ -62,13 +78,15 @@ describe("transaction form helpers", () => {
       buildCreateTransactionRequest(
         {
           amount: "1.234",
+          categoryId: "cat_groceries",
           description: "Invalid",
-          destinationAccountId: "acct_groceries",
+          destinationAccountId: "",
           occurredOn: "2026-05-10",
           sourceAccountId: "acct_bank",
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toThrow();
 
@@ -76,6 +94,7 @@ describe("transaction form helpers", () => {
       buildCreateTransactionRequest(
         {
           amount: "100",
+          categoryId: "cat_missing",
           description: "Invalid pair",
           destinationAccountId: "acct_salary",
           occurredOn: "2026-05-10",
@@ -83,8 +102,83 @@ describe("transaction form helpers", () => {
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toThrow();
+  });
+
+  it("derives quick-add prerequisites from real setup state", () => {
+    expect(
+      getTransactionQuickAddState({
+        accounts: [],
+        categories: [],
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: false,
+      reason: "add-account",
+    });
+
+    expect(
+      getTransactionQuickAddState({
+        accounts: [accounts[0]],
+        categories: [],
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: false,
+      reason: "add-category",
+    });
+
+    expect(
+      getTransactionQuickAddState({
+        accounts: [accounts[0]],
+        categories,
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: false,
+      reason: "add-compatible-setup",
+    });
+
+    expect(
+      getTransactionQuickAddState({
+        accounts: [accounts[0]],
+        categories: [category("cat_unmapped", "Broken Category", "acct_missing")],
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: false,
+      reason: "add-compatible-setup",
+    });
+
+    expect(
+      getTransactionQuickAddState({
+        accounts: [accounts[0]],
+        categories: [],
+        categoriesLoading: true,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: false,
+      reason: "categories-loading",
+    });
+
+    expect(
+      getTransactionQuickAddState({
+        accounts,
+        categories,
+        categoriesLoading: false,
+        hasLedgerContext: true,
+      }),
+    ).toMatchObject({
+      canCreateAny: true,
+      reason: "ok",
+    });
   });
 });
 
@@ -108,6 +202,26 @@ function account(
     openingBalanceMinor: null,
     reportingBalance: { amountMinor: "0", currencyCode: "INR" },
     subtype,
+    updatedAt: "2026-05-10T00:00:00.000Z",
+    workspaceId: "019dfbac-0000-7000-8000-000000000002",
+  };
+}
+
+function category(
+  id: string,
+  name: string,
+  counterpartyAccountId: string,
+): CategoryResponse {
+  return {
+    archivedAt: null,
+    color: null,
+    counterpartyAccountId,
+    createdAt: "2026-05-10T00:00:00.000Z",
+    icon: null,
+    id,
+    ledgerId: "019dfbac-0000-7000-8000-000000000001",
+    name,
+    parentId: null,
     updatedAt: "2026-05-10T00:00:00.000Z",
     workspaceId: "019dfbac-0000-7000-8000-000000000002",
   };

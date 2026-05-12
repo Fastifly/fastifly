@@ -2,11 +2,14 @@ import {
   type ApiError,
   ApiErrorSchema,
   ArchiveAccountResponseSchema,
+  ArchiveCategoryResponseSchema,
   type AuthResponse,
   AuthResponseSchema,
   CommitImportJobResponseSchema,
   type CreateAccountRequest,
   CreateAccountResponseSchema,
+  type CreateCategoryRequest,
+  CreateCategoryResponseSchema,
   CreateImportCsvResponseSchema,
   CreateRecurringTemplateResponseSchema,
   CreateRuleResponseSchema,
@@ -23,6 +26,8 @@ import {
   type ListBudgetsQuery,
   type ListBudgetsResponse,
   ListBudgetsResponseSchema,
+  type ListCategoriesResponse,
+  ListCategoriesResponseSchema,
   ListImportJobsResponseSchema,
   ListRecurringTemplatesResponseSchema,
   ListRulesResponseSchema,
@@ -62,6 +67,9 @@ export type ApiClient = {
   readonly archiveAccount: (
     input: LedgerPathInput & { readonly accountId: string },
   ) => Promise<void>;
+  readonly archiveCategory: (
+    input: LedgerPathInput & { readonly categoryId: string },
+  ) => Promise<void>;
   readonly archiveRule: (
     input: LedgerPathInput & { readonly ruleId: string },
   ) => Promise<RuleResponse>;
@@ -80,6 +88,7 @@ export type ApiClient = {
     },
   ) => Promise<ImportJobResponse>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
+  readonly createCategory: (input: LedgerPathInput & CreateCategoryRequest) => Promise<void>;
   readonly createImportCsv: (
     input: LedgerPathInput & {
       readonly csvText: string;
@@ -128,6 +137,7 @@ export type ApiClient = {
   readonly listBudgets: (
     input: LedgerPathInput & Partial<Pick<ListBudgetsQuery, "asOfDate" | "cursor" | "limit">>,
   ) => Promise<ListBudgetsResponse>;
+  readonly listCategories: (input: LedgerPathInput) => Promise<ListCategoriesResponse>;
   readonly listImportJobs: (input: LedgerPathInput) => Promise<readonly ImportJobResponse[]>;
   readonly listRecurringTemplates: (
     input: LedgerPathInput,
@@ -201,6 +211,31 @@ export const apiClient: ApiClient = {
               params: {
                 path: {
                   accountId,
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+    });
+  },
+  async archiveCategory(input) {
+    const { categoryId, ledgerId, workspaceId } = input;
+    await withCsrf(async (csrfToken) => {
+      ArchiveCategoryResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.DELETE(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories/{categoryId}",
+            {
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  categoryId,
                   ledgerId,
                   workspaceId,
                 },
@@ -313,6 +348,36 @@ export const apiClient: ApiClient = {
               },
             },
           }),
+        ),
+      );
+    });
+  },
+  async createCategory(input) {
+    const { ledgerId, workspaceId, ...body } = input;
+    await withCsrf(async (csrfToken) => {
+      CreateCategoryResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories",
+            {
+              body: {
+                name: body.name,
+                ...(body.color !== undefined ? { color: body.color } : {}),
+                ...(body.icon !== undefined ? { icon: body.icon } : {}),
+                ...(body.parentId !== undefined ? { parentId: body.parentId } : {}),
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
         ),
       );
     });
@@ -567,6 +632,23 @@ export const apiClient: ApiClient = {
             },
             query: {
               limit: 50,
+            },
+          },
+        }),
+      ),
+    );
+  },
+  async listCategories(input) {
+    return ListCategoriesResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories", {
+          params: {
+            path: {
+              ledgerId: input.ledgerId,
+              workspaceId: input.workspaceId,
+            },
+            query: {
+              limit: 100,
             },
           },
         }),

@@ -1,4 +1,5 @@
 import type { TransactionGroupResponse } from "@fastifly/common";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import { Skeleton } from "@ui/skeleton";
@@ -162,9 +163,19 @@ export function TransactionsPanel({
               className="mt-1 break-words text-[14px] text-slate-600 dark:text-white/62"
               data-testid={emptyBodyId}
             >
-              {hasActiveFilters
-                ? en.transactions.noFilteredTransactionsBody
-                : en.shell.noTransactionsBody}
+              {hasActiveFilters ? (
+                en.transactions.noFilteredTransactionsBody
+              ) : (
+                <>
+                  {en.shell.noTransactionsBody}{" "}
+                  <Link
+                    className="font-medium text-primary underline underline-offset-2"
+                    to="/accounts"
+                  >
+                    {en.accounts.addAccount}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         )}

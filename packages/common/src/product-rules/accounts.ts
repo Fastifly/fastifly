@@ -43,6 +43,7 @@ export type AccountCompatibilityRule = {
 };
 
 const ASSET_OR_LIABILITY = ["asset", "liability"] as const satisfies readonly AccountKind[];
+export const USER_HELD_ACCOUNT_KINDS = ASSET_OR_LIABILITY;
 
 export const ACCOUNT_COMPATIBILITY_MATRIX: readonly AccountCompatibilityRule[] = [
   {
@@ -109,4 +110,8 @@ export function isCompatibleAccountPair(
   destination: AccountDescriptor,
 ): boolean {
   return inferTransactionType(source, destination) !== null;
+}
+
+export function isUserHeldAccountKind(kind: AccountKind): boolean {
+  return (USER_HELD_ACCOUNT_KINDS as readonly AccountKind[]).includes(kind);
 }

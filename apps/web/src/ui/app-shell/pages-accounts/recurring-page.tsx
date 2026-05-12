@@ -1,5 +1,6 @@
 import { formatMoneyMinor, type RecurringTemplateResponse } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
@@ -7,7 +8,7 @@ import { PauseCircle, PencilLine, PlayCircle, PlusCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
-import { useRecurringTemplatesQuery } from "../../../api/queries";
+import { useCategoriesQuery, useRecurringTemplatesQuery } from "../../../api/queries";
 import {
   buildCreateRecurringTemplateRequest,
   makeRecurringFormValuesFromTemplate,
@@ -28,6 +29,8 @@ import type { RecurringPageProps } from "./types";
 
 export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
   const queryClient = useQueryClient();
+  const categoriesQuery = useCategoriesQuery(ledgerContext);
+  const categories = categoriesQuery.data?.data ?? [];
   const recurringQuery = useRecurringTemplatesQuery(ledgerContext);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<RecurringTemplateResponse | null>(null);
@@ -38,7 +41,7 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
         throw new Error(en.accounts.ledgerRequired);
       }
 
-      const request = buildCreateRecurringTemplateRequest(values, accounts);
+      const request = buildCreateRecurringTemplateRequest(values, accounts, categories);
       return await apiClient.createRecurringTemplate({
         ...request,
         ledgerId: ledgerContext.ledgerId,
@@ -96,7 +99,7 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
         throw new Error(en.accounts.ledgerRequired);
       }
 
-      const request = buildCreateRecurringTemplateRequest(input.values, accounts);
+      const request = buildCreateRecurringTemplateRequest(input.values, accounts, categories);
       return await apiClient.updateRecurringTemplate({
         cadence: request.cadence,
         intervalCount: request.intervalCount,
@@ -122,6 +125,10 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
   const accountNames = useMemo(
     () => new Map(accounts.map((account) => [account.id, account.name] as const)),
     [accounts],
+  );
+  const categoryNames = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.name] as const)),
+    [categories],
   );
   const templates = useMemo(
     () =>
@@ -192,7 +199,19 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
               className="rounded-lg border border-border bg-muted/50 px-2.5 py-2 text-[12px] text-muted-foreground"
               data-testid={testIds.recurring.createErrorAlert}
             >
-              {ledgerContext ? en.shell.noAccountsBody : en.accounts.ledgerRequired}
+              {ledgerContext ? (
+                <>
+                  {en.shell.noAccountsForRecurring}{" "}
+                  <Link
+                    className="font-medium text-primary underline underline-offset-2"
+                    to="/accounts"
+                  >
+                    {en.accounts.addAccount}
+                  </Link>
+                </>
+              ) : (
+                en.accounts.ledgerRequired
+              )}
             </p>
           ) : null}
 
@@ -236,9 +255,13 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                           )
                           .replace(
                             "{destination}",
-                            accountNames.get(
-                              template.payload.lines[0]?.destinationAccountId ?? "",
-                            ) ?? "—",
+                            template.payload.type === "expense"
+                              ? template.payload.lines[0]?.categoryId
+                                ? (categoryNames.get(template.payload.lines[0]?.categoryId) ?? "—")
+                                : "—"
+                              : (accountNames.get(
+                                  template.payload.lines[0]?.destinationAccountId ?? "",
+                                ) ?? "—"),
                           )}
                       </p>
                       <p
@@ -318,9 +341,10 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
 
       <RecurringCreateDialog
         accounts={accounts}
+        categories={categories}
         createDefaults={createDefaults}
         initialValues={
-          editingTemplate ? makeRecurringFormValuesFromTemplate(editingTemplate) : null
+          editingTemplate ? makeRecurringFormValuesFromTemplate(editingTemplate, categories) : null
         }
         isSubmitting={createMutation.isPending || editMutation.isPending}
         mode={editingTemplate ? "edit" : "create"}

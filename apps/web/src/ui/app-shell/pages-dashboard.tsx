@@ -1,4 +1,5 @@
 import type { AccountWithBalanceResponse } from "@fastifly/common";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
 import { Field, FieldLabel } from "@ui/field";
@@ -12,10 +13,10 @@ import {
 } from "@ui/select";
 import { Separator } from "@ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
-import { ArrowDownLeft, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
 import { useQueryStates } from "nuqs";
 import { useMemo } from "react";
-import { useInfiniteTransactionsQuery } from "../../api/queries";
+import { useCategoriesQuery, useInfiniteTransactionsQuery } from "../../api/queries";
 import {
   ALL_TRANSACTION_FILTER,
   buildTransactionListQuery,
@@ -26,8 +27,17 @@ import {
 } from "../../finance/transaction-list";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
+import { AccountCreateDialog } from "../account-create-panel";
+import { CategoryCreateDialog } from "../category-create-dialog";
 import { TransactionCreatePanel } from "../transaction-create-panel";
-import { AccountsPage, BudgetPage, ImportsPage, RecurringPage, RulesPage } from "./pages-accounts";
+import {
+  AccountsPage,
+  BudgetPage,
+  CategoriesPage,
+  ImportsPage,
+  RecurringPage,
+  RulesPage,
+} from "./pages-accounts";
 import { DashboardAside, ReportsPage, SettingsPage, SyncPage } from "./pages-finance";
 import { MetricTile } from "./shared-components";
 import { TransactionsPanel } from "./transaction-components";
@@ -49,6 +59,7 @@ export function DashboardPage({
   liabilities,
   moneySummaryValue,
   spending,
+  transactionCount,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly accountPreview: readonly AccountWithBalanceResponse[];
@@ -62,12 +73,167 @@ export function DashboardPage({
   readonly liabilities: string;
   readonly moneySummaryValue: string;
   readonly spending: string;
+  readonly transactionCount: number;
 }) {
+  const categoriesQuery = useCategoriesQuery(ledgerContext);
+  const categoryCount = categoriesQuery.data?.data.length ?? 0;
+  const setupItems = useMemo(
+    () => [
+      {
+        actionHref: "/accounts" as const,
+        actionLabel: en.accounts.addAccount,
+        completed: hasBankAccount(accounts),
+        hint: en.shell.gettingStartedHints.bankAccount,
+        key: "bankAccount",
+        label: en.shell.gettingStartedItems.bankAccount,
+      },
+      {
+        actionHref: "/categories" as const,
+        actionLabel: en.categories.addCategory,
+        completed: categoryCount > 0,
+        hint: en.shell.gettingStartedHints.expenseCategory,
+        key: "expenseCategory",
+        label: en.shell.gettingStartedItems.expenseCategory,
+      },
+      {
+        actionHref: "/transactions" as const,
+        actionLabel: en.shell.gettingStartedActions.openTransactions,
+        completed: transactionCount > 0,
+        hint: en.shell.gettingStartedHints.firstTransaction,
+        key: "firstTransaction",
+        label: en.shell.gettingStartedItems.firstTransaction,
+      },
+    ],
+    [accounts, categoryCount, transactionCount],
+  );
+  const showGettingStarted = setupItems.some((item) => !item.completed);
+  const completedSetupCount = setupItems.filter((item) => item.completed).length;
+  const setupProgressPercent = Math.round((completedSetupCount / setupItems.length) * 100);
+  const nextSetupItem = setupItems.find((item) => !item.completed);
+  const isAddAccountStep = nextSetupItem?.key === "bankAccount";
+  const isAddCategoryStep = nextSetupItem?.key === "expenseCategory";
+  const isFirstTransactionStep = nextSetupItem?.key === "firstTransaction";
+
   return (
     <section
       className="mt-2 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(22rem,0.8fr)]"
       data-testid={testIds.dashboard.page}
     >
+      {showGettingStarted && nextSetupItem ? (
+        <Card
+          className="relative overflow-hidden border border-amber-300/70 bg-gradient-to-br from-amber-50/95 via-amber-100/90 to-orange-100/70 text-card-foreground shadow-[0_10px_26px_-14px_rgba(146,64,14,0.42)] dark:border-amber-500/45 dark:from-[#2b1f11] dark:via-[#2a1c0f] dark:to-[#24170d] xl:col-span-2"
+          data-testid={testIds.dashboard.gettingStartedCard}
+        >
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <p
+                  className="font-semibold text-[0.95rem] leading-none tracking-tight"
+                  data-testid={testIds.dashboard.gettingStartedTitle}
+                >
+                  {en.shell.gettingStartedTitle}
+                </p>
+                <p
+                  className="text-[0.8125rem] text-muted-foreground"
+                  data-testid={testIds.dashboard.gettingStartedBody}
+                >
+                  {en.shell.gettingStartedBody}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-amber-300/60 bg-amber-50/80 px-2.5 py-1 text-[11px] font-medium text-amber-900 dark:border-amber-500/45 dark:bg-amber-300/12 dark:text-amber-100">
+                  {completedSetupCount}/{setupItems.length} complete
+                </span>
+              </div>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-100 via-emerald-300 to-emerald-700 dark:from-emerald-300/35 dark:via-emerald-400/60 dark:to-emerald-500/95 transition-all"
+                style={{ width: `${setupProgressPercent}%` }}
+              />
+            </div>
+            <ul className="grid gap-2" data-testid={testIds.dashboard.gettingStartedList}>
+              <li
+                className={`rounded-xl border border-amber-300/90 bg-amber-50/90 px-3.5 py-2.5 text-[0.8125rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-colors dark:border-amber-600/45 dark:bg-amber-500/10 ${
+                  isFirstTransactionStep
+                    ? "flex flex-col gap-2.5"
+                    : "flex items-start justify-between gap-3"
+                }`}
+                data-testid={testIds.dashboard.gettingStartedItem(nextSetupItem.key)}
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{nextSetupItem.label}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{nextSetupItem.hint}</p>
+                </div>
+                <div
+                  className={isFirstTransactionStep ? "w-full" : "flex shrink-0 items-center gap-2"}
+                >
+                  {isAddAccountStep ? (
+                    <AccountCreateDialog
+                      ledgerContext={ledgerContext}
+                      trigger={
+                        <Button
+                          className="bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/25 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                          data-icon="inline-end"
+                          data-testid={testIds.accounts.create.openButton}
+                          disabled={!ledgerContext}
+                          size="sm"
+                          type="button"
+                        >
+                          <span>{nextSetupItem.actionLabel}</span>
+                          <ArrowRight aria-hidden="true" />
+                        </Button>
+                      }
+                      triggerDisabled={!ledgerContext}
+                    />
+                  ) : isAddCategoryStep ? (
+                    <CategoryCreateDialog
+                      ledgerContext={ledgerContext}
+                      trigger={
+                        <Button
+                          className="bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/25 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                          data-icon="inline-end"
+                          data-testid={testIds.categories.create.openButton}
+                          disabled={!ledgerContext}
+                          size="sm"
+                          type="button"
+                        >
+                          <span>{nextSetupItem.actionLabel}</span>
+                          <ArrowRight aria-hidden="true" />
+                        </Button>
+                      }
+                      triggerDisabled={!ledgerContext}
+                    />
+                  ) : isFirstTransactionStep ? (
+                    <div className="w-full min-w-0">
+                      <TransactionCreatePanel
+                        accounts={accounts}
+                        ledgerContext={ledgerContext}
+                        variant="inline-actions"
+                      />
+                    </div>
+                  ) : (
+                    <Button
+                      asChild
+                      className="bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/25 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                      data-icon="inline-end"
+                      size="sm"
+                      type="button"
+                    >
+                      <Link to={nextSetupItem.actionHref}>
+                        <span>{nextSetupItem.actionLabel}</span>
+                        <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="flex flex-col gap-4">
         <Card
           className="rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
@@ -163,6 +329,7 @@ export function PageBody({
   syncServerRevision,
   spending,
   spendingRate,
+  transactionCount,
   theme,
   transferCount,
   workspaceId,
@@ -206,6 +373,7 @@ export function PageBody({
   readonly syncServerRevision: string;
   readonly spending: string;
   readonly spendingRate: string;
+  readonly transactionCount: number;
   readonly theme: Theme;
   readonly onApplyUpdate: () => void;
   readonly onLogout: () => void;
@@ -228,6 +396,9 @@ export function PageBody({
         ledgerContext={ledgerContext}
       />
     );
+  }
+  if (pageSlug === "categories") {
+    return <CategoriesPage ledgerContext={ledgerContext} />;
   }
   if (pageSlug === "budgets") {
     return (
@@ -304,7 +475,19 @@ export function PageBody({
       liabilities={liabilities}
       moneySummaryValue={moneySummaryValue}
       spending={spending}
+      transactionCount={transactionCount}
     />
+  );
+}
+
+function hasBankAccount(accounts: readonly AccountWithBalanceResponse[]): boolean {
+  return accounts.some(
+    (account) =>
+      account.kind === "asset" &&
+      (account.subtype === "bank" ||
+        account.subtype === "cash" ||
+        account.subtype === "wallet" ||
+        account.subtype === "investment"),
   );
 }
 

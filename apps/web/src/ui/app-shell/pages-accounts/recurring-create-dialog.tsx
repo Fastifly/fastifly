@@ -1,4 +1,4 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import type { AccountWithBalanceResponse, CategoryResponse } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { Button } from "@ui/button";
 import {
@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getDestinationAccountsForRecurring,
+  getExpenseCategoriesForRecurring,
   getMinimumFutureDateInput,
   getRecurringFormIssues,
   getSourceAccountsForRecurring,
@@ -32,11 +33,13 @@ import {
   getAmountFieldError,
   getNextRunOnFieldError,
   InlineChoiceGroup,
+  OptionChooser,
 } from "./recurring-create-dialog-fields";
 import { getRecurringError } from "./recurring-support";
 
 type RecurringCreateDialogProps = {
   readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly categories: readonly CategoryResponse[];
   readonly createDefaults?: RecurringCreateDefaults;
   readonly initialValues?: RecurringFormValues | null;
   readonly isSubmitting: boolean;
@@ -48,6 +51,7 @@ type RecurringCreateDialogProps = {
 
 export function RecurringCreateDialog({
   accounts,
+  categories,
   createDefaults = {},
   initialValues = null,
   isSubmitting,
@@ -61,8 +65,13 @@ export function RecurringCreateDialog({
   const defaultValues = useMemo(
     () =>
       initialValues ??
-      makeRecurringFormDefaults(accounts, createDefaults.type ?? "expense", createDefaults),
-    [accounts, createDefaults, initialValues],
+      makeRecurringFormDefaults(
+        accounts,
+        categories,
+        createDefaults.type ?? "expense",
+        createDefaults,
+      ),
+    [accounts, categories, createDefaults, initialValues],
   );
   const form = useForm({
     defaultValues,
@@ -71,8 +80,9 @@ export function RecurringCreateDialog({
         await onSubmit(value);
         form.reset(
           mode === "create"
-            ? makeRecurringFormDefaults(accounts, value.type, {
+            ? makeRecurringFormDefaults(accounts, categories, value.type, {
                 cadence: value.cadence,
+                categoryId: value.categoryId,
                 destinationAccountId: value.destinationAccountId,
                 sourceAccountId: value.sourceAccountId,
                 type: value.type,
@@ -143,6 +153,14 @@ export function RecurringCreateDialog({
                 values.sourceAccountId,
                 values.type,
               );
+              const expenseCategories =
+                values.type === "expense"
+                  ? getExpenseCategoriesForRecurring(
+                      categories,
+                      accounts,
+                      values.sourceAccountId,
+                    )
+                  : [];
               const sourcePreferredIds =
                 values.type === "expense"
                   ? sourceAccounts
@@ -152,12 +170,12 @@ export function RecurringCreateDialog({
               const destinationPreferredIds =
                 values.type === "expense"
                   ? [
-                      ...destinationAccounts
-                        .filter((account) => hasNameToken(account.name, "utility", "utilities"))
-                        .map((account) => account.id),
-                      ...destinationAccounts
-                        .filter((account) => hasNameToken(account.name, "entertainment"))
-                        .map((account) => account.id),
+                      ...expenseCategories
+                        .filter((category) => hasNameToken(category.name, "utility", "utilities"))
+                        .map((category) => category.id),
+                      ...expenseCategories
+                        .filter((category) => hasNameToken(category.name, "entertainment"))
+                        .map((category) => category.id),
                     ]
                   : [];
 
@@ -171,12 +189,26 @@ export function RecurringCreateDialog({
                           onValueChange={(value) => {
                             const type = value as RecurringFormValues["type"];
                             const nextSource = getSourceAccountsForRecurring(accounts, type)[0];
-                            const nextDestination = nextSource
-                              ? getDestinationAccountsForRecurring(accounts, nextSource.id, type)[0]
-                              : undefined;
+                            const nextDestination =
+                              nextSource && type !== "expense"
+                                ? getDestinationAccountsForRecurring(
+                                    accounts,
+                                    nextSource.id,
+                                    type,
+                                  )[0]
+                                : undefined;
+                            const nextCategory =
+                              nextSource && type === "expense"
+                                ? getExpenseCategoriesForRecurring(
+                                    categories,
+                                    accounts,
+                                    nextSource.id,
+                                  )[0]
+                                : undefined;
                             field.handleChange(type);
                             form.setFieldValue("sourceAccountId", nextSource?.id ?? "");
                             form.setFieldValue("destinationAccountId", nextDestination?.id ?? "");
+                            form.setFieldValue("categoryId", nextCategory?.id ?? "");
                           }}
                           options={[
                             { label: en.transactions.types.expense, value: "expense" },
@@ -221,13 +253,25 @@ export function RecurringCreateDialog({
                         <FieldLabel>{en.recurring.fromAccount}</FieldLabel>
                         <AccountChooser
                           onValueChange={(sourceAccountId) => {
+                            field.handleChange(sourceAccountId);
+                            if (values.type === "expense") {
+                              const nextCategory = getExpenseCategoriesForRecurring(
+                                categories,
+                                accounts,
+                                sourceAccountId,
+                              )[0];
+                              form.setFieldValue("categoryId", nextCategory?.id ?? "");
+                              form.setFieldValue("destinationAccountId", "");
+                              return;
+                            }
+
                             const nextDestination = getDestinationAccountsForRecurring(
                               accounts,
                               sourceAccountId,
                               values.type,
                             )[0];
-                            field.handleChange(sourceAccountId);
                             form.setFieldValue("destinationAccountId", nextDestination?.id ?? "");
+                            form.setFieldValue("categoryId", "");
                           }}
                           options={sourceAccounts}
                           preferredOptionIds={sourcePreferredIds}
@@ -243,18 +287,39 @@ export function RecurringCreateDialog({
                     )}
                   </form.Field>
 
-                  <form.Field name="destinationAccountId">
+                  <form.Field
+                    name={values.type === "expense" ? "categoryId" : "destinationAccountId"}
+                  >
                     {(field) => (
                       <Field>
-                        <FieldLabel>{en.recurring.toAccount}</FieldLabel>
-                        <AccountChooser
-                          onValueChange={field.handleChange}
-                          options={destinationAccounts}
-                          preferredOptionIds={destinationPreferredIds}
-                          selectTestId={testIds.recurring.createDestinationAccountSelect}
-                          value={field.state.value}
-                        />
-                        {destinationAccounts.length === 0 ? (
+                        <FieldLabel>
+                          {values.type === "expense"
+                            ? en.transactions.category
+                            : en.recurring.toAccount}
+                        </FieldLabel>
+                        {values.type === "expense" ? (
+                          <OptionChooser
+                            onValueChange={field.handleChange}
+                            options={expenseCategories.map((category) => ({
+                              label: category.name,
+                              value: category.id,
+                            }))}
+                            preferredOptionIds={destinationPreferredIds}
+                            selectTestId={testIds.recurring.createDestinationAccountSelect}
+                            value={values.categoryId}
+                          />
+                        ) : (
+                          <AccountChooser
+                            onValueChange={field.handleChange}
+                            options={destinationAccounts}
+                            preferredOptionIds={destinationPreferredIds}
+                            selectTestId={testIds.recurring.createDestinationAccountSelect}
+                            value={field.state.value}
+                          />
+                        )}
+                        {(values.type === "expense"
+                          ? expenseCategories.length === 0
+                          : destinationAccounts.length === 0) ? (
                           <ShadcnFieldError>
                             {en.recurring.noCompatibleDestinationAccounts}
                           </ShadcnFieldError>
@@ -352,7 +417,8 @@ export function RecurringCreateDialog({
               selector={(state) => ({ canSubmit: state.canSubmit, values: state.values })}
             >
               {({ canSubmit, values }) => {
-                const hasGuardrailIssues = getRecurringFormIssues(values, accounts).length > 0;
+                const hasGuardrailIssues =
+                  getRecurringFormIssues(values, accounts, categories).length > 0;
 
                 return (
                   <Button

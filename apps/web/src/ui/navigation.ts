@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   Repeat,
   Settings,
+  Tags,
 } from "lucide-react";
 import { en } from "../i18n/en";
 
@@ -44,6 +45,13 @@ export const navigationItems = [
     mobileLabel: en.nav.accountsShort,
     slug: "accounts",
     to: "/accounts",
+  },
+  {
+    icon: Tags,
+    label: en.nav.categories,
+    mobileLabel: en.nav.categoriesShort,
+    slug: "categories",
+    to: "/categories",
   },
   {
     icon: PieChart,

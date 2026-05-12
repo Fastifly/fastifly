@@ -44,7 +44,7 @@ describe("deriveRecurringCreateDefaults", () => {
 
     expect(defaults).toEqual({
       cadence: "weekly",
-      destinationAccountId: "acct_food",
+      categoryId: "cat_food",
       sourceAccountId: "acct_bank",
       type: "expense",
     });
@@ -89,7 +89,7 @@ function template({
         {
           amountMinor: "10000",
           budgetId: null,
-          categoryId: null,
+          categoryId: type === "expense" ? "cat_food" : null,
           description: "Seed template",
           destinationAccountId,
           reportingAmountMinor: null,

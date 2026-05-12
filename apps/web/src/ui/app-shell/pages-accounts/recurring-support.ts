@@ -58,15 +58,20 @@ export function deriveRecurringCreateDefaults(
         (template) => template.payload.sourceAccountId === preferredSourceAccountId,
       )
     : typedCandidates;
-  const preferredDestinationAccountId = pickMostCommon(
-    sourceScopedCandidates,
-    (template) => template.payload.lines[0]?.destinationAccountId,
-  );
+  const preferredCategoryId =
+    preferredType === "expense"
+      ? pickMostCommon(sourceScopedCandidates, (template) => template.payload.lines[0]?.categoryId)
+      : undefined;
+  const preferredDestinationAccountId =
+    preferredType === "expense"
+      ? undefined
+      : pickMostCommon(sourceScopedCandidates, (template) => template.payload.lines[0]?.destinationAccountId);
 
   return {
     type: preferredType,
     ...(preferredCadence ? { cadence: preferredCadence } : {}),
     ...(preferredSourceAccountId ? { sourceAccountId: preferredSourceAccountId } : {}),
+    ...(preferredCategoryId ? { categoryId: preferredCategoryId } : {}),
     ...(preferredDestinationAccountId
       ? { destinationAccountId: preferredDestinationAccountId }
       : {}),

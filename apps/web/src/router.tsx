@@ -42,6 +42,15 @@ const accountsRoute = createRoute({
   ),
 });
 
+const categoriesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/categories",
+  component: lazyRouteComponent(
+    () => import("./ui/routes/categories-route"),
+    "CategoriesRouteComponent",
+  ),
+});
+
 const transactionsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/transactions",
@@ -109,6 +118,7 @@ const routeTree = rootRoute.addChildren([
   appLayoutRoute.addChildren([
     indexRoute,
     accountsRoute,
+    categoriesRoute,
     transactionsRoute,
     budgetsRoute,
     importsRoute,

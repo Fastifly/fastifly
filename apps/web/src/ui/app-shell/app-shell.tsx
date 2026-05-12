@@ -1,4 +1,4 @@
-import { formatMoneyMinor } from "@fastifly/common";
+import { formatMoneyMinor, isUserHeldAccountKind } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Button } from "@ui/button";
@@ -251,8 +251,9 @@ export function AppShell({ children }: PropsWithChildren) {
   const syncLastOperationAt = syncStatusQuery.data?.data.lastOperationAt ?? null;
   const syncConflicts = syncConflictsQuery.data?.data.conflicts ?? [];
   const transactions = transactionsQuery.data?.data ?? [];
-  const assetAccounts = accounts.filter((account) => account.kind === "asset");
-  const liabilityAccounts = accounts.filter((account) => account.kind === "liability");
+  const userHeldAccounts = accounts.filter((account) => isUserHeldAccountKind(account.kind));
+  const assetAccounts = userHeldAccounts.filter((account) => account.kind === "asset");
+  const liabilityAccounts = userHeldAccounts.filter((account) => account.kind === "liability");
   const incomeMinor = sumTransactionAmounts(transactions, "income");
   const expenseMinor = sumTransactionAmounts(transactions, "expense");
   const transferCount = transactions.filter(
@@ -272,7 +273,7 @@ export function AppShell({ children }: PropsWithChildren) {
     incomeMinor > 0n ? `${((expenseMinor * 100n) / incomeMinor).toString()}%` : "0%";
   const moneySummaryValue =
     meContext.isPending || accountsQuery.isPending ? en.shell.loadingData : netWorth;
-  const accountPreview = [...assetAccounts, ...liabilityAccounts].slice(0, 5);
+  const accountPreview = userHeldAccounts.slice(0, 5);
 
   if (isAuthRoute) {
     if (sessionState === "pending") {
@@ -322,7 +323,7 @@ export function AppShell({ children }: PropsWithChildren) {
       >
         <div className="shrink-0">
           <TopBar
-            accountsCount={accounts.length}
+            accountsCount={userHeldAccounts.length}
             currentNavigationItem={currentNavigationItem}
             isOnline={isOnline}
             onToggleTheme={() => setTheme(cycleTheme(theme))}
@@ -362,6 +363,7 @@ export function AppShell({ children }: PropsWithChildren) {
             syncServerRevision={syncServerRevision}
             spending={spending}
             spendingRate={spendingRate}
+            transactionCount={transactions.length}
             theme={theme}
             transferCount={transferCount}
             workspaceId={meContext.data.data.activeWorkspace.id}

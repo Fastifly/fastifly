@@ -1,9 +1,10 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import type { AccountWithBalanceResponse, CategoryResponse } from "@fastifly/common";
 import { describe, expect, it } from "vitest";
 
 import {
   buildCreateRecurringTemplateRequest,
   getDestinationAccountsForRecurring,
+  getExpenseCategoriesForRecurring,
   getMinimumFutureDateInput,
   getRecurringFormIssues,
   getSourceAccountsForRecurring,
@@ -17,6 +18,7 @@ const accounts = [
   account("acct_salary", "Salary", "revenue", "external"),
   account("acct_groceries", "Groceries", "expense", "external"),
 ] as const;
+const categories = [category("cat_groceries", "Groceries", "acct_groceries")] as const;
 
 describe("recurring form helpers", () => {
   it("offers compatible account choices per recurring type", () => {
@@ -27,6 +29,9 @@ describe("recurring form helpers", () => {
     expect(getSourceAccountsForRecurring(accounts, "income").map((item) => item.id)).toEqual([
       "acct_salary",
     ]);
+    expect(
+      getExpenseCategoriesForRecurring(categories, accounts, "acct_bank").map((item) => item.id),
+    ).toEqual(["cat_groceries"]);
     expect(
       getDestinationAccountsForRecurring(accounts, "acct_bank", "expense").map((item) => item.id),
     ).toEqual(["acct_groceries"]);
@@ -41,14 +46,16 @@ describe("recurring form helpers", () => {
         {
           amount: "499.99",
           cadence: "monthly",
+          categoryId: "cat_groceries",
           description: "Netflix",
-          destinationAccountId: "acct_groceries",
+          destinationAccountId: "",
           nextRunOn: "2026-05-15",
           sourceAccountId: "acct_bank",
           title: "Netflix subscription",
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toMatchObject({
       cadence: "monthly",
@@ -57,7 +64,13 @@ describe("recurring form helpers", () => {
       payload: {
         currencyCode: "INR",
         description: "Netflix",
-        lines: [{ amountMinor: "49999", destinationAccountId: "acct_groceries" }],
+        lines: [
+          {
+            amountMinor: "49999",
+            categoryId: "cat_groceries",
+            destinationAccountId: "acct_groceries",
+          },
+        ],
         sourceAccountId: "acct_bank",
         title: "Netflix subscription",
         type: "expense",
@@ -72,14 +85,16 @@ describe("recurring form helpers", () => {
         {
           amount: "1.234",
           cadence: "monthly",
+          categoryId: "cat_groceries",
           description: "Invalid",
-          destinationAccountId: "acct_groceries",
+          destinationAccountId: "",
           nextRunOn: "2026-05-15",
           sourceAccountId: "acct_bank",
           title: "Invalid",
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toThrow();
 
@@ -88,14 +103,16 @@ describe("recurring form helpers", () => {
         {
           amount: "100",
           cadence: "monthly",
+          categoryId: "cat_missing",
           description: "Wrong pair",
-          destinationAccountId: "acct_salary",
+          destinationAccountId: "",
           nextRunOn: "2026-05-15",
           sourceAccountId: "acct_bank",
           title: "Wrong pair",
           type: "expense",
         },
         accounts,
+        categories,
       ),
     ).toThrow();
   });
@@ -105,6 +122,7 @@ describe("recurring form helpers", () => {
       {
         amount: "",
         cadence: "monthly",
+        categoryId: "",
         description: "",
         destinationAccountId: "",
         nextRunOn: "",
@@ -113,12 +131,13 @@ describe("recurring form helpers", () => {
         type: "expense",
       },
       accounts,
+      categories,
     );
 
     expect(issues.map((issue) => issue.code)).toEqual(
       expect.arrayContaining([
         "amount-required",
-        "destination-account-required",
+        "category-required",
         "next-run-on-invalid",
         "source-account-required",
         "title-or-description-required",
@@ -131,6 +150,7 @@ describe("recurring form helpers", () => {
       {
         amount: "100",
         cadence: "monthly",
+        categoryId: "cat_missing",
         description: "Mismatch",
         destinationAccountId: "acct_salary",
         nextRunOn: "2026-05-15",
@@ -139,9 +159,10 @@ describe("recurring form helpers", () => {
         type: "expense",
       },
       accounts,
+      categories,
     );
 
-    expect(issues.some((issue) => issue.code === "destination-account-invalid")).toBe(true);
+    expect(issues.some((issue) => issue.code === "category-invalid")).toBe(true);
   });
 
   it("requires subscription start date in the future", () => {
@@ -149,26 +170,28 @@ describe("recurring form helpers", () => {
       {
         amount: "100",
         cadence: "monthly",
+        categoryId: "cat_groceries",
         description: "Valid recurring",
-        destinationAccountId: "acct_groceries",
+        destinationAccountId: "",
         nextRunOn: "2000-01-01",
         sourceAccountId: "acct_bank",
         title: "Valid recurring",
         type: "expense",
       },
       accounts,
+      categories,
     );
 
     expect(issues.some((issue) => issue.code === "next-run-on-must-be-future")).toBe(true);
   });
 
   it("defaults start date to a future day", () => {
-    const defaults = makeRecurringFormDefaults(accounts, "expense");
+    const defaults = makeRecurringFormDefaults(accounts, categories, "expense");
     expect(defaults.nextRunOn >= getMinimumFutureDateInput()).toBe(true);
   });
 
   it("applies valid create defaults when compatible", () => {
-    const defaults = makeRecurringFormDefaults(accounts, "expense", {
+    const defaults = makeRecurringFormDefaults(accounts, categories, "expense", {
       cadence: "weekly",
       destinationAccountId: "acct_bank",
       nextRunOn: "2099-01-01",
@@ -186,7 +209,8 @@ describe("recurring form helpers", () => {
   });
 
   it("falls back when create defaults are incompatible or stale", () => {
-    const defaults = makeRecurringFormDefaults(accounts, "expense", {
+    const defaults = makeRecurringFormDefaults(accounts, categories, "expense", {
+      categoryId: "cat_missing",
       destinationAccountId: "acct_salary",
       nextRunOn: "2000-01-01",
       sourceAccountId: "acct_salary",
@@ -194,7 +218,7 @@ describe("recurring form helpers", () => {
     });
 
     expect(defaults.sourceAccountId).toBe("acct_bank");
-    expect(defaults.destinationAccountId).toBe("acct_groceries");
+    expect(defaults.categoryId).toBe("cat_groceries");
     expect(defaults.nextRunOn >= getMinimumFutureDateInput()).toBe(true);
   });
 
@@ -216,7 +240,7 @@ describe("recurring form helpers", () => {
           {
             amountMinor: "49999",
             budgetId: null,
-            categoryId: null,
+            categoryId: "cat_groceries",
             description: "Netflix",
             destinationAccountId: "acct_groceries",
             reportingAmountMinor: null,
@@ -231,11 +255,12 @@ describe("recurring form helpers", () => {
       updatedAt: "2026-05-10T00:00:00.000Z",
       updatedBy: "019dfbac-0000-7000-8000-000000000003",
       workspaceId: "019dfbac-0000-7000-8000-000000000002",
-    });
+    }, categories);
 
     expect(values).toEqual({
       amount: "499.99",
       cadence: "monthly",
+      categoryId: "cat_groceries",
       description: "Netflix",
       destinationAccountId: "acct_groceries",
       nextRunOn: "2026-05-15",
@@ -266,6 +291,26 @@ function account(
     openingBalanceMinor: null,
     reportingBalance: { amountMinor: "0", currencyCode: "INR" },
     subtype,
+    updatedAt: "2026-05-10T00:00:00.000Z",
+    workspaceId: "019dfbac-0000-7000-8000-000000000002",
+  };
+}
+
+function category(
+  id: string,
+  name: string,
+  counterpartyAccountId: string,
+): CategoryResponse {
+  return {
+    archivedAt: null,
+    color: null,
+    counterpartyAccountId,
+    createdAt: "2026-05-10T00:00:00.000Z",
+    icon: null,
+    id,
+    ledgerId: "019dfbac-0000-7000-8000-000000000001",
+    name,
+    parentId: null,
     updatedAt: "2026-05-10T00:00:00.000Z",
     workspaceId: "019dfbac-0000-7000-8000-000000000002",
   };

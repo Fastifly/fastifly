@@ -1,6 +1,7 @@
 import type {
   ImportJobResponse,
   ListBudgetsQuery,
+  ListCategoriesResponse,
   ListTransactionsQuery,
   ListTransactionsResponse,
   RecurringTemplateResponse,
@@ -53,6 +54,19 @@ export function useAccountsQuery(input: LedgerQueryInput) {
       return apiClient.listAccounts(input);
     },
     queryKey: ["finance", "accounts", input?.workspaceId, input?.ledgerId],
+  });
+}
+
+export function useCategoriesQuery(input: LedgerQueryInput) {
+  return useQuery<ListCategoriesResponse>({
+    enabled: Boolean(input),
+    queryFn: () => {
+      if (!input) {
+        throw new Error("Ledger context is required.");
+      }
+      return apiClient.listCategories(input);
+    },
+    queryKey: ["finance", "categories", input?.workspaceId, input?.ledgerId],
   });
 }
 

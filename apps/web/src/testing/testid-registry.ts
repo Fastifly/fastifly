@@ -5,6 +5,7 @@
 type NavigationSlug =
   | "accounts"
   | "budgets"
+  | "categories"
   | "dashboard"
   | "imports"
   | "recurring"
@@ -41,6 +42,7 @@ export const testIds = {
   routes: {
     dashboardRoute: "route-dashboard",
     accountsRoute: "route-accounts",
+    categoriesRoute: "route-categories",
     transactionsRoute: "route-transactions",
     budgetsRoute: "route-budgets",
     importsRoute: "route-imports",
@@ -104,6 +106,11 @@ export const testIds = {
   },
   dashboard: {
     page: "dashboard-page",
+    gettingStartedCard: "dashboard-getting-started-card",
+    gettingStartedTitle: "dashboard-getting-started-title",
+    gettingStartedBody: "dashboard-getting-started-body",
+    gettingStartedList: "dashboard-getting-started-list",
+    gettingStartedItem: (item: string) => `dashboard-getting-started-item-${item}`,
     netWorthCard: "dashboard-net-worth-card",
     netWorthLabel: "dashboard-net-worth-label",
     netWorthValue: "dashboard-net-worth-value",
@@ -190,6 +197,31 @@ export const testIds = {
     balanceName: (id: string) => `account-balance-card-${id}-name`,
     balanceKind: (id: string) => `account-balance-card-${id}-kind`,
     balanceAmount: (id: string) => `account-balance-card-${id}-amount`,
+  },
+  categories: {
+    page: "categories-page",
+    list: "categories-list",
+    emptyState: "categories-empty-state",
+    create: {
+      openButton: "category-create-open-button",
+      dialog: "category-create-dialog",
+      dialogTitle: "category-create-dialog-title",
+      dialogDescription: "category-create-dialog-description",
+      form: "category-create-form",
+      nameInput: "category-name-input",
+      submitButton: "category-create-submit-button",
+    },
+    archive: {
+      button: (id: string) => `category-${id}-archive-button`,
+      cancelButton: (id: string) => `category-${id}-archive-cancel-button`,
+      confirmButton: (id: string) => `category-${id}-archive-confirm-button`,
+      description: (id: string) => `category-${id}-archive-description`,
+      dialog: (id: string) => `category-${id}-archive-dialog`,
+      title: (id: string) => `category-${id}-archive-title`,
+    },
+    card: (id: string) => `category-card-${id}`,
+    cardName: (id: string) => `category-card-${id}-name`,
+    cardMeta: (id: string) => `category-card-${id}-meta`,
   },
   budgets: {
     page: "budgets-page",

@@ -11,6 +11,10 @@ export type AccountsPageProps = {
   readonly ledgerContext: LedgerContext;
 };
 
+export type CategoriesPageProps = {
+  readonly ledgerContext: LedgerContext;
+};
+
 export type BudgetPageProps = {
   readonly cashflow: string;
   readonly income: string;

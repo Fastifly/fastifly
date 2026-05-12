@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { inferTransactionType, isCompatibleAccountPair } from "../product-rules/accounts.js";
+import {
+  inferTransactionType,
+  isCompatibleAccountPair,
+  isUserHeldAccountKind,
+} from "../product-rules/accounts.js";
 
 describe("account compatibility matrix", () => {
   it("infers the supported day-one transaction types", () => {
@@ -39,5 +43,13 @@ describe("account compatibility matrix", () => {
     expect(isCompatibleAccountPair({ kind: "expense" }, { kind: "asset" })).toBe(false);
     expect(isCompatibleAccountPair({ kind: "asset" }, { kind: "revenue" })).toBe(false);
     expect(isCompatibleAccountPair({ kind: "revenue" }, { kind: "expense" })).toBe(false);
+  });
+
+  it("marks only asset and liability as user-held accounts", () => {
+    expect(isUserHeldAccountKind("asset")).toBe(true);
+    expect(isUserHeldAccountKind("liability")).toBe(true);
+    expect(isUserHeldAccountKind("expense")).toBe(false);
+    expect(isUserHeldAccountKind("revenue")).toBe(false);
+    expect(isUserHeldAccountKind("equity")).toBe(false);
   });
 });

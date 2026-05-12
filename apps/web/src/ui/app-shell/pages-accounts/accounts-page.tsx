@@ -1,4 +1,4 @@
-import type { AccountWithBalanceResponse } from "@fastifly/common";
+import { type AccountWithBalanceResponse, isUserHeldAccountKind } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
@@ -11,6 +11,7 @@ import type { AccountsPageProps } from "./types";
 
 export function AccountsPage({ accounts, accountsLoading, ledgerContext }: AccountsPageProps) {
   const queryClient = useQueryClient();
+  const userAccounts = accounts.filter((account) => isUserHeldAccountKind(account.kind));
   const archiveMutation = useMutation({
     mutationFn: async (account: AccountWithBalanceResponse) => {
       if (!ledgerContext) {
@@ -58,8 +59,8 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
             className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"
             data-testid={testIds.accounts.list}
           >
-            {accounts.length > 0 ? (
-              accounts.map((account) => (
+            {userAccounts.length > 0 ? (
+              userAccounts.map((account) => (
                 <AccountCard
                   account={account}
                   isArchiving={

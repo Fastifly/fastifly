@@ -6,15 +6,7 @@ import {
   parseSignedDecimalMoneyToMinor,
 } from "@fastifly/common";
 
-export type AccountFormType =
-  | "bank"
-  | "cash"
-  | "credit_card"
-  | "expense_category"
-  | "income_source"
-  | "investment"
-  | "loan"
-  | "wallet";
+export type AccountFormType = "bank" | "cash" | "credit_card" | "investment" | "loan" | "wallet";
 
 export type AccountFormValues = {
   readonly currencyCode: string;
@@ -38,8 +30,6 @@ export const ACCOUNT_FORM_TYPES: readonly AccountTypeDefinition[] = [
   { kind: "asset", subtype: "investment", supportsOpeningBalance: true, type: "investment" },
   { kind: "liability", subtype: "credit_card", supportsOpeningBalance: true, type: "credit_card" },
   { kind: "liability", subtype: "loan", supportsOpeningBalance: true, type: "loan" },
-  { kind: "revenue", subtype: "external", supportsOpeningBalance: false, type: "income_source" },
-  { kind: "expense", subtype: "external", supportsOpeningBalance: false, type: "expense_category" },
 ] as const;
 
 export function makeAccountFormDefaults(type: AccountFormType = "bank"): AccountFormValues {

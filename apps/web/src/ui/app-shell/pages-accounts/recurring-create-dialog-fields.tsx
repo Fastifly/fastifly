@@ -14,6 +14,11 @@ import {
 import type { ReactNode } from "react";
 import { en } from "../../../i18n/en";
 
+type ChoiceOption = {
+  readonly label: string;
+  readonly value: string;
+};
+
 export function AccountChooser({
   onValueChange,
   options,
@@ -27,13 +32,42 @@ export function AccountChooser({
   readonly selectTestId: string;
   readonly value: string;
 }) {
+  const mappedOptions = options.map((account) => ({
+    label: account.name,
+    value: account.id,
+  }));
+
+  return (
+    <OptionChooser
+      onValueChange={onValueChange}
+      options={mappedOptions}
+      preferredOptionIds={preferredOptionIds}
+      selectTestId={selectTestId}
+      value={value}
+    />
+  );
+}
+
+export function OptionChooser({
+  onValueChange,
+  options,
+  preferredOptionIds = [],
+  selectTestId,
+  value,
+}: {
+  readonly onValueChange: (value: string) => void;
+  readonly options: readonly ChoiceOption[];
+  readonly preferredOptionIds?: readonly string[];
+  readonly selectTestId: string;
+  readonly value: string;
+}) {
   const orderedOptions = orderByPreferredIds(options, preferredOptionIds);
 
   if (orderedOptions.length <= 3) {
     return (
       <InlineChoiceGroup
         onValueChange={onValueChange}
-        options={orderedOptions.map((account) => ({ label: account.name, value: account.id }))}
+        options={orderedOptions}
         testId={selectTestId}
         value={value}
       />
@@ -42,14 +76,16 @@ export function AccountChooser({
 
   const quickOptions = orderedOptions.slice(0, 3);
   const overflowOptions = orderedOptions.slice(3);
-  const quickValue = quickOptions.some((account) => account.id === value) ? value : undefined;
-  const overflowValue = overflowOptions.some((account) => account.id === value) ? value : undefined;
+  const quickValue = quickOptions.some((option) => option.value === value) ? value : undefined;
+  const overflowValue = overflowOptions.some((option) => option.value === value)
+    ? value
+    : undefined;
 
   return (
     <div className="space-y-2" data-testid={selectTestId}>
       <InlineChoiceGroup
         onValueChange={onValueChange}
-        options={quickOptions.map((account) => ({ label: account.name, value: account.id }))}
+        options={quickOptions}
         value={quickValue}
       />
 
@@ -60,9 +96,9 @@ export function AccountChooser({
         <SelectContent>
           <SelectGroup>
             <SelectLabel>{en.recurring.moreAccounts}</SelectLabel>
-            {overflowOptions.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                {account.name}
+            {overflowOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -112,17 +148,17 @@ export function InlineChoiceGroup({
 }
 
 function orderByPreferredIds(
-  options: readonly AccountWithBalanceResponse[],
+  options: readonly ChoiceOption[],
   preferredOptionIds: readonly string[],
-): readonly AccountWithBalanceResponse[] {
+): readonly ChoiceOption[] {
   if (preferredOptionIds.length === 0) {
     return options;
   }
 
   const indexById = new Map(preferredOptionIds.map((id, index) => [id, index] as const));
   return [...options].sort((left, right) => {
-    const leftOrder = indexById.get(left.id);
-    const rightOrder = indexById.get(right.id);
+    const leftOrder = indexById.get(left.value);
+    const rightOrder = indexById.get(right.value);
     if (leftOrder === undefined && rightOrder === undefined) {
       return 0;
     }
