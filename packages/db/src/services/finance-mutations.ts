@@ -1,3 +1,4 @@
+import type { AccountKind, AccountSubtype } from "@fastifly/common";
 import type {
   LedgerMutationAuthorizationContext,
   LedgerMutationEnvelope,
@@ -11,6 +12,12 @@ import type {
   CreateAccountInput,
   CreateAccountResult,
 } from "../repositories/accounts.js";
+import type {
+  ArchiveCategoryInput,
+  CategoryRecord,
+  CategoryRepository,
+  CreateCategoryInput,
+} from "../repositories/categories.js";
 import type {
   ArchiveTransactionGroupsInput,
   CreateTransactionInput,
@@ -39,6 +46,15 @@ export type ArchiveAccountMutationPayload = {
   readonly accountId: AccountRecord["id"];
 };
 
+export type CreateCategoryMutationPayload = Omit<
+  CreateCategoryInput,
+  "counterpartyAccountId" | "ledgerId" | "workspaceId"
+>;
+
+export type ArchiveCategoryMutationPayload = {
+  readonly categoryId: CategoryRecord["id"];
+};
+
 export type ArchiveTransactionGroupsMutationPayload = {
   readonly groupIds: readonly TransactionGroupRecord["id"][];
 };
@@ -56,6 +72,16 @@ export type CreateAccountMutationInput = {
 export type ArchiveAccountMutationInput = {
   readonly envelope: LedgerMutationEnvelope;
   readonly account: ArchiveAccountMutationPayload;
+};
+
+export type CreateCategoryMutationInput = {
+  readonly category: CreateCategoryMutationPayload;
+  readonly envelope: LedgerMutationEnvelope;
+};
+
+export type ArchiveCategoryMutationInput = {
+  readonly category: ArchiveCategoryMutationPayload;
+  readonly envelope: LedgerMutationEnvelope;
 };
 
 export type CreateTransactionMutationInput = {
@@ -80,7 +106,13 @@ export type CreateTypedTransactionMutationInput = {
 
 export type LedgerFinanceMutationService = {
   readonly createAccount: (input: CreateAccountMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly createCategory: (
+    input: CreateCategoryMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
   readonly archiveAccount: (input: ArchiveAccountMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly archiveCategory: (
+    input: ArchiveCategoryMutationInput,
+  ) => Promise<LedgerMutationRunResult>;
   readonly archiveTransactionGroups: (
     input: ArchiveTransactionGroupsMutationInput,
   ) => Promise<LedgerMutationRunResult>;
@@ -103,7 +135,9 @@ export type LedgerFinanceMutationService = {
 
 export type LedgerFinanceMutationServiceOptions = {
   readonly accountRepository: AccountRepository;
+  readonly categoryRepository?: CategoryRepository;
   readonly createAccountRepositoryForTransaction?: (transaction: unknown) => AccountRepository;
+  readonly createCategoryRepositoryForTransaction?: (transaction: unknown) => CategoryRepository;
   readonly createTransactionRepositoryForTransaction?: (
     transaction: unknown,
   ) => TransactionWriteRepository;
@@ -114,7 +148,7 @@ export type LedgerFinanceMutationServiceOptions = {
 export class FinanceMutationError extends Error {
   constructor(
     message: string,
-    readonly code: "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+    readonly code: "ACCOUNT_NOT_FOUND_OR_ARCHIVED" | "CATEGORY_NOT_FOUND_OR_ARCHIVED",
   ) {
     super(message);
     this.name = "FinanceMutationError";
@@ -189,6 +223,115 @@ export function createLedgerFinanceMutationService(
       });
     },
 
+    createCategory(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "create",
+        subject: "Category",
+      });
+      const requestPayload = serializeCreateCategoryPayload(input.category);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ emitEvent, envelope, scope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                data: {
+                  category: requestPayload,
+                  dryRun: true,
+                },
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createCategoryRepositoryForTransaction?.(transaction) ??
+            options.categoryRepository;
+          if (!repository) {
+            throw new LedgerMutationError(
+              "Category repository is not configured for this runtime.",
+              "INVALID_MUTATION_RESPONSE",
+            );
+          }
+          const accountRepository =
+            options.createAccountRepositoryForTransaction?.(transaction) ??
+            options.accountRepository;
+          const activeAccountPage = accountRepository.listAccounts({
+            cursor: null,
+            ledgerId: envelope.ledgerId,
+            limit: 100,
+            workspaceId: envelope.workspaceId,
+          });
+
+          return mapMaybePromise(activeAccountPage, (page) => {
+            const assetOrLiabilityAccount = page.items.find(
+              (account) => account.kind === "asset" || account.kind === "liability",
+            );
+            const counterpartyCurrencyCode =
+              assetOrLiabilityAccount?.currencyCode ??
+              page.items[0]?.currencyCode ??
+              scope.ledger.baseCurrencyCode;
+
+            const counterpartyName = buildCategoryCounterpartyAccountName(
+              input.category.name,
+              envelope.requestId,
+            );
+            const counterparty = accountRepository.createAccount({
+              createdBy: envelope.actorUserId,
+              currencyCode: counterpartyCurrencyCode,
+              kind: CATEGORY_COUNTERPARTY_ACCOUNT_KIND,
+              ledgerId: envelope.ledgerId,
+              name: counterpartyName,
+              subtype: CATEGORY_COUNTERPARTY_ACCOUNT_SUBTYPE,
+              workspaceId: envelope.workspaceId,
+            });
+
+            return mapMaybePromise(counterparty, (createdAccount) =>
+              mapMaybePromise(
+                repository.createCategory({
+                  ...input.category,
+                  counterpartyAccountId: createdAccount.account.id,
+                  ledgerId: envelope.ledgerId,
+                  workspaceId: envelope.workspaceId,
+                }),
+                (category) => {
+                  emitEvent({
+                    payload: {
+                      categoryId: category.id,
+                      ledgerId: envelope.ledgerId,
+                      workspaceId: envelope.workspaceId,
+                    },
+                    type: "category.created",
+                  });
+                  recordAudit({
+                    action: "category.created",
+                    entityId: category.id,
+                    entityType: "category",
+                    metadataJson: {
+                      counterpartyAccountId: category.counterpartyAccountId,
+                      operation: "created",
+                      parentId: category.parentId,
+                    },
+                  });
+
+                  return {
+                    body: {
+                      data: {
+                        category: serializeCategory(category),
+                      },
+                    },
+                    status: 201,
+                  };
+                },
+              ),
+            );
+          });
+        },
+      });
+    },
+
     archiveAccount(input) {
       assertExpectedAuthorization(input.envelope, {
         action: "archive",
@@ -254,6 +397,101 @@ export function createLedgerFinanceMutationService(
               },
               status: 200,
             };
+          });
+        },
+      });
+    },
+
+    archiveCategory(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "archive",
+        subject: "Category",
+      });
+      const requestPayload = serializeArchiveCategoryPayload(input.category);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ emitEvent, envelope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                data: {
+                  category: requestPayload,
+                  dryRun: true,
+                },
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createCategoryRepositoryForTransaction?.(transaction) ??
+            options.categoryRepository;
+          if (!repository) {
+            throw new LedgerMutationError(
+              "Category repository is not configured for this runtime.",
+              "INVALID_MUTATION_RESPONSE",
+            );
+          }
+          const result = repository.archiveCategory({
+            categoryId: input.category.categoryId,
+            ledgerId: envelope.ledgerId,
+            workspaceId: envelope.workspaceId,
+          });
+          return mapMaybePromise(result, (category) => {
+            if (!category) {
+              throw new FinanceMutationError(
+                "Category was not found or is already archived.",
+                "CATEGORY_NOT_FOUND_OR_ARCHIVED",
+              );
+            }
+
+            const accountRepository =
+              options.createAccountRepositoryForTransaction?.(transaction) ??
+              options.accountRepository;
+
+            const finishResponse = () => {
+              emitEvent({
+                payload: {
+                  categoryId: category.id,
+                  ledgerId: envelope.ledgerId,
+                  workspaceId: envelope.workspaceId,
+                },
+                type: "category.updated",
+              });
+              recordAudit({
+                action: "category.updated",
+                entityId: category.id,
+                entityType: "category",
+                metadataJson: {
+                  archivedAt: category.archivedAt,
+                  counterpartyAccountId: category.counterpartyAccountId,
+                },
+              });
+
+              return {
+                body: {
+                  data: {
+                    category: serializeCategory(category),
+                  },
+                },
+                status: 200,
+              };
+            };
+
+            if (!category.counterpartyAccountId) {
+              return finishResponse();
+            }
+
+            return mapMaybePromise(
+              accountRepository.archiveAccount({
+                accountId: category.counterpartyAccountId,
+                ledgerId: envelope.ledgerId,
+                workspaceId: envelope.workspaceId,
+              }),
+              () => finishResponse(),
+            );
           });
         },
       });
@@ -515,7 +753,7 @@ function assertExpectedAuthorizationOneOf(
 
 function mapMaybePromise<TValue, TResult>(
   value: MaybePromise<TValue>,
-  mapper: (value: TValue) => TResult,
+  mapper: (value: TValue) => MaybePromise<TResult>,
 ): MaybePromise<TResult> {
   return isPromiseLike(value) ? value.then(mapper) : mapper(value);
 }
@@ -540,6 +778,15 @@ function serializeCreateAccountPayload(input: CreateAccountMutationPayload): Jso
   };
 }
 
+function serializeCreateCategoryPayload(input: CreateCategoryMutationPayload): JsonObject {
+  return {
+    color: input.color ?? null,
+    icon: input.icon ?? null,
+    name: input.name,
+    parentId: input.parentId ?? null,
+  };
+}
+
 function serializeCreateTransactionPayload(input: CreateTransactionMutationPayload): JsonObject {
   return {
     currencyCode: input.currencyCode,
@@ -557,6 +804,12 @@ function serializeCreateTransactionPayload(input: CreateTransactionMutationPaylo
 function serializeArchiveAccountPayload(input: ArchiveAccountMutationPayload): JsonObject {
   return {
     accountId: input.accountId,
+  };
+}
+
+function serializeArchiveCategoryPayload(input: ArchiveCategoryMutationPayload): JsonObject {
+  return {
+    categoryId: input.categoryId,
   };
 }
 
@@ -613,6 +866,34 @@ function serializeAccount(account: AccountRecord): JsonObject {
     updatedAt: account.updatedAt,
     workspaceId: account.workspaceId,
   };
+}
+
+function serializeCategory(category: CategoryRecord): JsonObject {
+  return {
+    archivedAt: category.archivedAt,
+    color: category.color,
+    counterpartyAccountId: category.counterpartyAccountId,
+    createdAt: category.createdAt,
+    icon: category.icon,
+    id: category.id,
+    ledgerId: category.ledgerId,
+    name: category.name,
+    parentId: category.parentId,
+    updatedAt: category.updatedAt,
+    workspaceId: category.workspaceId,
+  };
+}
+
+const CATEGORY_COUNTERPARTY_ACCOUNT_KIND: AccountKind = "expense";
+const CATEGORY_COUNTERPARTY_ACCOUNT_SUBTYPE: AccountSubtype = "external";
+
+function buildCategoryCounterpartyAccountName(name: string, requestId: string): string {
+  const normalizedName = name.trim().replaceAll(/\s+/g, " ");
+  const base = normalizedName.length > 0 ? normalizedName : "Category";
+  const digest = requestId.slice(-12);
+  const fullName = `Category Counterparty ${base} ${digest}`;
+
+  return fullName.length <= 200 ? fullName : fullName.slice(0, 200);
 }
 
 function serializeTransactionGroup(group: TransactionGroupRecord): JsonObject {

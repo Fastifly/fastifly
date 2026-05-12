@@ -58,6 +58,41 @@ export const GetAccountResponseSchema = z.strictObject({
   }),
 });
 
+export const CategoryResponseSchema = z.strictObject({
+  archivedAt: NullableIsoDateTimeSchema,
+  color: z.string().trim().min(1).max(50).nullable(),
+  counterpartyAccountId: SyncedIdSchema.nullable(),
+  createdAt: IsoDateTimeSchema,
+  icon: z.string().trim().min(1).max(50).nullable(),
+  id: SyncedIdSchema,
+  ledgerId: SyncedIdSchema,
+  name: z.string().trim().min(1).max(200),
+  parentId: SyncedIdSchema.nullable(),
+  updatedAt: IsoDateTimeSchema,
+  workspaceId: SyncedIdSchema,
+});
+
+export const CreateCategoryRequestSchema = z.strictObject({
+  color: z.string().trim().min(1).max(50).nullable().optional(),
+  icon: z.string().trim().min(1).max(50).nullable().optional(),
+  name: z.string().trim().min(1).max(200),
+  parentId: SyncedIdSchema.nullable().optional(),
+});
+
+export const CreateCategoryResponseSchema = z.strictObject({
+  data: z.strictObject({
+    category: CategoryResponseSchema,
+  }),
+});
+
+export const ArchiveCategoryResponseSchema = z.strictObject({
+  data: z.strictObject({
+    category: CategoryResponseSchema,
+  }),
+});
+
+export const ListCategoriesResponseSchema = paginatedResponseSchema(CategoryResponseSchema);
+
 export const BudgetPeriodSchema = z.enum([
   "weekly",
   "bi_weekly",
@@ -416,9 +451,12 @@ export const GenerateRecurringTemplateResponseSchema = z.strictObject({
 
 export type BudgetSummaryResponse = z.infer<typeof BudgetSummaryResponseSchema>;
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
+export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequestSchema>;
 export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSchema>;
 export type AccountWithBalanceResponse = z.infer<typeof AccountWithBalanceResponseSchema>;
+export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
 export type ListAccountsResponse = z.infer<typeof ListAccountsResponseSchema>;
+export type ListCategoriesResponse = z.infer<typeof ListCategoriesResponseSchema>;
 export type ListBudgetsQuery = z.infer<typeof ListBudgetsQuerySchema>;
 export type ListBudgetsResponse = z.infer<typeof ListBudgetsResponseSchema>;
 export type ListTransactionsQuery = z.infer<typeof ListTransactionsQuerySchema>;

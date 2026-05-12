@@ -120,6 +120,7 @@ export type LedgerMutationSyncOperationLog = {
 
 export type LedgerMutationHandlerContext<TTransaction> = {
   readonly envelope: LedgerMutationEnvelope;
+  readonly scope: LedgerMutationScope;
   readonly transaction: TTransaction;
   readonly emitEvent: (event: LedgerMutationDomainEvent) => void;
   readonly recordAudit: (entry: LedgerMutationAuditEntry) => void;
@@ -403,6 +404,7 @@ export class LedgerMutationRunner<TTransaction> {
     const response = assertSyncValue(
       input.input.handler({
         envelope,
+        scope,
         transaction,
         emitEvent: (event) => events.push(event),
         recordAudit: (entry) => auditEntries.push(entry),
@@ -485,6 +487,7 @@ export class LedgerMutationRunner<TTransaction> {
 
     const response = await input.input.handler({
       envelope,
+      scope,
       transaction,
       emitEvent: (event) => events.push(event),
       recordAudit: (entry) => auditEntries.push(entry),

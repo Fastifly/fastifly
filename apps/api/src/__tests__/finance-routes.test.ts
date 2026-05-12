@@ -7,6 +7,7 @@ import {
 import type {
   AccountRepository,
   BudgetQueryService,
+  CategoryRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
   LedgerMutationRunResult,
@@ -165,6 +166,27 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: true,
       status: 201,
     })),
+    createCategory: vi.fn(async () => ({
+      body: {
+        data: {
+          category: {
+            archivedAt: null,
+            color: null,
+            counterpartyAccountId: createId(),
+            createdAt: "2026-05-09T00:00:00.000Z",
+            icon: null,
+            id: createId(),
+            ledgerId: createId(),
+            name: "Utilities",
+            parentId: null,
+            updatedAt: "2026-05-09T00:00:00.000Z",
+            workspaceId: createId(),
+          },
+        },
+      },
+      idempotencyReplayed: false,
+      status: 201,
+    })),
     archiveTransactionGroups: vi.fn(async () => ({
       body: {
         data: {
@@ -178,6 +200,27 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
     createIncome: vi.fn(makeTransactionResult),
     createTransaction: vi.fn(makeTransactionResult),
     createTransfer: vi.fn(makeTransactionResult),
+    archiveCategory: vi.fn(async () => ({
+      body: {
+        data: {
+          category: {
+            archivedAt: "2026-05-09T01:00:00.000Z",
+            color: null,
+            counterpartyAccountId: createId(),
+            createdAt: "2026-05-09T00:00:00.000Z",
+            icon: null,
+            id: createId(),
+            ledgerId: createId(),
+            name: "Utilities",
+            parentId: null,
+            updatedAt: "2026-05-09T01:00:00.000Z",
+            workspaceId: createId(),
+          },
+        },
+      },
+      idempotencyReplayed: false,
+      status: 200,
+    })),
     setTransactionGroupStatus: vi.fn(async () => ({
       body: {
         data: {
@@ -239,6 +282,7 @@ async function makeTransactionResult(): Promise<LedgerMutationRunResult> {
 type MakeAppServices = {
   readonly accountRepository?: AccountRepository;
   readonly budgetQueryService?: BudgetQueryService;
+  readonly categoryRepository?: CategoryRepository;
   readonly financeMutationService?: LedgerFinanceMutationService;
   readonly transactionQueryService?: TransactionQueryService;
 };
@@ -253,6 +297,7 @@ async function makeApp(
   const app = await buildApiApp({
     ...(services?.accountRepository ? { accountRepository: services.accountRepository } : {}),
     ...(services?.budgetQueryService ? { budgetQueryService: services.budgetQueryService } : {}),
+    ...(services?.categoryRepository ? { categoryRepository: services.categoryRepository } : {}),
     config: { logLevel: "silent", nodeEnv: "test" },
     financeMutationService,
     identityRepository: makeIdentityRepository(state),
@@ -267,6 +312,7 @@ async function makeApp(
     accountRepository: services?.accountRepository,
     app,
     budgetQueryService: services?.budgetQueryService,
+    categoryRepository: services?.categoryRepository,
     financeMutationService,
     state,
     transactionQueryService: services?.transactionQueryService,
@@ -383,6 +429,89 @@ describe("finance routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(accountRepository.listAccounts).not.toHaveBeenCalled();
+  });
+
+  it("lists categories for viewers", async () => {
+    const categoryId = createId();
+    const nextCursor = encodeFinanceCursor({
+      id: categoryId,
+      kind: "category.name.asc",
+      sortKey: "Utilities",
+      v: 1,
+    });
+    const categoryRepository = {
+      archiveCategory: vi.fn(),
+      createCategory: vi.fn(),
+      findCategory: vi.fn(),
+      listCategories: vi.fn(async () => ({
+        hasNextPage: true,
+        items: [
+          {
+            archivedAt: null,
+            color: null,
+            counterpartyAccountId: createId(),
+            createdAt: "2026-05-09T00:00:00.000Z",
+            icon: null,
+            id: categoryId,
+            ledgerId: createId(),
+            name: "Utilities",
+            parentId: null,
+            updatedAt: "2026-05-09T00:00:00.000Z",
+            workspaceId: createId(),
+          },
+        ],
+        nextCursor,
+      })),
+    } as CategoryRepository;
+    const { app, state } = await makeApp("viewer", () => ({ categoryRepository }));
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/categories`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: [{ id: categoryId, name: "Utilities" }],
+      pageInfo: {
+        hasNextPage: true,
+        hasPreviousPage: false,
+        nextCursor,
+        previousCursor: null,
+      },
+    });
+    expect(categoryRepository.listCategories).toHaveBeenCalledWith({
+      cursor: null,
+      ledgerId: state.context.activeLedger.id,
+      limit: 50,
+      workspaceId: state.context.activeWorkspace.id,
+    });
+  });
+
+  it("rejects category list cursors from another finance list", async () => {
+    const categoryRepository = {
+      archiveCategory: vi.fn(),
+      createCategory: vi.fn(),
+      findCategory: vi.fn(),
+      listCategories: vi.fn(),
+    } as CategoryRepository;
+    const { app, state } = await makeApp("viewer", () => ({ categoryRepository }));
+    const wrongCursor = encodeFinanceCursor({
+      id: createId(),
+      kind: "account.name.asc",
+      sortKey: "Checking",
+      v: 1,
+    });
+
+    const response = await app.inject({
+      headers: { cookie: sessionCookie() },
+      method: "GET",
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/categories?cursor=${encodeURIComponent(wrongCursor)}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(categoryRepository.listCategories).not.toHaveBeenCalled();
   });
 
   it("returns account detail with a derived balance", async () => {

@@ -100,6 +100,12 @@ function toFinanceMutationHttpError(error: FinanceMutationError): {
         message: "Account was not found or is already archived.",
         statusCode: 404,
       };
+    case "CATEGORY_NOT_FOUND_OR_ARCHIVED":
+      return {
+        code: "NOT_FOUND",
+        message: "Category was not found or is already archived.",
+        statusCode: 404,
+      };
   }
 }
 

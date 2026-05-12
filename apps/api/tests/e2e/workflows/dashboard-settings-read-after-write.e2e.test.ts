@@ -31,12 +31,17 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
         name: "RAW Salary",
         subtype: "external",
       });
-      const groceries = await createAccount(app, owner, {
-        currencyCode: "INR",
-        kind: "expense",
-        name: "RAW Groceries",
-        subtype: "external",
+      const createGroceriesCategory = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { name: "RAW Groceries" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/categories`,
       });
+      expect(createGroceriesCategory.statusCode).toBe(201);
+      const groceriesCategory = createGroceriesCategory.json<{
+        data: { category: { counterpartyAccountId: string | null; id: string } };
+      }>().data.category;
+      expect(groceriesCategory.counterpartyAccountId).toBeTruthy();
+      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId!;
 
       const healthBefore = await app.inject({ method: "GET", url: "/health" });
       expect(healthBefore.statusCode).toBe(200);
@@ -145,7 +150,7 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
         payload: {
           csvText:
             "type,sourceAccountId,destinationAccountId,amountMinor,currencyCode,occurredAt,description\n" +
-            `expense,${checking},${groceries},120000,INR,2026-05-11T21:10:00.000Z,read-after-write import`,
+            `expense,${checking},${groceriesCounterpartyAccountId},120000,INR,2026-05-11T21:10:00.000Z,read-after-write import`,
           fileName: "read-after-write.csv",
         },
         url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/csv`,
@@ -179,7 +184,13 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
           payload: {
             currencyCode: "INR",
             description: "read-after-write recurring",
-            lines: [{ amountMinor: "100000", destinationAccountId: groceries }],
+            lines: [
+              {
+                amountMinor: "100000",
+                categoryId: groceriesCategory.id,
+                destinationAccountId: groceriesCounterpartyAccountId,
+              },
+            ],
             sourceAccountId: checking,
             title: "RAW recurring",
             type: "expense",
@@ -188,7 +199,7 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
         },
         url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/recurring`,
       });
-      expect(createRecurringWrite.statusCode).toBe(201);
+      expect(createRecurringWrite.statusCode, createRecurringWrite.body).toBe(201);
       const createdRecurringId = createRecurringWrite.json<{
         data: { recurringTemplate: { id: string } };
       }>().data.recurringTemplate.id;

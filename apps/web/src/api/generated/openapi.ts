@@ -41,19 +41,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -221,19 +233,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -412,19 +436,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -586,19 +622,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -774,19 +822,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -960,19 +1020,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -1128,19 +1200,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -1318,19 +1402,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -1494,19 +1590,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -1683,19 +1791,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -1863,19 +1983,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2050,19 +2182,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2229,19 +2373,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2402,19 +2558,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2578,19 +2746,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2748,19 +2928,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -2901,19 +3093,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -3095,19 +3299,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -3279,19 +3495,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -3476,19 +3704,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -3646,19 +3886,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -3818,19 +4070,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4010,19 +4274,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4184,19 +4460,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4374,19 +4662,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4549,19 +4849,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4725,19 +5037,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -4910,19 +5234,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -5132,19 +5468,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -5353,19 +5701,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -5569,19 +5929,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -5766,19 +6138,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -5902,6 +6286,416 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          cursor?: string;
+          limit?: number;
+        };
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                archivedAt: string | null;
+                color: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                icon: string | null;
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                ledgerId: string;
+                name: string;
+                parentId: string | null;
+                /** Format: date-time */
+                updatedAt: string;
+                /** Format: uuid */
+                workspaceId: string;
+              }[];
+              pageInfo: {
+                nextCursor: string | null;
+                previousCursor: string | null;
+                hasNextPage: boolean;
+                hasPreviousPage: boolean;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            color?: string | null;
+            icon?: string | null;
+            name: string;
+            parentId?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                category: {
+                  archivedAt: string | null;
+                  color: string | null;
+                  /** Format: date-time */
+                  createdAt: string;
+                  icon: string | null;
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: uuid */
+                  ledgerId: string;
+                  name: string;
+                  parentId: string | null;
+                  /** Format: date-time */
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/budgets": {
     parameters: {
       query?: never;
@@ -5984,19 +6778,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -6123,6 +6929,212 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories/{categoryId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+          categoryId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                category: {
+                  archivedAt: string | null;
+                  color: string | null;
+                  /** Format: date-time */
+                  createdAt: string;
+                  icon: string | null;
+                  /** Format: uuid */
+                  id: string;
+                  /** Format: uuid */
+                  ledgerId: string;
+                  name: string;
+                  parentId: string | null;
+                  /** Format: date-time */
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/transactions": {
     parameters: {
       query?: never;
@@ -6185,6 +7197,8 @@ export interface paths {
                     reportingCurrencyCode: string;
                   }[];
                   /** @enum {string} */
+                  status: "pending" | "cleared" | "reconciled" | "void";
+                  /** @enum {string} */
                   type: "expense" | "income" | "transfer";
                 }[];
                 /** Format: uuid */
@@ -6210,19 +7224,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -6417,6 +7443,8 @@ export interface paths {
                       reportingCurrencyCode: string;
                     }[];
                     /** @enum {string} */
+                    status: "pending" | "cleared" | "reconciled" | "void";
+                    /** @enum {string} */
                     type: "expense" | "income" | "transfer";
                   }[];
                   /** Format: uuid */
@@ -6437,19 +7465,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -6622,6 +7662,8 @@ export interface paths {
                       reportingCurrencyCode: string;
                     }[];
                     /** @enum {string} */
+                    status: "pending" | "cleared" | "reconciled" | "void";
+                    /** @enum {string} */
                     type: "expense" | "income" | "transfer";
                   }[];
                   /** Format: uuid */
@@ -6642,19 +7684,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -6861,19 +7915,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -7067,19 +8133,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -7278,19 +8356,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -7497,19 +8587,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -7709,19 +8811,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -7913,19 +9027,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -8128,19 +9254,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -8335,19 +9473,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -8531,19 +9681,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -8747,19 +9909,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -8936,6 +10110,8 @@ export interface paths {
                       reportingCurrencyCode: string;
                     }[];
                     /** @enum {string} */
+                    status: "pending" | "cleared" | "reconciled" | "void";
+                    /** @enum {string} */
                     type: "expense" | "income" | "transfer";
                   }[];
                   /** Format: uuid */
@@ -8956,19 +10132,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -9175,19 +10363,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -9397,19 +10597,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -9649,19 +10861,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -9874,19 +11098,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -10088,19 +11324,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -10339,19 +11587,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -10579,6 +11839,8 @@ export interface paths {
                       reportingCurrencyCode: string;
                     }[];
                     /** @enum {string} */
+                    status: "pending" | "cleared" | "reconciled" | "void";
+                    /** @enum {string} */
                     type: "expense" | "income" | "transfer";
                   }[];
                   /** Format: uuid */
@@ -10599,19 +11861,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -10828,19 +12102,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -11030,19 +12316,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -11213,19 +12511,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -11418,19 +12728,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */
@@ -11612,19 +12934,31 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              error: {
-                /** @enum {string} */
-                code: "VALIDATION_ERROR";
-                message: string;
-                details: {
-                  fields: {
-                    [key: string]: string[];
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
                   };
                 };
-                requestId: string;
-              };
-            };
           };
         };
         /** @description Default Response */

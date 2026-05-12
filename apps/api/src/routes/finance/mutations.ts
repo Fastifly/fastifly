@@ -1,7 +1,10 @@
 import {
   ArchiveAccountResponseSchema,
+  ArchiveCategoryResponseSchema,
   CreateAccountRequestSchema,
   CreateAccountResponseSchema,
+  CreateCategoryRequestSchema,
+  CreateCategoryResponseSchema,
   CreateTransactionRequestSchema,
   CreateTransactionResponseSchema,
   parseAmountMinor,
@@ -17,6 +20,7 @@ import {
 import { ErrorResponseSchemas } from "../../schemas.js";
 import {
   AccountParamsSchema,
+  CategoryParamsSchema,
   LedgerParamsSchema,
   makeSideEffectFlags,
   type RegisterFinanceRoutesOptions as RegisterOptions,
@@ -117,6 +121,103 @@ export function registerFinanceMutationRoutes(
             authorization: {
               action: "archive",
               subject: "Account",
+            },
+            baseRevision: null,
+            deviceId: null,
+            dryRun: false,
+            idempotencyKey: getRequestIdempotencyKey(request),
+            ledgerId: parseSyncedId(params.ledgerId),
+            requestId: String(request.id),
+            sideEffectFlags: makeSideEffectFlags(),
+            source: "rest",
+            syncOperation: null,
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        }),
+      );
+    },
+  );
+
+  app.post(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/categories",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: CreateCategoryRequestSchema,
+        params: LedgerParamsSchema,
+        response: {
+          201: CreateCategoryResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actorUserId = requireAuthenticatedUser(request);
+      const params = LedgerParamsSchema.parse(request.params);
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "create", "Category");
+      const body = CreateCategoryRequestSchema.parse(request.body);
+
+      return sendLedgerMutationResult(
+        reply,
+        await financeMutationService.createCategory({
+          category: {
+            color: body.color ?? null,
+            icon: body.icon ?? null,
+            name: body.name,
+            parentId: body.parentId ? parseSyncedId(body.parentId) : null,
+          },
+          envelope: {
+            actorUserId,
+            authorization: {
+              action: "create",
+              subject: "Category",
+            },
+            baseRevision: null,
+            deviceId: null,
+            dryRun: false,
+            idempotencyKey: getRequestIdempotencyKey(request),
+            ledgerId: parseSyncedId(params.ledgerId),
+            requestId: String(request.id),
+            sideEffectFlags: makeSideEffectFlags(),
+            source: "rest",
+            syncOperation: null,
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        }),
+      );
+    },
+  );
+
+  app.delete(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/categories/:categoryId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        params: CategoryParamsSchema,
+        response: {
+          200: ArchiveCategoryResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actorUserId = requireAuthenticatedUser(request);
+      const params = CategoryParamsSchema.parse(request.params);
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "archive", "Category");
+
+      return sendLedgerMutationResult(
+        reply,
+        await financeMutationService.archiveCategory({
+          category: {
+            categoryId: parseSyncedId(params.categoryId),
+          },
+          envelope: {
+            actorUserId,
+            authorization: {
+              action: "archive",
+              subject: "Category",
             },
             baseRevision: null,
             deviceId: null,

@@ -1,0 +1,2 @@
+ALTER TABLE `categories` ADD `counterparty_account_id` text REFERENCES accounts(id);--> statement-breakpoint
+CREATE INDEX `categories_counterparty_account_id_idx` ON `categories` (`counterparty_account_id`);

@@ -7,6 +7,7 @@ import {
 import type {
   AccountRepository,
   BudgetQueryService,
+  CategoryRepository,
   LedgerFinanceMutationService,
   LedgerMutationSideEffectFlags,
   TransactionQueryService,
@@ -21,6 +22,10 @@ export const LedgerParamsSchema = z.strictObject({
 
 export const AccountParamsSchema = LedgerParamsSchema.extend({
   accountId: z.uuidv7(),
+});
+
+export const CategoryParamsSchema = LedgerParamsSchema.extend({
+  categoryId: z.uuidv7(),
 });
 
 export const TransactionParamsSchema = LedgerParamsSchema.extend({
@@ -42,6 +47,7 @@ export const RecurringTemplateParamsSchema = LedgerParamsSchema.extend({
 export type RegisterFinanceRoutesOptions = {
   readonly accountRepository?: AccountRepository | undefined;
   readonly budgetQueryService?: BudgetQueryService | undefined;
+  readonly categoryRepository?: CategoryRepository | undefined;
   readonly financeMutationService?: LedgerFinanceMutationService | undefined;
   readonly transactionQueryService?: TransactionQueryService | undefined;
   readonly workflowService?: FinanceWorkflowService | undefined;

@@ -102,6 +102,20 @@ export {
   createSqliteBudgetQueryService,
 } from "./repositories/budgets.js";
 export type {
+  ArchiveCategoryInput,
+  CategoryRecord,
+  CategoryRepository,
+  CategoryRepositoryOptions,
+  CreateCategoryInput,
+  FindCategoryInput,
+  ListCategoriesInput,
+} from "./repositories/categories.js";
+export {
+  CategoryRepositoryError,
+  createPostgresCategoryRepository,
+  createSqliteCategoryRepository,
+} from "./repositories/categories.js";
+export type {
   DeviceRecord,
   DeviceRepository,
   DeviceRepositoryOptions,
@@ -229,10 +243,14 @@ export { seedDatabase, seedPostgres, seedPostgresDatabase, seedSqlite } from "./
 export type {
   ArchiveAccountMutationInput,
   ArchiveAccountMutationPayload,
+  ArchiveCategoryMutationInput,
+  ArchiveCategoryMutationPayload,
   ArchiveTransactionGroupsMutationInput,
   ArchiveTransactionGroupsMutationPayload,
   CreateAccountMutationInput,
   CreateAccountMutationPayload,
+  CreateCategoryMutationInput,
+  CreateCategoryMutationPayload,
   CreateTransactionMutationInput,
   CreateTransactionMutationPayload,
   CreateTypedTransactionMutationInput,

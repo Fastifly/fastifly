@@ -25,23 +25,35 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
         name: "Checking",
         subtype: "bank",
       });
-      const groceries = await createAccount(app, owner, {
-        currencyCode: "INR",
-        kind: "expense",
-        name: "Groceries",
-        subtype: "external",
+      const createGroceriesCategory = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { name: "Groceries" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/categories`,
       });
-      const rent = await createAccount(app, owner, {
-        currencyCode: "INR",
-        kind: "expense",
-        name: "Rent",
-        subtype: "external",
+      expect(createGroceriesCategory.statusCode).toBe(201);
+      const groceriesCategory = createGroceriesCategory.json<{
+        data: { category: { counterpartyAccountId: string | null; id: string } };
+      }>().data.category;
+      expect(groceriesCategory.counterpartyAccountId).toBeTruthy();
+
+      const createRentCategory = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { name: "Rent" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/categories`,
       });
+      expect(createRentCategory.statusCode).toBe(201);
+      const rentCategory = createRentCategory.json<{
+        data: { category: { counterpartyAccountId: string | null; id: string } };
+      }>().data.category;
+      expect(rentCategory.counterpartyAccountId).toBeTruthy();
+
+      const groceriesCounterpartyAccountId = groceriesCategory.counterpartyAccountId!;
+      const rentCounterpartyAccountId = rentCategory.counterpartyAccountId!;
 
       const csvText = [
         "type,sourceAccountId,destinationAccountId,amountMinor,currencyCode,occurredAt,description",
-        `expense,${checking},${groceries},120000,INR,2026-05-11T13:00:00.000Z,CSV groceries`,
-        `expense,${checking},${rent},4500000,INR,2026-05-11T13:05:00.000Z,CSV rent`,
+        `expense,${checking},${groceriesCounterpartyAccountId},120000,INR,2026-05-11T13:00:00.000Z,CSV groceries`,
+        `expense,${checking},${rentCounterpartyAccountId},4500000,INR,2026-05-11T13:05:00.000Z,CSV rent`,
       ].join("\n");
 
       const createImport = await requestWithCsrf(app, owner.cookie, {
@@ -87,7 +99,7 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
         payload: { applyRules: false },
         url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/${importJob.id}/commit`,
       });
-      expect(commitImport.statusCode).toBe(200);
+      expect(commitImport.statusCode, commitImport.body).toBe(200);
       expect(
         commitImport.json<{ data: { importJob: { status: string } } }>().data.importJob.status,
       ).toBe("committed");
@@ -186,7 +198,13 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
           payload: {
             currencyCode: "INR",
             description: "Monthly groceries",
-            lines: [{ amountMinor: "300000", destinationAccountId: groceries }],
+            lines: [
+              {
+                amountMinor: "300000",
+                categoryId: groceriesCategory.id,
+                destinationAccountId: groceriesCounterpartyAccountId,
+              },
+            ],
             sourceAccountId: checking,
             title: "Recurring groceries",
             type: "expense",
@@ -215,7 +233,13 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
           payload: {
             currencyCode: "INR",
             description: "Monthly groceries updated",
-            lines: [{ amountMinor: "310000", destinationAccountId: groceries }],
+            lines: [
+              {
+                amountMinor: "310000",
+                categoryId: groceriesCategory.id,
+                destinationAccountId: groceriesCounterpartyAccountId,
+              },
+            ],
             sourceAccountId: checking,
             title: "Recurring groceries updated",
             type: "expense",

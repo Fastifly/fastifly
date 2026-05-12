@@ -9,6 +9,7 @@ import {
   createLedgerFinanceMutationService,
   createSqliteAccountRepository,
   createSqliteBudgetQueryService,
+  createSqliteCategoryRepository,
   createSqliteDatabaseFromClient,
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
@@ -58,6 +59,8 @@ export async function createSqliteE2eSystem(
 
   const createId = createUuidV7;
   const identityRepository = createSqliteIdentityRepository(sqliteDb, { createId });
+  const accountRepository = createSqliteAccountRepository(sqliteClient, { createId });
+  const categoryRepository = createSqliteCategoryRepository(sqliteClient, { createId });
   const transactionQueryService = createSqliteTransactionQueryService(sqliteClient);
   const runner = new LedgerMutationRunner({
     authorize: createRuntimeAuthorization(identityRepository),
@@ -65,15 +68,17 @@ export async function createSqliteE2eSystem(
     writeBoundary: createInProcessLedgerWriteBoundary(),
   });
   const financeMutationService = createLedgerFinanceMutationService({
-    accountRepository: createSqliteAccountRepository(sqliteClient, { createId }),
+    accountRepository,
+    categoryRepository,
     runner,
     transactionRepository: createSqliteTransactionWriteRepository(sqliteClient, { createId }),
   });
   const syncRepository = createSqliteSyncRepository(sqliteClient);
 
   const app = await buildApiApp({
-    accountRepository: createSqliteAccountRepository(sqliteClient, { createId }),
+    accountRepository,
     budgetQueryService: createSqliteBudgetQueryService(sqliteClient),
+    categoryRepository,
     config: makeTestApiConfig({ logLevel: "silent", nodeEnv: "test" }),
     deviceRepository: createSqliteDeviceRepository(sqliteClient, { createId }),
     financeMutationService,
@@ -88,6 +93,8 @@ export async function createSqliteE2eSystem(
     transactionQueryService,
     ...(options.webAuthnAdapter ? { webAuthnAdapter: options.webAuthnAdapter } : {}),
     workflowService: createFinanceWorkflowService({
+      accountRepository,
+      categoryRepository,
       financeMutationService,
       transactionQueryService,
       workflowRepository: createSqliteWorkflowRepository(sqliteClient, { createId }),

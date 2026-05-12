@@ -9,6 +9,7 @@ import {
 } from "@fastifly/common";
 import type {
   AccountRepository,
+  CategoryRepository,
   CreateTransactionLineInput,
   ImportJobRecord,
   ImportPreviewRow,
@@ -153,6 +154,7 @@ export type FinanceWorkflowService = {
 
 export type FinanceWorkflowServiceOptions = {
   readonly accountRepository: AccountRepository;
+  readonly categoryRepository?: CategoryRepository;
   readonly financeMutationService: LedgerFinanceMutationService;
   readonly transactionQueryService: TransactionQueryService;
   readonly workflowRepository: WorkflowRepository;
@@ -608,6 +610,7 @@ async function validateRecurringTemplatePayload(
     readonly workspaceId: SyncedId;
   },
 ): Promise<void> {
+  const categoryRepository = options.categoryRepository;
   const sourceAccount = await options.accountRepository.findAccount({
     accountId: input.payload.sourceAccountId,
     ledgerId: input.ledgerId,
@@ -629,6 +632,48 @@ async function validateRecurringTemplatePayload(
   }
 
   for (const [lineIndex, line] of input.payload.lines.entries()) {
+    if (input.payload.type === "expense") {
+      if (!categoryRepository) {
+        throw new FinanceWorkflowServiceError(
+          "Category validation is unavailable in this runtime.",
+          "INVALID_RECURRING_TEMPLATE",
+        );
+      }
+      if (!line.categoryId) {
+        throw new FinanceWorkflowServiceError(
+          `Choose a category in line ${lineIndex + 1}.`,
+          "INVALID_RECURRING_TEMPLATE",
+        );
+      }
+
+      const category = await categoryRepository.findCategory({
+        categoryId: line.categoryId,
+        ledgerId: input.ledgerId,
+        workspaceId: input.workspaceId,
+      });
+
+      if (!category || category.archivedAt) {
+        throw new FinanceWorkflowServiceError(
+          `The category in line ${lineIndex + 1} is missing or archived.`,
+          "INVALID_RECURRING_TEMPLATE",
+        );
+      }
+
+      if (!category.counterpartyAccountId) {
+        throw new FinanceWorkflowServiceError(
+          `The category in line ${lineIndex + 1} is not linked to an internal account yet.`,
+          "INVALID_RECURRING_TEMPLATE",
+        );
+      }
+
+      if (line.destinationAccountId !== category.counterpartyAccountId) {
+        throw new FinanceWorkflowServiceError(
+          `The category in line ${lineIndex + 1} does not match the selected account.`,
+          "INVALID_RECURRING_TEMPLATE",
+        );
+      }
+    }
+
     const destinationAccount = await options.accountRepository.findAccount({
       accountId: line.destinationAccountId,
       ledgerId: input.ledgerId,

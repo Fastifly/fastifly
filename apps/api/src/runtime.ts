@@ -9,6 +9,7 @@ import {
   createPostgresAccountRepository,
   createPostgresAdvisoryLedgerWriteBoundary,
   createPostgresBudgetQueryService,
+  createPostgresCategoryRepository,
   createPostgresClient,
   createPostgresDatabaseFromClient,
   createPostgresDeviceRepository,
@@ -20,6 +21,7 @@ import {
   createPostgresWorkflowRepository,
   createSqliteAccountRepository,
   createSqliteBudgetQueryService,
+  createSqliteCategoryRepository,
   createSqliteDatabaseFromClient,
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
@@ -116,6 +118,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     const db = createSqliteDatabaseFromClient(client);
     const createId = createUuidV7;
     const accountRepository = createSqliteAccountRepository(client, { createId });
+    const categoryRepository = createSqliteCategoryRepository(client, { createId });
     const deviceRepository = createSqliteDeviceRepository(client, { createId });
     const identityRepository = createSqliteIdentityRepository(db, { createId });
     const syncRepository = createSqliteSyncRepository(client);
@@ -129,11 +132,13 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
     });
     const financeMutationService = createLedgerFinanceMutationService({
       accountRepository,
+      categoryRepository,
       runner,
       transactionRepository,
     });
     const workflowService = createFinanceWorkflowService({
       accountRepository,
+      categoryRepository,
       financeMutationService,
       transactionQueryService,
       workflowRepository,
@@ -143,6 +148,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
       appOptions: {
         accountRepository,
         budgetQueryService: createSqliteBudgetQueryService(client),
+        categoryRepository,
         deviceRepository,
         financeMutationService,
         identityRepository,
@@ -176,6 +182,7 @@ async function createPostgresRuntimeDependencies(
     const db = createPostgresDatabaseFromClient(client);
     const createId = createUuidV7;
     const accountRepository = createPostgresAccountRepository(db, { createId });
+    const categoryRepository = createPostgresCategoryRepository(db, { createId });
     const deviceRepository = createPostgresDeviceRepository(db, { createId });
     const identityRepository = createPostgresIdentityRepository(db, { createId });
     const syncRepository = createPostgresSyncRepository(db);
@@ -191,8 +198,11 @@ async function createPostgresRuntimeDependencies(
     });
     const financeMutationService = createLedgerFinanceMutationService({
       accountRepository,
+      categoryRepository,
       createAccountRepositoryForTransaction: (transaction) =>
         createPostgresAccountRepository(transaction as PostgresTransaction, { createId }),
+      createCategoryRepositoryForTransaction: (transaction) =>
+        createPostgresCategoryRepository(transaction as PostgresTransaction, { createId }),
       createTransactionRepositoryForTransaction: (transaction) =>
         createPostgresTransactionWriteRepository(transaction as PostgresTransaction, {
           createId,
@@ -202,6 +212,7 @@ async function createPostgresRuntimeDependencies(
     });
     const workflowService = createFinanceWorkflowService({
       accountRepository,
+      categoryRepository,
       financeMutationService,
       transactionQueryService,
       workflowRepository,
@@ -211,6 +222,7 @@ async function createPostgresRuntimeDependencies(
       appOptions: {
         accountRepository,
         budgetQueryService: createPostgresBudgetQueryService(db),
+        categoryRepository,
         deviceRepository,
         financeMutationService,
         identityRepository,

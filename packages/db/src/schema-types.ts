@@ -34,6 +34,8 @@ export type AuditAction =
   | "ledger.created"
   | "account.created"
   | "account.updated"
+  | "category.created"
+  | "category.updated"
   | "transaction.created"
   | "sync_conflict.dismissed"
   | "job.enqueued";

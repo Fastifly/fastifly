@@ -1,4 +1,5 @@
 import {
+  type CategoryResponseSchema,
   type BudgetSummaryResponseSchema,
   type CreateTransactionRequestSchema,
   formatAmountMinor,
@@ -18,6 +19,7 @@ import type {
   AccountBalanceRecord,
   AccountRecord,
   BudgetSummaryRecord,
+  CategoryRecord,
   CreateTransactionLineInput,
   ImportJobRecord,
   RecurringTemplateRecord,
@@ -144,6 +146,22 @@ export function toBudgetSummaryResponse(
     spent: makeMoneyAmount(budget.spentMinor, budget.currencyCode),
     updatedAt: budget.updatedAt,
     workspaceId: budget.workspaceId,
+  };
+}
+
+export function toCategoryResponse(category: CategoryRecord): z.infer<typeof CategoryResponseSchema> {
+  return {
+    archivedAt: category.archivedAt,
+    color: category.color,
+    counterpartyAccountId: category.counterpartyAccountId,
+    createdAt: category.createdAt,
+    icon: category.icon,
+    id: category.id,
+    ledgerId: category.ledgerId,
+    name: category.name,
+    parentId: category.parentId,
+    updatedAt: category.updatedAt,
+    workspaceId: category.workspaceId,
   };
 }
 

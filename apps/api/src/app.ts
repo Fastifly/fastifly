@@ -6,6 +6,7 @@ import { type ApiConfig, makeTestApiConfig } from "@fastifly/config";
 import type {
   AccountRepository,
   BudgetQueryService,
+  CategoryRepository,
   DeviceRepository,
   IdentityRepository,
   LedgerFinanceMutationService,
@@ -39,6 +40,7 @@ import type { FinanceWorkflowService } from "./services/finance-workflows.js";
 export type BuildApiAppOptions = {
   readonly accountRepository?: AccountRepository;
   readonly budgetQueryService?: BudgetQueryService;
+  readonly categoryRepository?: CategoryRepository;
   readonly config?: Partial<ApiConfig>;
   readonly deviceRepository?: DeviceRepository;
   readonly financeMutationService?: LedgerFinanceMutationService;
@@ -176,6 +178,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
   if (
     options.accountRepository ||
     options.budgetQueryService ||
+    options.categoryRepository ||
     options.financeMutationService ||
     options.transactionQueryService ||
     options.workflowService
@@ -183,6 +186,7 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     await registerFinanceRoutes(app, {
       accountRepository: options.accountRepository,
       budgetQueryService: options.budgetQueryService,
+      categoryRepository: options.categoryRepository,
       financeMutationService: options.financeMutationService,
       transactionQueryService: options.transactionQueryService,
       workflowService: options.workflowService,

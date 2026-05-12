@@ -483,6 +483,7 @@ export const pgCategories = pgTable(
     workspaceId: requiredIdText("workspace_id").references(() => pgWorkspaces.id),
     ledgerId: requiredIdText("ledger_id").references(() => pgLedgers.id),
     parentId: text("parent_id").references((): AnyPgColumn => pgCategories.id),
+    counterpartyAccountId: text("counterparty_account_id").references(() => pgAccounts.id),
     name: text("name").notNull(),
     color: text("color"),
     icon: text("icon"),
@@ -494,6 +495,7 @@ export const pgCategories = pgTable(
     index("categories_workspace_id_idx").on(table.workspaceId),
     index("categories_ledger_id_idx").on(table.ledgerId),
     index("categories_parent_id_idx").on(table.parentId),
+    index("categories_counterparty_account_id_idx").on(table.counterpartyAccountId),
     uniqueIndex("categories_ledger_root_name_unique")
       .on(table.ledgerId, table.name)
       .where(sql`${table.parentId} IS NULL`),

@@ -139,7 +139,12 @@ describe("finance workflows recurring updates", () => {
       code: "INVALID_RECURRING_TEMPLATE",
     } satisfies Partial<FinanceWorkflowServiceError>);
 
-    expect(accountRepository.findAccount).toHaveBeenCalledTimes(2);
+    expect(accountRepository.findAccount).toHaveBeenCalledTimes(1);
+    expect(accountRepository.findAccount).toHaveBeenCalledWith({
+      accountId: SOURCE_ACCOUNT_ID,
+      ledgerId: LEDGER_ID,
+      workspaceId: WORKSPACE_ID,
+    });
     expect(updateRecurringTemplate).not.toHaveBeenCalled();
   });
 });
