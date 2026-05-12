@@ -78,7 +78,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const accountsQuery = useAccountsQuery(ledgerContext);
   const syncStatusQuery = useSyncStatusQuery(ledgerContext);
   const syncConflictsQuery = useSyncConflictsQuery(ledgerContext);
-  const transactionsQuery = useTransactionsQuery(ledgerContext);
+  const transactionsQuery = useTransactionsQuery(ledgerContext, { limit: 100 });
   const openConflictCount = syncStatusQuery.data?.data.openConflicts ?? 0;
   const latestAuthError = meContext.error ?? accountsQuery.error ?? transactionsQuery.error;
   const sessionExpired =
@@ -363,6 +363,8 @@ export function AppShell({ children }: PropsWithChildren) {
             syncServerRevision={syncServerRevision}
             spending={spending}
             spendingRate={spendingRate}
+            reportingCurrencyCode={reportingCurrencyCode}
+            transactions={transactions}
             transactionCount={transactions.length}
             theme={theme}
             transferCount={transferCount}

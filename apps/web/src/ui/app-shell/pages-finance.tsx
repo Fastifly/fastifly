@@ -22,6 +22,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
+import { BlockedActionGate } from "../blocked-action-gate";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
 import { AccountBalanceCard, GlassSection, MetricTile } from "./shared-components";
 import { formatDateTime, type Theme } from "./utils";
@@ -405,16 +406,19 @@ export function SettingsPage({
             value={isUpdateReady ? en.shell.enabled : en.settings.updateCurrent}
           />
           <div className="mt-3">
-            <Button
-              disabled={!isUpdateReady}
-              onClick={onApplyUpdate}
-              size="sm"
-              type="button"
-              variant="outline"
+            <BlockedActionGate
+              blocked={!isUpdateReady}
+              reason={en.actionGate.updateUnavailable}
+              suggestion={{
+                label: en.shell.syncCenter,
+                to: "/sync",
+              }}
             >
-              <RefreshCcw aria-hidden="true" />
-              {en.shell.updateNow}
-            </Button>
+              <Button onClick={onApplyUpdate} size="sm" type="button" variant="outline">
+                <RefreshCcw aria-hidden="true" />
+                {en.shell.updateNow}
+              </Button>
+            </BlockedActionGate>
           </div>
         </GlassSection>
 
@@ -423,17 +427,18 @@ export function SettingsPage({
           description={en.settings.sessionBody}
           testId={testIds.settings.sessionCard}
         >
-          <Button
-            className="w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
-            data-testid={testIds.settings.logoutButton}
-            disabled={isLoggingOut}
-            onClick={onLogout}
-            type="button"
-            variant="outline"
-          >
-            <LogOut aria-hidden="true" />
-            <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
-          </Button>
+          <BlockedActionGate blocked={isLoggingOut} reason={en.actionGate.inProgress}>
+            <Button
+              className="w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+              data-testid={testIds.settings.logoutButton}
+              onClick={onLogout}
+              type="button"
+              variant="outline"
+            >
+              <LogOut aria-hidden="true" />
+              <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
+            </Button>
+          </BlockedActionGate>
         </GlassSection>
 
         <GlassSection

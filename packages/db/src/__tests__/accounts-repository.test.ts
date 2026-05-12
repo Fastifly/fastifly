@@ -300,6 +300,52 @@ describe("account repository", () => {
         expect(visibleAccounts.items.map((account) => account.name)).toEqual(["Bank"]);
       });
     });
+
+    it(`aligns base currency to the first user-held account before any ledger journal exists on ${factory.name}`, async () => {
+      await factory.run(async ({ accountRepository, identityRepository, rawDb }) => {
+        const { workspaceState } = await createDefaultCurrencyState(identityRepository);
+        expect(await readLedgerBaseCurrency(rawDb, workspaceState.ledger.id)).toBe("USD");
+
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "INR Checking",
+          subtype: "bank",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        expect(await readLedgerBaseCurrency(rawDb, workspaceState.ledger.id)).toBe("INR");
+      });
+    });
+
+    it(`does not realign base currency after the ledger already has journal entries on ${factory.name}`, async () => {
+      await factory.run(async ({ accountRepository, identityRepository, rawDb }) => {
+        const { workspaceState } = await createDefaultCurrencyState(identityRepository);
+        await accountRepository.createAccount({
+          currencyCode: "USD",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "USD Cash",
+          openingBalanceDate: "2026-05-03",
+          openingBalanceMinor: 100n,
+          subtype: "cash",
+          workspaceId: workspaceState.workspace.id,
+        });
+        expect(await readLedgerBaseCurrency(rawDb, workspaceState.ledger.id)).toBe("USD");
+
+        await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "INR Wallet",
+          subtype: "wallet",
+          workspaceId: workspaceState.workspace.id,
+        });
+
+        expect(await readLedgerBaseCurrency(rawDb, workspaceState.ledger.id)).toBe("USD");
+      });
+    });
   }
 });
 
@@ -320,6 +366,22 @@ async function createBaseState(identityRepository: IdentityRepository) {
   return { user, workspaceState };
 }
 
+async function createDefaultCurrencyState(identityRepository: IdentityRepository) {
+  const user = await identityRepository.createUser({
+    displayName: "Owner",
+    passwordHash: "$argon2id$fixture",
+    username: "Owner",
+  });
+  const workspaceState = await identityRepository.bootstrapDefaultWorkspace({
+    firstDayOfWeek: 1,
+    ledgerName: "Primary",
+    userId: user.id,
+    workspaceName: "Personal",
+  });
+
+  return { user, workspaceState };
+}
+
 function seedSqliteCurrency(client: SqliteClient): void {
   client.exec(`
     INSERT INTO currencies (
@@ -330,11 +392,20 @@ function seedSqliteCurrency(client: SqliteClient): void {
       created_at,
       updated_at
     )
-    VALUES (
+    VALUES
+    (
       'INR',
       'Indian Rupee',
       2,
       'Rs',
+      '2026-05-09T00:00:00.000Z',
+      '2026-05-09T00:00:00.000Z'
+    ),
+    (
+      'USD',
+      'US Dollar',
+      2,
+      '$',
       '2026-05-09T00:00:00.000Z',
       '2026-05-09T00:00:00.000Z'
     )
@@ -352,16 +423,54 @@ async function seedPostgresCurrency(client: { readonly query: (sql: string) => P
       created_at,
       updated_at
     )
-    VALUES (
+    VALUES
+    (
       'INR',
       'Indian Rupee',
       2,
       'Rs',
       '2026-05-09T00:00:00.000Z',
       '2026-05-09T00:00:00.000Z'
+    ),
+    (
+      'USD',
+      'US Dollar',
+      2,
+      '$',
+      '2026-05-09T00:00:00.000Z',
+      '2026-05-09T00:00:00.000Z'
     )
     ON CONFLICT(code) DO NOTHING
   `);
+}
+
+async function readLedgerBaseCurrency(
+  rawDb: SqliteClient | { readonly query: (sql: string) => Promise<unknown> },
+  ledgerId: SyncedId,
+): Promise<string | null> {
+  if ("prepare" in rawDb) {
+    const row = rawDb
+      .prepare<unknown[], { readonly base_currency_code: string }>(
+        `
+          SELECT base_currency_code
+          FROM ledgers
+          WHERE id = ?
+          LIMIT 1
+        `,
+      )
+      .get(ledgerId);
+
+    return row?.base_currency_code ?? null;
+  }
+
+  const result = await rawDb.query(`
+    SELECT base_currency_code
+    FROM ledgers
+    WHERE id = '${ledgerId}'
+    LIMIT 1
+  `);
+  const row = getRows(result)[0] as { readonly base_currency_code: string } | undefined;
+  return row?.base_currency_code ?? null;
 }
 
 async function readOpeningBalanceLedgerEntries(

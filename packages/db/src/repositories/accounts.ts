@@ -5,16 +5,18 @@ import {
   AccountSubtypeSchema,
   createUuidV7,
   encodeFinanceCursor,
+  isUserHeldAccountKind,
   type LedgerScope,
   parseFinanceCursor,
   parseSyncedId,
   type SyncedId,
 } from "@fastifly/common";
-import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
   pgAccounts,
+  pgLedgers,
   pgTransactionGroups,
   pgTransactionJournals,
   pgTransactionPostings,
@@ -161,6 +163,13 @@ export function createSqliteAccountRepository(
       return client
         .transaction(() => {
           assertSqliteLedgerScope(client, scope);
+          maybeAlignSqliteLedgerBaseCurrencyBeforeFirstJournal(client, {
+            currencyCode: normalized.currencyCode,
+            kind: normalized.kind,
+            ledgerId: scope.ledgerId,
+            now,
+            workspaceId: scope.workspaceId,
+          });
           const account = insertSqliteAccount(client, {
             ...normalized,
             id: resolved.createId(),
@@ -317,6 +326,13 @@ export function createPostgresAccountRepository(
       return runPostgresWrite(db, async (tx) => {
         const now = resolved.clock.now();
         await assertPostgresLedgerScope(tx, scope);
+        await maybeAlignPostgresLedgerBaseCurrencyBeforeFirstJournal(tx, {
+          currencyCode: normalized.currencyCode,
+          kind: normalized.kind,
+          ledgerId: scope.ledgerId,
+          now,
+          workspaceId: scope.workspaceId,
+        });
         const accountRow = assertCreated(
           await tx
             .insert(pgAccounts)
@@ -612,6 +628,179 @@ async function assertPostgresLedgerScope(db: PostgresExecutor, scope: LedgerScop
   if (extractRows(rows).length === 0) {
     throw new Error("Ledger scope was not found.");
   }
+}
+
+function maybeAlignSqliteLedgerBaseCurrencyBeforeFirstJournal(
+  client: SqliteClient,
+  input: {
+    readonly currencyCode: string;
+    readonly kind: AccountKind;
+    readonly ledgerId: SyncedId;
+    readonly now: string;
+    readonly workspaceId: SyncedId;
+  },
+): void {
+  if (!isUserHeldAccountKind(input.kind)) {
+    return;
+  }
+
+  const ledgerRow = client
+    .prepare<
+      [SyncedId, SyncedId],
+      {
+        readonly base_currency_code: string;
+      }
+    >(
+      `
+        SELECT base_currency_code
+        FROM ledgers
+        WHERE id = ?
+          AND workspace_id = ?
+          AND archived_at IS NULL
+        LIMIT 1
+      `,
+    )
+    .get(input.ledgerId, input.workspaceId);
+  if (!ledgerRow || ledgerRow.base_currency_code === input.currencyCode) {
+    return;
+  }
+
+  const hasJournalRow = client
+    .prepare<
+      [SyncedId, SyncedId],
+      {
+        readonly id: string;
+      }
+    >(
+      `
+        SELECT id
+        FROM transaction_journals
+        WHERE workspace_id = ?
+          AND ledger_id = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+    )
+    .get(input.workspaceId, input.ledgerId);
+  if (hasJournalRow) {
+    return;
+  }
+
+  const mismatchedUserHeldAccount = client
+    .prepare<
+      [SyncedId, SyncedId, string],
+      {
+        readonly id: string;
+      }
+    >(
+      `
+        SELECT id
+        FROM accounts
+        WHERE workspace_id = ?
+          AND ledger_id = ?
+          AND is_active = 1
+          AND archived_at IS NULL
+          AND kind IN ('asset', 'liability')
+          AND currency_code <> ?
+        LIMIT 1
+      `,
+    )
+    .get(input.workspaceId, input.ledgerId, input.currencyCode);
+  if (mismatchedUserHeldAccount) {
+    return;
+  }
+
+  client
+    .prepare(
+      `
+        UPDATE ledgers
+        SET base_currency_code = ?, updated_at = ?
+        WHERE id = ?
+          AND workspace_id = ?
+          AND archived_at IS NULL
+      `,
+    )
+    .run(input.currencyCode, input.now, input.ledgerId, input.workspaceId);
+}
+
+async function maybeAlignPostgresLedgerBaseCurrencyBeforeFirstJournal(
+  db: PostgresExecutor,
+  input: {
+    readonly currencyCode: string;
+    readonly kind: AccountKind;
+    readonly ledgerId: SyncedId;
+    readonly now: Date;
+    readonly workspaceId: SyncedId;
+  },
+): Promise<void> {
+  if (!isUserHeldAccountKind(input.kind)) {
+    return;
+  }
+
+  const ledgerRows = await db
+    .select({
+      baseCurrencyCode: pgLedgers.baseCurrencyCode,
+    })
+    .from(pgLedgers)
+    .where(
+      and(
+        eq(pgLedgers.id, input.ledgerId),
+        eq(pgLedgers.workspaceId, input.workspaceId),
+        isNull(pgLedgers.archivedAt),
+      ),
+    )
+    .limit(1);
+  const ledger = ledgerRows[0];
+  if (!ledger || ledger.baseCurrencyCode === input.currencyCode) {
+    return;
+  }
+
+  const existingJournal = await db
+    .select({ id: pgTransactionJournals.id })
+    .from(pgTransactionJournals)
+    .where(
+      and(
+        eq(pgTransactionJournals.workspaceId, input.workspaceId),
+        eq(pgTransactionJournals.ledgerId, input.ledgerId),
+        isNull(pgTransactionJournals.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (existingJournal[0]) {
+    return;
+  }
+
+  const mismatchedUserHeldAccount = await db
+    .select({ id: pgAccounts.id })
+    .from(pgAccounts)
+    .where(
+      and(
+        eq(pgAccounts.workspaceId, input.workspaceId),
+        eq(pgAccounts.ledgerId, input.ledgerId),
+        eq(pgAccounts.isActive, true),
+        isNull(pgAccounts.archivedAt),
+        or(eq(pgAccounts.kind, "asset"), eq(pgAccounts.kind, "liability")),
+        ne(pgAccounts.currencyCode, input.currencyCode),
+      ),
+    )
+    .limit(1);
+  if (mismatchedUserHeldAccount[0]) {
+    return;
+  }
+
+  await db
+    .update(pgLedgers)
+    .set({
+      baseCurrencyCode: input.currencyCode,
+      updatedAt: input.now,
+    })
+    .where(
+      and(
+        eq(pgLedgers.id, input.ledgerId),
+        eq(pgLedgers.workspaceId, input.workspaceId),
+        isNull(pgLedgers.archivedAt),
+      ),
+    );
 }
 
 function insertSqliteAccount(

@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
@@ -26,8 +25,15 @@ import {
   SelectValue,
 } from "@ui/select";
 import { Check, PlusCircle } from "lucide-react";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../api/client";
 import {
@@ -39,6 +45,7 @@ import {
 } from "../finance/account-form";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
+import { BlockedActionGate } from "./blocked-action-gate";
 
 type LedgerContext = {
   readonly ledgerId: string;
@@ -47,7 +54,10 @@ type LedgerContext = {
 
 type AccountCreateDialogProps = {
   readonly ledgerContext: LedgerContext;
-  readonly trigger: ReactNode;
+  readonly trigger: ReactElement<{
+    readonly onClick?: (event: MouseEvent<HTMLElement>) => void;
+    [key: string]: unknown;
+  }>;
   readonly triggerDisabled?: boolean;
 };
 
@@ -60,9 +70,25 @@ export function AccountCreateDialog({
   trigger,
   triggerDisabled = false,
 }: AccountCreateDialogProps) {
-  const isTriggerDisabled = triggerDisabled || !ledgerContext;
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const isTriggerDisabled = triggerDisabled || !ledgerContext;
+  const triggerNode = isValidElement(trigger)
+    ? cloneElement(trigger, {
+        onClick: (event: MouseEvent<HTMLElement>) => {
+          const handleTriggerClick = trigger.props.onClick;
+
+          handleTriggerClick?.(event);
+          if (event.defaultPrevented) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          setDialogOpen(true);
+        },
+      })
+    : trigger;
   const mutation = useMutation({
     mutationFn: async (request: CreateAccountRequest) => {
       if (!ledgerContext) {
@@ -78,6 +104,9 @@ export function AccountCreateDialog({
     onSuccess: async () => {
       toast.success(en.accounts.createSuccess);
       await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["me", "context"],
+        }),
         queryClient.invalidateQueries({
           queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
         }),
@@ -115,9 +144,16 @@ export function AccountCreateDialog({
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogTrigger asChild disabled={isTriggerDisabled}>
-        {trigger}
-      </DialogTrigger>
+      <BlockedActionGate
+        blocked={isTriggerDisabled}
+        reason={en.accounts.ledgerRequired}
+        suggestion={{
+          label: en.shell.openAccounts,
+          to: "/accounts",
+        }}
+      >
+        {triggerNode}
+      </BlockedActionGate>
 
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[34rem]"
@@ -280,14 +316,12 @@ export function AccountCreateDialog({
                 {en.rules.cancel}
               </Button>
             </DialogClose>
-            <Button
-              data-testid={testIds.accounts.create.saveButton}
-              disabled={mutation.isPending}
-              type="submit"
-            >
-              <Check aria-hidden="true" />
-              {mutation.isPending ? en.accounts.saving : en.accounts.save}
-            </Button>
+            <BlockedActionGate blocked={mutation.isPending} reason={en.actionGate.inProgress}>
+              <Button data-testid={testIds.accounts.create.saveButton} type="submit">
+                <Check aria-hidden="true" />
+                {mutation.isPending ? en.accounts.saving : en.accounts.save}
+              </Button>
+            </BlockedActionGate>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -314,17 +348,11 @@ export function AccountCreatePanel({ ledgerContext }: AccountCreatePanelProps) {
           <AccountCreateDialog
             ledgerContext={ledgerContext}
             trigger={
-              <Button
-                data-testid={testIds.accounts.create.openButton}
-                disabled={!ledgerContext}
-                size="sm"
-                type="button"
-              >
+              <Button data-testid={testIds.accounts.create.openButton} size="sm" type="button">
                 <PlusCircle aria-hidden="true" />
                 {en.accounts.addAccount}
               </Button>
             }
-            triggerDisabled={!ledgerContext}
           />
         </CardAction>
       </CardHeader>

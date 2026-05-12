@@ -21,6 +21,7 @@ const app = await buildApiApp({
   financeMutationService: routeDependency,
   identityRepository: routeDependency,
   readiness: { migrations: "ok" },
+  reportQueryService: routeDependency,
   syncQueryService: routeDependency,
   syncReplayService: routeDependency,
   transactionQueryService: routeDependency,

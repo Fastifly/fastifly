@@ -232,7 +232,7 @@ describe("finance mutation service", () => {
           status: 201,
         });
         expect(events).toEqual(["account.created"]);
-        await expect(countRows(dialect, rawDb, "accounts")).resolves.toBe(1);
+        await expect(countRows(dialect, rawDb, "accounts")).resolves.toBe(2);
         await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(1);
         await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
       });

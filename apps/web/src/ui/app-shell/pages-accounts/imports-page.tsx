@@ -8,6 +8,7 @@ import { apiClient } from "../../../api/client";
 import { useImportJobsQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
+import { BlockedActionGate } from "../../blocked-action-gate";
 import { GlassSection } from "../shared-components";
 import { makeSampleImportCsv } from "../utils";
 import type { ImportsPageProps } from "./types";
@@ -106,16 +107,17 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
       <GlassSection title={en.shell.importsTitle} description={en.shell.importsBody}>
         <div className="flex flex-col gap-3">
           <div className="flex justify-end">
-            <Button
-              data-testid={testIds.imports.uploadButton}
-              disabled={createMutation.isPending}
-              onClick={() => createMutation.mutate()}
-              size="sm"
-              type="button"
-            >
-              <Upload aria-hidden="true" />
-              {createMutation.isPending ? en.imports.uploading : en.imports.upload}
-            </Button>
+            <BlockedActionGate blocked={createMutation.isPending} reason={en.actionGate.inProgress}>
+              <Button
+                data-testid={testIds.imports.uploadButton}
+                onClick={() => createMutation.mutate()}
+                size="sm"
+                type="button"
+              >
+                <Upload aria-hidden="true" />
+                {createMutation.isPending ? en.imports.uploading : en.imports.upload}
+              </Button>
+            </BlockedActionGate>
           </div>
           <div className="grid gap-3" data-testid={testIds.imports.list}>
             {importJobs.length > 0 ? (
@@ -138,33 +140,49 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
                       {en.imports.previewRows}: {importJob.previewRows.length}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        data-testid={testIds.imports.commitButton(importJob.id)}
-                        disabled={
-                          importJob.status !== "preview_ready" ||
-                          (commitMutation.isPending && commitMutation.variables === importJob.id)
-                        }
-                        onClick={() => commitMutation.mutate(importJob.id)}
-                        size="sm"
-                        type="button"
+                      <BlockedActionGate
+                        blocked={importJob.status !== "preview_ready"}
+                        reason={en.imports.commitUnavailable}
                       >
-                        <Check aria-hidden="true" />
-                        {en.imports.commit}
-                      </Button>
-                      <Button
-                        data-testid={testIds.imports.undoButton(importJob.id)}
-                        disabled={
-                          importJob.status !== "committed" ||
-                          (undoMutation.isPending && undoMutation.variables === importJob.id)
-                        }
-                        onClick={() => undoMutation.mutate(importJob.id)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
+                        <BlockedActionGate
+                          blocked={
+                            commitMutation.isPending && commitMutation.variables === importJob.id
+                          }
+                          reason={en.actionGate.inProgress}
+                        >
+                          <Button
+                            data-testid={testIds.imports.commitButton(importJob.id)}
+                            onClick={() => commitMutation.mutate(importJob.id)}
+                            size="sm"
+                            type="button"
+                          >
+                            <Check aria-hidden="true" />
+                            {en.imports.commit}
+                          </Button>
+                        </BlockedActionGate>
+                      </BlockedActionGate>
+                      <BlockedActionGate
+                        blocked={importJob.status !== "committed"}
+                        reason={en.imports.undoUnavailable}
                       >
-                        <RotateCcw aria-hidden="true" />
-                        {en.imports.undo}
-                      </Button>
+                        <BlockedActionGate
+                          blocked={
+                            undoMutation.isPending && undoMutation.variables === importJob.id
+                          }
+                          reason={en.actionGate.inProgress}
+                        >
+                          <Button
+                            data-testid={testIds.imports.undoButton(importJob.id)}
+                            onClick={() => undoMutation.mutate(importJob.id)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <RotateCcw aria-hidden="true" />
+                            {en.imports.undo}
+                          </Button>
+                        </BlockedActionGate>
+                      </BlockedActionGate>
                     </div>
                   </CardContent>
                 </Card>

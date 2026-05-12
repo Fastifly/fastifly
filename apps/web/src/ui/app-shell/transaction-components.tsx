@@ -1,11 +1,25 @@
-import type { TransactionGroupResponse } from "@fastifly/common";
+import {
+  getTransactionDisplayType,
+  getTransactionOccurredAt,
+  getTransactionSignedMinor,
+  type TransactionGroupResponse,
+} from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import { Button } from "@ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui/card";
 import { Skeleton } from "@ui/skeleton";
-import { ArrowDownLeft, ArrowUpRight, RefreshCcw } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@ui/table";
+import { ArrowDownLeft, ArrowUpDown, ArrowUpRight, RefreshCcw } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
@@ -19,6 +33,16 @@ const transactionSkeletonRowKeys = [
   "skeleton-5",
   "skeleton-6",
 ] as const;
+
+type TransactionTableRow = {
+  readonly amount: string;
+  readonly occurredAt: string;
+  readonly signedAmountMinor: bigint;
+  readonly transaction: TransactionGroupResponse;
+  readonly typeLabel: string;
+};
+
+const transactionColumnHelper = createColumnHelper<TransactionTableRow>();
 
 export function TransactionsPanel({
   descriptionTestId,
@@ -66,6 +90,140 @@ export function TransactionsPanel({
   const hasTransactions = transactions.length > 0;
   const showInitialSkeleton = transactionsLoading && !hasTransactions && !transactionsError;
   const showErrorEmptyState = transactionsError && !hasTransactions;
+  const [sorting, setSorting] = useState<SortingState>([{ desc: true, id: "occurredAt" }]);
+
+  const transactionRows = useMemo<TransactionTableRow[]>(
+    () =>
+      transactions.map((transaction) => ({
+        amount: formatTransactionAmount(transaction),
+        occurredAt: getTransactionOccurredAt(transaction) ?? "",
+        signedAmountMinor: getTransactionSignedMinor(transaction),
+        transaction,
+        typeLabel: formatTransactionTypeLabel(getTransactionDisplayType(transaction)),
+      })),
+    [transactions],
+  );
+
+  const columns = useMemo(
+    () => [
+      transactionColumnHelper.accessor((row) => row.transaction.title, {
+        cell: ({ row }) => {
+          const transaction = row.original.transaction;
+          const isIncome = getTransactionDisplayType(transaction) === "income";
+
+          return (
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className={cn(
+                  "inline-flex size-7 items-center justify-center rounded-md border border-border bg-muted/40",
+                  isIncome
+                    ? "text-emerald-700 dark:text-emerald-200"
+                    : "text-slate-700 dark:text-muted-foreground",
+                )}
+              >
+                {isIncome ? (
+                  <ArrowDownLeft className="size-3.5" />
+                ) : (
+                  <ArrowUpRight className="size-3.5" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p
+                  className="truncate font-medium text-sm"
+                  data-testid={testIds.transactions.rowTitle(transaction.id)}
+                >
+                  {transaction.title}
+                </p>
+                <p
+                  className="truncate text-[12px] text-muted-foreground md:hidden"
+                  data-testid={testIds.transactions.rowMeta(transaction.id)}
+                >
+                  {formatDate(row.original.occurredAt)} · {row.original.typeLabel}
+                </p>
+              </div>
+            </div>
+          );
+        },
+        header: () => en.transactions.description,
+        id: "title",
+      }),
+      transactionColumnHelper.accessor("occurredAt", {
+        cell: ({ row }) => (
+          <p className="hidden whitespace-nowrap text-sm text-muted-foreground md:block">
+            {formatDate(row.original.occurredAt)}
+          </p>
+        ),
+        header: ({ column }) => (
+          <Button
+            className="hidden h-auto px-0 text-muted-foreground hover:text-foreground md:inline-flex"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            {en.transactions.date}
+            <ArrowUpDown className="size-3.5" />
+          </Button>
+        ),
+        id: "occurredAt",
+        sortingFn: (rowA, rowB) => rowA.original.occurredAt.localeCompare(rowB.original.occurredAt),
+      }),
+      transactionColumnHelper.accessor("typeLabel", {
+        cell: ({ getValue, row }) => (
+          <p
+            className="hidden whitespace-nowrap text-sm text-muted-foreground md:block"
+            data-testid={testIds.transactions.rowMeta(row.original.transaction.id)}
+          >
+            {getValue()}
+          </p>
+        ),
+        header: () => <span className="hidden md:inline">{en.transactions.type}</span>,
+        id: "type",
+      }),
+      transactionColumnHelper.accessor("amount", {
+        cell: ({ getValue, row }) => (
+          <p
+            className="whitespace-nowrap text-right font-semibold text-sm"
+            data-testid={testIds.transactions.rowAmount(row.original.transaction.id)}
+          >
+            {getValue()}
+          </p>
+        ),
+        header: ({ column }) => (
+          <Button
+            className="h-auto px-0 text-muted-foreground hover:text-foreground"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            {en.transactions.amount}
+            <ArrowUpDown className="size-3.5" />
+          </Button>
+        ),
+        id: "amount",
+        sortingFn: (rowA, rowB) => {
+          if (rowA.original.signedAmountMinor < rowB.original.signedAmountMinor) {
+            return -1;
+          }
+          if (rowA.original.signedAmountMinor > rowB.original.signedAmountMinor) {
+            return 1;
+          }
+          return 0;
+        },
+      }),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    columns,
+    data: transactionRows,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: { sorting },
+  });
 
   useEffect(() => {
     if (!isFetchingNextPage) {
@@ -122,16 +280,42 @@ export function TransactionsPanel({
         {headerContent ? <div>{headerContent}</div> : null}
       </CardHeader>
       <div
-        className={cn("min-w-0 divide-y divide-border", listClassName)}
+        className={cn("min-w-0", listClassName)}
         data-testid={testIds.transactions.list}
         ref={listRef}
       >
         {showInitialSkeleton ? (
           transactionSkeletonRowKeys.map((rowKey) => <TransactionRowSkeleton key={rowKey} />)
         ) : hasTransactions ? (
-          transactions.map((transaction) => (
-            <TransactionRow key={transaction.id} transaction={transaction} />
-          ))
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/70">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow
+                  data-testid={testIds.transactions.row(row.original.transaction.id)}
+                  key={row.id}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : showErrorEmptyState ? (
           <div className="flex flex-col gap-3 p-4" data-testid={emptyStateId}>
             <p className="font-medium text-[14px]" data-testid={emptyTitleId}>
@@ -225,46 +409,6 @@ export function TransactionsPanel({
   );
 }
 
-function TransactionRow({ transaction }: { readonly transaction: TransactionGroupResponse }) {
-  const signedAmount = formatTransactionAmount(transaction);
-  const isIncome = transaction.type === "income";
-
-  return (
-    <div
-      className="flex min-w-0 items-center justify-between gap-3 px-4 py-3.5 md:px-5"
-      data-testid={testIds.transactions.row(transaction.id)}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <div
-          className={`inline-flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 ${isIncome ? "text-emerald-700 dark:text-emerald-200" : "text-slate-700 dark:text-muted-foreground"}`}
-        >
-          {isIncome ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
-        </div>
-        <div className="min-w-0">
-          <p
-            className="truncate font-semibold text-[14px]"
-            data-testid={testIds.transactions.rowTitle(transaction.id)}
-          >
-            {transaction.title}
-          </p>
-          <p
-            className="mt-0.5 text-[12px] text-slate-500 capitalize dark:text-white/50"
-            data-testid={testIds.transactions.rowMeta(transaction.id)}
-          >
-            {formatDate(transaction.journals[0]?.occurredAt)} · {transaction.type}
-          </p>
-        </div>
-      </div>
-      <p
-        className="shrink-0 text-right font-semibold text-[14px]"
-        data-testid={testIds.transactions.rowAmount(transaction.id)}
-      >
-        {signedAmount}
-      </p>
-    </div>
-  );
-}
-
 function TransactionRowSkeleton() {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-3.5 md:px-5">
@@ -278,4 +422,18 @@ function TransactionRowSkeleton() {
       <Skeleton className="h-4 w-24" />
     </div>
   );
+}
+
+function formatTransactionTypeLabel(type: TransactionGroupResponse["type"]): string {
+  if (type === "expense") {
+    return en.transactions.types.expense;
+  }
+  if (type === "income") {
+    return en.transactions.types.income;
+  }
+  if (type === "transfer") {
+    return en.transactions.types.transfer;
+  }
+
+  return type;
 }

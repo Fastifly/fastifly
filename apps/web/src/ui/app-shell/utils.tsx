@@ -1,6 +1,10 @@
 import {
   type AccountWithBalanceResponse,
   formatMoneyMinor,
+  getTransactionAbsoluteMinor as getCommonTransactionAbsoluteMinor,
+  getTransactionCurrencyCode,
+  getTransactionSignedMinor,
+  sumTransactionsByJournalTypeMinor,
   type TransactionGroupResponse,
 } from "@fastifly/common";
 import type { LucideIcon } from "lucide-react";
@@ -189,35 +193,16 @@ export function sumTransactionAmounts(
   transactions: readonly TransactionGroupResponse[],
   type: "expense" | "income",
 ): bigint {
-  return transactions
-    .filter((transaction) => transaction.type === type)
-    .reduce((total, transaction) => total + getTransactionAbsoluteMinor(transaction), 0n);
+  return sumTransactionsByJournalTypeMinor(transactions, type);
 }
 
 export function formatTransactionAmount(transaction: TransactionGroupResponse): string {
-  const firstPosting = transaction.journals[0]?.postings[0];
-  if (!firstPosting) {
-    return formatMoneyMinor(0n, "INR");
-  }
-
-  const amountMinor =
-    transaction.type === "income"
-      ? absMinor(firstPosting.amountMinor)
-      : transaction.type === "expense"
-        ? -absMinor(firstPosting.amountMinor)
-        : absMinor(firstPosting.amountMinor);
-
-  return formatMoneyMinor(amountMinor, firstPosting.currencyCode);
+  const currencyCode = getTransactionCurrencyCode(transaction, "INR");
+  return formatMoneyMinor(getTransactionSignedMinor(transaction), currencyCode);
 }
 
 export function getTransactionAbsoluteMinor(transaction: TransactionGroupResponse): bigint {
-  const firstPosting = transaction.journals[0]?.postings[0];
-  return firstPosting ? absMinor(firstPosting.amountMinor) : 0n;
-}
-
-export function absMinor(amountMinor: string): bigint {
-  const value = BigInt(amountMinor);
-  return value < 0n ? -value : value;
+  return getCommonTransactionAbsoluteMinor(transaction);
 }
 
 export function formatDate(value: string | undefined): string {

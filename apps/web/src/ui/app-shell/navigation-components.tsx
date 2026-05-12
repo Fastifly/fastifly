@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { AlertTriangle, CheckCircle2, LogOut, RefreshCcw, X, XCircle } from "lucide-react";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
+import { BlockedActionGate } from "../blocked-action-gate";
 import { type NavigationItem, navigationItems } from "../navigation";
 import { StatusCapsule } from "./primitives";
 import {
@@ -205,17 +206,18 @@ export function MobileMoreDrawer({
           ))}
         </nav>
 
-        <Button
-          className="mt-3 w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
-          disabled={isLoggingOut}
-          data-testid={testIds.navigation.logoutButton}
-          onClick={onLogout}
-          type="button"
-          variant="outline"
-        >
-          <LogOut aria-hidden="true" data-icon="inline-start" />
-          <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
-        </Button>
+        <BlockedActionGate blocked={isLoggingOut} reason={en.actionGate.inProgress}>
+          <Button
+            className="mt-3 w-full border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+            data-testid={testIds.navigation.logoutButton}
+            onClick={onLogout}
+            type="button"
+            variant="outline"
+          >
+            <LogOut aria-hidden="true" data-icon="inline-start" />
+            <span>{isLoggingOut ? en.shell.loggingOut : en.shell.logout}</span>
+          </Button>
+        </BlockedActionGate>
       </SheetContent>
     </Sheet>
   );

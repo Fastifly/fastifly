@@ -30,6 +30,7 @@ import { apiClient } from "../../../api/client";
 import { useAccountsQuery, useRulesQuery } from "../../../api/queries";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
+import { BlockedActionGate } from "../../blocked-action-gate";
 import { GlassSection } from "../shared-components";
 import { formatDate, formatDateTime, formatTransactionAmount } from "../utils";
 import {
@@ -360,15 +361,19 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                       {en.rules.cancel}
                     </Button>
                   </DialogClose>
-                  <Button
-                    data-testid={testIds.rules.createSubmitButton}
-                    disabled={createMutation.isPending}
-                    onClick={() => createMutation.mutate(createForm)}
-                    type="button"
+                  <BlockedActionGate
+                    blocked={createMutation.isPending}
+                    reason={en.actionGate.inProgress}
                   >
-                    <Plus className="size-4" />
-                    {createMutation.isPending ? en.rules.creating : en.rules.createCustom}
-                  </Button>
+                    <Button
+                      data-testid={testIds.rules.createSubmitButton}
+                      onClick={() => createMutation.mutate(createForm)}
+                      type="button"
+                    >
+                      <Plus className="size-4" />
+                      {createMutation.isPending ? en.rules.creating : en.rules.createCustom}
+                    </Button>
+                  </BlockedActionGate>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -543,63 +548,73 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                       >
                         {en.rules.cancel}
                       </Button>
-                      <Button
-                        data-testid={testIds.rules.saveEditButton(activeRule.id)}
-                        disabled={
+                      <BlockedActionGate
+                        blocked={
                           updateMutation.isPending &&
                           updateMutation.variables?.ruleId === activeRule.id
                         }
-                        onClick={() =>
-                          updateMutation.mutate({
-                            form: editForm,
-                            ruleId: activeRule.id,
-                          })
-                        }
-                        type="button"
+                        reason={en.actionGate.inProgress}
                       >
-                        <Check className="size-4" />
-                        {updateMutation.isPending &&
-                        updateMutation.variables?.ruleId === activeRule.id
-                          ? en.rules.savingChanges
-                          : en.rules.saveChanges}
-                      </Button>
+                        <Button
+                          data-testid={testIds.rules.saveEditButton(activeRule.id)}
+                          onClick={() =>
+                            updateMutation.mutate({
+                              form: editForm,
+                              ruleId: activeRule.id,
+                            })
+                          }
+                          type="button"
+                        >
+                          <Check className="size-4" />
+                          {updateMutation.isPending &&
+                          updateMutation.variables?.ruleId === activeRule.id
+                            ? en.rules.savingChanges
+                            : en.rules.saveChanges}
+                        </Button>
+                      </BlockedActionGate>
                     </DialogFooter>
                   ) : null}
                   {activeRule.archivedAt === null && editingRuleId !== activeRule.id ? (
                     <DialogFooter className="gap-2 sm:gap-2">
-                      <Button
-                        className="min-w-24 justify-center"
-                        data-testid={testIds.rules.testButton(activeRule.id)}
-                        disabled={
-                          testMutation.isPending && testMutation.variables === activeRule.id
-                        }
-                        onClick={() => testMutation.mutate(activeRule.id)}
-                        size="sm"
-                        title={en.rules.testTooltip}
-                        type="button"
-                        variant="outline"
+                      <BlockedActionGate
+                        blocked={testMutation.isPending && testMutation.variables === activeRule.id}
+                        reason={en.actionGate.inProgress}
                       >
-                        <PlayCircle className="size-4" />
-                        {testMutation.isPending && testMutation.variables === activeRule.id
-                          ? en.rules.testing
-                          : en.rules.test}
-                      </Button>
-                      <Button
-                        className="min-w-24 justify-center"
-                        data-testid={testIds.rules.applyButton(activeRule.id)}
-                        disabled={
+                        <Button
+                          className="min-w-24 justify-center"
+                          data-testid={testIds.rules.testButton(activeRule.id)}
+                          onClick={() => testMutation.mutate(activeRule.id)}
+                          size="sm"
+                          title={en.rules.testTooltip}
+                          type="button"
+                          variant="outline"
+                        >
+                          <PlayCircle className="size-4" />
+                          {testMutation.isPending && testMutation.variables === activeRule.id
+                            ? en.rules.testing
+                            : en.rules.test}
+                        </Button>
+                      </BlockedActionGate>
+                      <BlockedActionGate
+                        blocked={
                           applyMutation.isPending && applyMutation.variables === activeRule.id
                         }
-                        onClick={() => applyMutation.mutate(activeRule.id)}
-                        size="sm"
-                        title={en.rules.applyTooltip}
-                        type="button"
+                        reason={en.actionGate.inProgress}
                       >
-                        <Sparkles className="size-4" />
-                        {applyMutation.isPending && applyMutation.variables === activeRule.id
-                          ? en.rules.applying
-                          : en.rules.apply}
-                      </Button>
+                        <Button
+                          className="min-w-24 justify-center"
+                          data-testid={testIds.rules.applyButton(activeRule.id)}
+                          onClick={() => applyMutation.mutate(activeRule.id)}
+                          size="sm"
+                          title={en.rules.applyTooltip}
+                          type="button"
+                        >
+                          <Sparkles className="size-4" />
+                          {applyMutation.isPending && applyMutation.variables === activeRule.id
+                            ? en.rules.applying
+                            : en.rules.apply}
+                        </Button>
+                      </BlockedActionGate>
                     </DialogFooter>
                   ) : null}
                 </>
@@ -745,22 +760,27 @@ export function RulesPage({ ledgerContext }: RulesPageProps) {
                                 <Pencil aria-hidden="true" />
                                 {en.rules.edit}
                               </Button>
-                              <Button
-                                className="h-8 px-2.5"
-                                data-testid={testIds.rules.archiveButton(rule.id)}
-                                disabled={
+                              <BlockedActionGate
+                                blocked={
                                   archiveMutation.isPending && archiveMutation.variables === rule.id
                                 }
-                                onClick={() => archiveMutation.mutate(rule.id)}
-                                size="sm"
-                                type="button"
-                                variant="outline"
+                                reason={en.actionGate.inProgress}
                               >
-                                <Archive className="size-4" />
-                                {archiveMutation.isPending && archiveMutation.variables === rule.id
-                                  ? en.rules.archiving
-                                  : en.rules.archive}
-                              </Button>
+                                <Button
+                                  className="h-8 px-2.5"
+                                  data-testid={testIds.rules.archiveButton(rule.id)}
+                                  onClick={() => archiveMutation.mutate(rule.id)}
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <Archive className="size-4" />
+                                  {archiveMutation.isPending &&
+                                  archiveMutation.variables === rule.id
+                                    ? en.rules.archiving
+                                    : en.rules.archive}
+                                </Button>
+                              </BlockedActionGate>
                             </>
                           ) : null}
                         </div>
@@ -967,16 +987,12 @@ function RuleEditorPanel({
               {en.rules.cancel}
             </Button>
           ) : null}
-          <Button
-            data-testid={dataTestIds.submit}
-            disabled={isSubmitting}
-            onClick={onSubmit}
-            size="sm"
-            type="button"
-          >
-            {submitIcon ?? <Check aria-hidden="true" />}
-            {isSubmitting ? submittingLabel : submitLabel}
-          </Button>
+          <BlockedActionGate blocked={isSubmitting} reason={en.actionGate.inProgress}>
+            <Button data-testid={dataTestIds.submit} onClick={onSubmit} size="sm" type="button">
+              {submitIcon ?? <Check aria-hidden="true" />}
+              {isSubmitting ? submittingLabel : submitLabel}
+            </Button>
+          </BlockedActionGate>
         </div>
       )}
     </div>

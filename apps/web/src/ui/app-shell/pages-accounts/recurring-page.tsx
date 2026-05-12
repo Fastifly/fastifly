@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
-import { PauseCircle, PencilLine, PlayCircle, PlusCircle } from "lucide-react";
+import { CircleOff, PauseCircle, PencilLine, PlayCircle, PlusCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
@@ -16,6 +16,11 @@ import {
 } from "../../../finance/recurring-form";
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
+import { BlockedActionGate } from "../../blocked-action-gate";
+import {
+  buildCategoryNameById,
+  getCategoryIconComponent,
+} from "../../category-metadata";
 import { GlassSection } from "../shared-components";
 import { formatDateTime } from "../utils";
 import { RecurringCreateDialog } from "./recurring-create-dialog";
@@ -126,10 +131,11 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
     () => new Map(accounts.map((account) => [account.id, account.name] as const)),
     [accounts],
   );
-  const categoryNames = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name] as const)),
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category] as const)),
     [categories],
   );
+  const categoryNameById = useMemo(() => buildCategoryNameById(categories), [categories]);
   const templates = useMemo(
     () =>
       [...(recurringQuery.data ?? [])].sort((left, right) => {
@@ -179,19 +185,28 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                 {pausedCount}
               </span>
             </p>
-            <Button
-              data-testid={testIds.recurring.createButton}
-              disabled={!ledgerContext || accounts.length < 2}
-              onClick={() => {
-                setEditingTemplate(null);
-                setDialogOpen(true);
-              }}
-              size="sm"
-              type="button"
+            <BlockedActionGate
+              blocked={!ledgerContext || accounts.length < 2}
+              reason={!ledgerContext ? en.accounts.ledgerRequired : en.shell.noAccountsForRecurring}
+              suggestion={
+                !ledgerContext || accounts.length < 2
+                  ? { label: en.shell.openAccounts, to: "/accounts" }
+                  : undefined
+              }
             >
-              <PlusCircle aria-hidden="true" />
-              {en.recurring.create}
-            </Button>
+              <Button
+                data-testid={testIds.recurring.createButton}
+                onClick={() => {
+                  setEditingTemplate(null);
+                  setDialogOpen(true);
+                }}
+                size="sm"
+                type="button"
+              >
+                <PlusCircle aria-hidden="true" />
+                {en.recurring.create}
+              </Button>
+            </BlockedActionGate>
           </div>
 
           {!ledgerContext || accounts.length < 2 ? (
@@ -218,6 +233,16 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
           <div className="grid gap-3 xl:grid-cols-2" data-testid={testIds.recurring.list}>
             {templates.length > 0 ? (
               templates.map((template) => {
+                const expenseCategoryId =
+                  template.payload.type === "expense" ? template.payload.lines[0]?.categoryId : null;
+                const expenseCategory = expenseCategoryId ? (categoryById.get(expenseCategoryId) ?? null) : null;
+                const expenseCategoryParentName = expenseCategory?.parentId
+                  ? (categoryNameById.get(expenseCategory.parentId) ?? null)
+                  : null;
+                const ExpenseCategoryIcon = expenseCategory
+                  ? getCategoryIconComponent(expenseCategory.icon)
+                  : null;
+
                 return (
                   <Card
                     className="min-w-0 rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
@@ -256,14 +281,36 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                           .replace(
                             "{destination}",
                             template.payload.type === "expense"
-                              ? template.payload.lines[0]?.categoryId
-                                ? (categoryNames.get(template.payload.lines[0]?.categoryId) ?? "—")
+                              ? expenseCategory
+                                ? expenseCategoryParentName
+                                  ? `${expenseCategory.name} · ${expenseCategoryParentName}`
+                                  : expenseCategory.name
                                 : "—"
                               : (accountNames.get(
                                   template.payload.lines[0]?.destinationAccountId ?? "",
                                 ) ?? "—"),
                           )}
                       </p>
+                      {template.payload.type === "expense" ? (
+                        <p className="flex items-center gap-1.5 text-[0.75rem] text-muted-foreground">
+                          <span
+                            aria-hidden="true"
+                            className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+                            style={{ backgroundColor: expenseCategory?.color ?? "#94a3b8" }}
+                          />
+                          {ExpenseCategoryIcon ? (
+                            <ExpenseCategoryIcon
+                              aria-hidden="true"
+                              className="size-3.5 shrink-0"
+                            />
+                          ) : (
+                            <CircleOff aria-hidden="true" className="size-3.5 shrink-0" />
+                          )}
+                          <span className="truncate">
+                            {expenseCategory ? expenseCategory.name : "—"}
+                          </span>
+                        </p>
+                      ) : null}
                       <p
                         className="text-[0.8125rem] text-muted-foreground"
                         data-testid={testIds.recurring.cardNextRun(template.id)}
@@ -289,34 +336,38 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                           {en.recurring.edit}
                         </Button>
                         {template.status !== "archived" ? (
-                          <Button
-                            data-testid={testIds.recurring.toggleStatusButton(template.id)}
-                            disabled={
+                          <BlockedActionGate
+                            blocked={
                               statusMutation.isPending &&
                               statusMutation.variables?.template.id === template.id
                             }
-                            onClick={() =>
-                              statusMutation.mutate({
-                                status: template.status === "active" ? "paused" : "active",
-                                template,
-                              })
-                            }
-                            size="sm"
-                            type="button"
-                            variant="outline"
+                            reason={en.actionGate.inProgress}
                           >
-                            {template.status === "active" ? (
-                              <>
-                                <PauseCircle aria-hidden="true" />
-                                {en.recurring.pause}
-                              </>
-                            ) : (
-                              <>
-                                <PlayCircle aria-hidden="true" />
-                                {en.recurring.resume}
-                              </>
-                            )}
-                          </Button>
+                            <Button
+                              data-testid={testIds.recurring.toggleStatusButton(template.id)}
+                              onClick={() =>
+                                statusMutation.mutate({
+                                  status: template.status === "active" ? "paused" : "active",
+                                  template,
+                                })
+                              }
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              {template.status === "active" ? (
+                                <>
+                                  <PauseCircle aria-hidden="true" />
+                                  {en.recurring.pause}
+                                </>
+                              ) : (
+                                <>
+                                  <PlayCircle aria-hidden="true" />
+                                  {en.recurring.resume}
+                                </>
+                              )}
+                            </Button>
+                          </BlockedActionGate>
                         ) : null}
                       </div>
                     </CardContent>

@@ -187,6 +187,27 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: false,
       status: 201,
     })),
+    updateCategory: vi.fn(async () => ({
+      body: {
+        data: {
+          category: {
+            archivedAt: null,
+            color: "#4F46E5",
+            counterpartyAccountId: createId(),
+            createdAt: "2026-05-09T00:00:00.000Z",
+            icon: "house",
+            id: createId(),
+            ledgerId: createId(),
+            name: "Utilities Updated",
+            parentId: null,
+            updatedAt: "2026-05-09T01:00:00.000Z",
+            workspaceId: createId(),
+          },
+        },
+      },
+      idempotencyReplayed: false,
+      status: 200,
+    })),
     archiveTransactionGroups: vi.fn(async () => ({
       body: {
         data: {
@@ -443,6 +464,7 @@ describe("finance routes", () => {
       archiveCategory: vi.fn(),
       createCategory: vi.fn(),
       findCategory: vi.fn(),
+      updateCategory: vi.fn(),
       listCategories: vi.fn(async () => ({
         hasNextPage: true,
         items: [
@@ -495,6 +517,7 @@ describe("finance routes", () => {
       createCategory: vi.fn(),
       findCategory: vi.fn(),
       listCategories: vi.fn(),
+      updateCategory: vi.fn(),
     } as CategoryRepository;
     const { app, state } = await makeApp("viewer", () => ({ categoryRepository }));
     const wrongCursor = encodeFinanceCursor({

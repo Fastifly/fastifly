@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { SHOW_DEMO_LOGIN } from "../env";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
+import { BlockedActionGate } from "./blocked-action-gate";
 import { FastiflyIcon } from "./fastifly-icon";
 
 export type AuthMode = "login" | "register";
@@ -243,16 +244,17 @@ export function AuthCredentialsForm({
         </form.Field>
       </FieldGroup>
 
-      <Button
-        className="w-full"
-        data-testid={resolvedTestIds.submitButton}
-        disabled={isPending}
-        size="lg"
-        type="submit"
-      >
-        {mode === "login" ? <LogIn aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
-        {isPending ? en.auth.loading : submitLabel}
-      </Button>
+      <BlockedActionGate blocked={isPending} reason={en.actionGate.inProgress}>
+        <Button
+          className="w-full"
+          data-testid={resolvedTestIds.submitButton}
+          size="lg"
+          type="submit"
+        >
+          {mode === "login" ? <LogIn aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
+          {isPending ? en.auth.loading : submitLabel}
+        </Button>
+      </BlockedActionGate>
     </form>
   );
 }

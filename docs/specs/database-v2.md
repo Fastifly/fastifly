@@ -514,6 +514,7 @@ Principles:
 - every ledger has a base/reporting currency
 - every account has a currency
 - every posting has an original currency
+- when a ledger has no journals yet, creating the first user-held account may align ledger base currency to that account currency
 - cross-currency transactions store exchange-rate snapshots when that deferred write path is enabled
 - original transaction amounts are preserved
 - reports can show original currency and reporting/base currency
@@ -864,6 +865,12 @@ reconciliation_helper
 ```
 
 The UI can show simple account types while the backend stores accounting-ready kinds.
+
+System counterparty rule:
+
+- every active ledger currency that has at least one active user-held account (`asset`/`liability`) must also have at least one active `revenue/external` account for income flows
+- account-creation mutations must auto-provision missing income-source counterparties instead of waiting for user-facing errors
+- user-facing account screens may hide these system counterparties, but transaction validation and query services must still use them
 
 ---
 

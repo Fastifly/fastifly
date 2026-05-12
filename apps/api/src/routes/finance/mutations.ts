@@ -9,6 +9,8 @@ import {
   CreateTransactionResponseSchema,
   parseAmountMinor,
   parseSyncedId,
+  UpdateCategoryRequestSchema,
+  UpdateCategoryResponseSchema,
 } from "@fastifly/common";
 import type { FastifyInstance } from "fastify";
 import { getRequestIdempotencyKey, sendLedgerMutationResult } from "../../idempotency.js";
@@ -75,6 +77,60 @@ export function registerFinanceMutationRoutes(
             authorization: {
               action: "create",
               subject: "Account",
+            },
+            baseRevision: null,
+            deviceId: null,
+            dryRun: false,
+            idempotencyKey: getRequestIdempotencyKey(request),
+            ledgerId: parseSyncedId(params.ledgerId),
+            requestId: String(request.id),
+            sideEffectFlags: makeSideEffectFlags(),
+            source: "rest",
+            syncOperation: null,
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        }),
+      );
+    },
+  );
+
+  app.patch(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/categories/:categoryId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: UpdateCategoryRequestSchema,
+        params: CategoryParamsSchema,
+        response: {
+          200: UpdateCategoryResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actorUserId = requireAuthenticatedUser(request);
+      const params = CategoryParamsSchema.parse(request.params);
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "update", "Category");
+      const body = UpdateCategoryRequestSchema.parse(request.body);
+
+      return sendLedgerMutationResult(
+        reply,
+        await financeMutationService.updateCategory({
+          category: {
+            categoryId: parseSyncedId(params.categoryId),
+            ...(body.name !== undefined ? { name: body.name } : {}),
+            ...(body.color !== undefined ? { color: body.color } : {}),
+            ...(body.icon !== undefined ? { icon: body.icon } : {}),
+            ...(body.parentId !== undefined
+              ? { parentId: body.parentId ? parseSyncedId(body.parentId) : null }
+              : {}),
+          },
+          envelope: {
+            actorUserId,
+            authorization: {
+              action: "update",
+              subject: "Category",
             },
             baseRevision: null,
             deviceId: null,
