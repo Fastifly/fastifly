@@ -12,7 +12,7 @@ import {
 } from "@ui/dialog";
 import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
 import { Input } from "@ui/input";
-import { Check, CircleOff } from "lucide-react";
+import { Check } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -27,7 +27,7 @@ import {
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
-import { buildCategoryNameById, getCategoryIconComponent } from "../../category-metadata";
+import { buildCategoryNameById, CategoryToken } from "../../category-metadata";
 import {
   AccountChooser,
   FormField,
@@ -450,24 +450,10 @@ function renderRecurringCategoryOption(input: {
 }): ReactNode {
   const { category, categoryNameById } = input;
   const parentName = category.parentId ? (categoryNameById.get(category.parentId) ?? null) : null;
-  const CategoryIcon = getCategoryIconComponent(category.icon);
-
-  return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
-        style={{ backgroundColor: category.color ?? "#94a3b8" }}
-      />
-      {CategoryIcon ? (
-        <CategoryIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-      ) : (
-        <CircleOff aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-      )}
-      <span className="truncate">
-        {category.name}
-        {parentName ? <span className="text-muted-foreground"> · {parentName}</span> : null}
-      </span>
-    </span>
-  );
+  return CategoryToken({
+    color: category.color,
+    icon: category.icon,
+    name: category.name,
+    parentName,
+  });
 }

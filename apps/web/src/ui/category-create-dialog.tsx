@@ -252,7 +252,9 @@ export function CategoryCreateDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value={NO_PARENT_VALUE}>{en.categories.categoryParentNone}</SelectItem>
+                  <SelectItem value={NO_PARENT_VALUE}>
+                    {en.categories.categoryParentNone}
+                  </SelectItem>
                   {sortedCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}

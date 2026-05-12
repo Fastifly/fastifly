@@ -30,12 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui/select";
-import {
-  Archive,
-  CircleOff,
-  Pencil,
-  PlusCircle,
-} from "lucide-react";
+import { Archive, CircleOff, Pencil, PlusCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../../../api/client";
@@ -505,7 +500,9 @@ function CategoryUpsertDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value={NO_PARENT_VALUE}>{en.categories.categoryParentNone}</SelectItem>
+                  <SelectItem value={NO_PARENT_VALUE}>
+                    {en.categories.categoryParentNone}
+                  </SelectItem>
                   {selectableParents.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}

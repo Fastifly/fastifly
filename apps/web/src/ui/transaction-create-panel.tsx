@@ -1,8 +1,4 @@
-import type {
-  AccountWithBalanceResponse,
-  CategoryResponse,
-  CreateTransactionRequest,
-} from "@fastifly/common";
+import type { AccountWithBalanceResponse, CreateTransactionRequest } from "@fastifly/common";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -22,14 +18,7 @@ import { Input } from "@ui/input";
 import { Label } from "@ui/label";
 import { RadioGroup, RadioGroupItem } from "@ui/radio-group";
 import type { LucideIcon } from "lucide-react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Check,
-  CircleOff,
-  PlusCircle,
-  RefreshCcw,
-} from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, PlusCircle, RefreshCcw } from "lucide-react";
 import {
   type ComponentProps,
   forwardRef,
@@ -56,10 +45,7 @@ import {
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import { BlockedActionGate } from "./blocked-action-gate";
-import {
-  buildCategoryNameById,
-  getCategoryIconComponent,
-} from "./category-metadata";
+import { buildCategoryNameById, CategoryToken } from "./category-metadata";
 
 type TransactionCreatePanelProps = {
   readonly accounts: readonly AccountWithBalanceResponse[];
@@ -858,29 +844,20 @@ const AmountInput = forwardRef<HTMLInputElement, ComponentProps<typeof Input>>(
 AmountInput.displayName = "AmountInput";
 
 function renderCategoryChoiceLabel(input: {
-  readonly category: CategoryResponse;
+  readonly category: {
+    readonly color?: string | null;
+    readonly icon?: string | null;
+    readonly name: string;
+    readonly parentId?: string | null;
+  };
   readonly categoryNameById: ReadonlyMap<string, string>;
 }): ReactNode {
   const { category, categoryNameById } = input;
   const parentName = category.parentId ? (categoryNameById.get(category.parentId) ?? null) : null;
-  const CategoryIcon = getCategoryIconComponent(category.icon);
-
-  return (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
-        style={{ backgroundColor: category.color ?? "#94a3b8" }}
-      />
-      {CategoryIcon ? (
-        <CategoryIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-      ) : (
-        <CircleOff aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-      )}
-      <span className="truncate">
-        {category.name}
-        {parentName ? <span className="text-muted-foreground"> · {parentName}</span> : null}
-      </span>
-    </span>
-  );
+  return CategoryToken({
+    color: category.color,
+    icon: category.icon,
+    name: category.name,
+    parentName,
+  });
 }

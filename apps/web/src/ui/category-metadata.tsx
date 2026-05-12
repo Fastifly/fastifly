@@ -4,6 +4,7 @@ import {
   Building2,
   BusFront,
   Car,
+  CircleOff,
   CreditCard,
   Dumbbell,
   Fuel,
@@ -25,6 +26,7 @@ import {
   Utensils,
   Wallet,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 export const CATEGORY_ICON_OPTIONS: readonly {
   readonly icon: LucideIcon;
@@ -83,4 +85,36 @@ export function getCategoryParentName(input: {
   }
 
   return categoryNameById.get(category.parentId) ?? noParentLabel;
+}
+
+export function CategoryToken(input: {
+  readonly color: string | null | undefined;
+  readonly icon: string | null | undefined;
+  readonly name: string;
+  readonly parentName?: string | null;
+  readonly showParent?: boolean;
+}): ReactNode {
+  const { color, icon, name, parentName, showParent = true } = input;
+  const IconComponent = getCategoryIconComponent(icon);
+
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+        style={{ backgroundColor: color ?? "#94a3b8" }}
+      />
+      {IconComponent ? (
+        <IconComponent aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      ) : (
+        <CircleOff aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span className="truncate">
+        {name}
+        {showParent && parentName ? (
+          <span className="text-muted-foreground"> · {parentName}</span>
+        ) : null}
+      </span>
+    </span>
+  );
 }

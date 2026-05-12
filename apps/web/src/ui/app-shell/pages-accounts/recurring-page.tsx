@@ -17,10 +17,7 @@ import {
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { BlockedActionGate } from "../../blocked-action-gate";
-import {
-  buildCategoryNameById,
-  getCategoryIconComponent,
-} from "../../category-metadata";
+import { buildCategoryNameById, getCategoryIconComponent } from "../../category-metadata";
 import { GlassSection } from "../shared-components";
 import { formatDateTime } from "../utils";
 import { RecurringCreateDialog } from "./recurring-create-dialog";
@@ -234,8 +231,12 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
             {templates.length > 0 ? (
               templates.map((template) => {
                 const expenseCategoryId =
-                  template.payload.type === "expense" ? template.payload.lines[0]?.categoryId : null;
-                const expenseCategory = expenseCategoryId ? (categoryById.get(expenseCategoryId) ?? null) : null;
+                  template.payload.type === "expense"
+                    ? template.payload.lines[0]?.categoryId
+                    : null;
+                const expenseCategory = expenseCategoryId
+                  ? (categoryById.get(expenseCategoryId) ?? null)
+                  : null;
                 const expenseCategoryParentName = expenseCategory?.parentId
                   ? (categoryNameById.get(expenseCategory.parentId) ?? null)
                   : null;
@@ -299,10 +300,7 @@ export function RecurringPage({ accounts, ledgerContext }: RecurringPageProps) {
                             style={{ backgroundColor: expenseCategory?.color ?? "#94a3b8" }}
                           />
                           {ExpenseCategoryIcon ? (
-                            <ExpenseCategoryIcon
-                              aria-hidden="true"
-                              className="size-3.5 shrink-0"
-                            />
+                            <ExpenseCategoryIcon aria-hidden="true" className="size-3.5 shrink-0" />
                           ) : (
                             <CircleOff aria-hidden="true" className="size-3.5 shrink-0" />
                           )}
