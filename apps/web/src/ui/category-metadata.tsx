@@ -89,32 +89,50 @@ export function getCategoryParentName(input: {
 
 export function CategoryToken(input: {
   readonly color: string | null | undefined;
+  readonly editable?: boolean;
+  readonly hideName?: boolean;
   readonly icon: string | null | undefined;
   readonly name: string;
+  readonly onEdit?: (() => void) | undefined;
   readonly parentName?: string | null;
   readonly showParent?: boolean;
 }): ReactNode {
-  const { color, icon, name, parentName, showParent = true } = input;
+  const {
+    color,
+    editable = false,
+    hideName = false,
+    icon,
+    name,
+    onEdit,
+    parentName,
+    showParent = true,
+  } = input;
   const IconComponent = getCategoryIconComponent(icon);
-
-  return (
+  const iconColor = color ?? "#94a3b8";
+  const label = showParent && parentName ? `${name} · ${parentName}` : name;
+  const content = (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
-        style={{ backgroundColor: color ?? "#94a3b8" }}
-      />
       {IconComponent ? (
-        <IconComponent aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+        <IconComponent aria-hidden="true" className="size-3.5 shrink-0" style={{ color: iconColor }} />
       ) : (
-        <CircleOff aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+        <CircleOff aria-hidden="true" className="size-3.5 shrink-0" style={{ color: iconColor }} />
       )}
-      <span className="truncate">
-        {name}
-        {showParent && parentName ? (
-          <span className="text-muted-foreground"> · {parentName}</span>
-        ) : null}
-      </span>
+      {hideName ? null : <span className="truncate">{label}</span>}
     </span>
   );
+
+  if (editable) {
+    return (
+      <button
+        aria-label={label}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background p-0"
+        onClick={onEdit}
+        type="button"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return content;
 }

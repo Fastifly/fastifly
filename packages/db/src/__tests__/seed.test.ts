@@ -15,6 +15,7 @@ import {
   SEED_CREDENTIALS,
   SEED_IDS,
   type SqliteClient,
+  seedId,
   seedPostgresDatabase,
   seedSqlite,
 } from "../index.js";
@@ -63,6 +64,42 @@ describe("seed data", () => {
     try {
       await runPglitePostgresMigrations(client);
       await assertFullSeedIsIdempotent(createPostgresSeedContext(client));
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("reuses existing SQLite owner user by username during e2e seed", async () => {
+    const sqliteDir = mkdtempSync(join(tmpdir(), "fastifly-seed-sqlite-owner-"));
+    const client = createConfiguredSqliteClient({ source: join(sqliteDir, "test.db") });
+
+    try {
+      runSqliteMigrations(client);
+      const legacyOwnerId = seedId(9_991);
+      insertSqliteLegacyOwner(client, legacyOwnerId);
+
+      await seedSqlite(client, "e2e");
+
+      expect(readSqliteOwnerRowCount(client)).toBe(1);
+      expect(readSqliteOwnerId(client)).toBe(legacyOwnerId);
+    } finally {
+      client.close();
+      rmSync(sqliteDir, { force: true, recursive: true });
+    }
+  });
+
+  it("reuses existing PostgreSQL owner user by username during e2e seed", async () => {
+    const client = await createInMemoryPgliteDatabase();
+
+    try {
+      await runPglitePostgresMigrations(client);
+      const legacyOwnerId = seedId(9_992);
+      await insertPostgresLegacyOwner(client, legacyOwnerId);
+
+      await seedPostgresDatabase(createPglitePostgresDatabaseFromClient(client), "e2e");
+
+      await expect(readPostgresOwnerRowCount(client)).resolves.toBe(1);
+      await expect(readPostgresOwnerId(client)).resolves.toBe(legacyOwnerId);
     } finally {
       await client.close();
     }
@@ -191,4 +228,79 @@ function createPostgresSeedContext(client: PglitePostgresClient): SeedTestContex
       return seedPostgresDatabase(db, "e2e");
     },
   };
+}
+
+function insertSqliteLegacyOwner(client: SqliteClient, userId: string): void {
+  client
+    .prepare(
+      `INSERT INTO users (id, username, username_normalized, display_name, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      userId,
+      SEED_CREDENTIALS.owner.username,
+      SEED_CREDENTIALS.owner.username,
+      "Legacy Owner",
+      "legacy-hash",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    );
+}
+
+function readSqliteOwnerRowCount(client: SqliteClient): number {
+  const row = client
+    .prepare<unknown[], { readonly count: number }>(
+      "SELECT COUNT(*) AS count FROM users WHERE username_normalized = ?",
+    )
+    .get(SEED_CREDENTIALS.owner.username);
+  return row?.count ?? 0;
+}
+
+function readSqliteOwnerId(client: SqliteClient): string | null {
+  const row = client
+    .prepare<unknown[], { readonly id: string }>(
+      "SELECT id FROM users WHERE username_normalized = ? LIMIT 1",
+    )
+    .get(SEED_CREDENTIALS.owner.username);
+  return row?.id ?? null;
+}
+
+async function insertPostgresLegacyOwner(
+  client: PglitePostgresClient,
+  userId: string,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO users (id, username, username_normalized, display_name, password_hash, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      userId,
+      SEED_CREDENTIALS.owner.username,
+      SEED_CREDENTIALS.owner.username,
+      "Legacy Owner",
+      "legacy-hash",
+      new Date("2026-01-01T00:00:00.000Z"),
+      new Date("2026-01-01T00:00:00.000Z"),
+    ],
+  );
+}
+
+async function readPostgresOwnerRowCount(client: PglitePostgresClient): Promise<number> {
+  const result = (await client.query(
+    "SELECT COUNT(*)::int AS count FROM users WHERE username_normalized = $1",
+    [SEED_CREDENTIALS.owner.username],
+  )) as {
+    readonly rows: readonly { readonly count: unknown }[];
+  };
+  return Number(result.rows[0]?.count ?? 0);
+}
+
+async function readPostgresOwnerId(client: PglitePostgresClient): Promise<string | null> {
+  const result = (await client.query(
+    "SELECT id FROM users WHERE username_normalized = $1 LIMIT 1",
+    [SEED_CREDENTIALS.owner.username],
+  )) as {
+    readonly rows: readonly { readonly id: unknown }[];
+  };
+  const id = result.rows[0]?.id;
+  return typeof id === "string" ? id : null;
 }

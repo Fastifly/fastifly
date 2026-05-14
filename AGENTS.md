@@ -5,6 +5,7 @@ Fastifly: simple UX on top of a ledger-safe finance engine.
 ## Hard Rules
 - Don't care about backword compatibility or db reset. do it like you are from scratch to make the product robust.
 - use context7 for latest documentation about libraries.
+- never use web search unless very much required, use context7 in most of the cases.
 - workarounds/patches are strictly prohibited. Fix root cause issues and apply features 100% production ready.
 - for critical parts, do heavy/meaningful testing.
 - for any simple CRUD feature: add a add {module}, button at top-right. open the dialog with create form, never inline it. use same form to add/edit. show a minimal list (tanstack datatables) with meaningful actions. to enter color: use color picker. to use icons: make/use common icons picker.
