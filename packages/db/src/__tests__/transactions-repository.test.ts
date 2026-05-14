@@ -649,6 +649,7 @@ describe("transaction write repository", () => {
           const budgetId = createUuidV7();
           const now = "2026-05-09T00:00:00.000Z";
           await insertCategory(rawDb, {
+            counterpartyAccountId: accounts.groceries.id,
             id: categoryId,
             ledgerId: workspaceState.ledger.id,
             name: "Food",
@@ -673,7 +674,6 @@ describe("transaction write repository", () => {
               {
                 amountMinor: 5_000n,
                 budgetId,
-                categoryId,
                 destinationAccountId: accounts.groceries.id,
               },
             ],
@@ -899,6 +899,7 @@ async function seedPostgresCurrency(client: QueryablePostgres): Promise<void> {
 }
 
 type InsertCategoryInput = {
+  readonly counterpartyAccountId?: SyncedId | null;
   readonly id: SyncedId;
   readonly workspaceId: SyncedId;
   readonly ledgerId: SyncedId;
@@ -919,13 +920,22 @@ async function insertCategory(
             workspace_id,
             ledger_id,
             name,
+            counterparty_account_id,
             created_at,
             updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
       )
-      .run(input.id, input.workspaceId, input.ledgerId, input.name, input.now, input.now);
+      .run(
+        input.id,
+        input.workspaceId,
+        input.ledgerId,
+        input.name,
+        input.counterpartyAccountId ?? null,
+        input.now,
+        input.now,
+      );
     return;
   }
 
@@ -935,6 +945,7 @@ async function insertCategory(
       workspace_id,
       ledger_id,
       name,
+      counterparty_account_id,
       created_at,
       updated_at
     )
@@ -943,6 +954,7 @@ async function insertCategory(
       '${input.workspaceId}',
       '${input.ledgerId}',
       '${input.name}',
+      ${input.counterpartyAccountId ? `'${input.counterpartyAccountId}'` : "NULL"},
       '${input.now}',
       '${input.now}'
     )

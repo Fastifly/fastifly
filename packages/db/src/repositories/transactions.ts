@@ -1149,8 +1149,18 @@ function appendSqliteQueryFilters(
     params.push(normalizeCurrencyCode(input.currencyCode));
   }
   if (input.categoryId) {
-    conditions.push("transaction_postings.category_id = ?");
-    params.push(input.categoryId);
+    conditions.push(
+      `(transaction_postings.category_id = ? OR transaction_postings.account_id = (
+        SELECT categories.counterparty_account_id
+        FROM categories
+        WHERE categories.id = ?
+          AND categories.workspace_id = transaction_journals.workspace_id
+          AND categories.ledger_id = transaction_journals.ledger_id
+          AND categories.archived_at IS NULL
+        LIMIT 1
+      ))`,
+    );
+    params.push(input.categoryId, input.categoryId);
   }
   if (input.budgetId) {
     conditions.push("transaction_postings.budget_id = ?");
@@ -1320,9 +1330,25 @@ function buildSqliteHydrationFilterConditions(
   }
   if (input.categoryId) {
     conditions.push(
-      "EXISTS (SELECT 1 FROM transaction_postings AS posting_filter WHERE posting_filter.journal_id = transaction_journals.id AND posting_filter.category_id = ?)",
+      `EXISTS (
+        SELECT 1
+        FROM transaction_postings AS posting_filter
+        WHERE posting_filter.journal_id = transaction_journals.id
+          AND (
+            posting_filter.category_id = ?
+            OR posting_filter.account_id = (
+              SELECT categories.counterparty_account_id
+              FROM categories
+              WHERE categories.id = ?
+                AND categories.workspace_id = transaction_journals.workspace_id
+                AND categories.ledger_id = transaction_journals.ledger_id
+                AND categories.archived_at IS NULL
+              LIMIT 1
+            )
+          )
+      )`,
     );
-    params.push(input.categoryId);
+    params.push(input.categoryId, input.categoryId);
   }
   if (input.budgetId) {
     conditions.push(
@@ -1643,7 +1669,20 @@ async function listPostgresTransactionGroupIds(
     );
   }
   if (input.categoryId) {
-    conditions.push(eq(pgTransactionPostings.categoryId, input.categoryId));
+    conditions.push(sql`
+      (
+        ${pgTransactionPostings.categoryId} = ${input.categoryId}
+        OR ${pgTransactionPostings.accountId} = (
+          SELECT ${pgCategories.counterpartyAccountId}
+          FROM ${pgCategories}
+          WHERE ${pgCategories.id} = ${input.categoryId}
+            AND ${pgCategories.workspaceId} = ${pgTransactionJournals.workspaceId}
+            AND ${pgCategories.ledgerId} = ${pgTransactionJournals.ledgerId}
+            AND ${pgCategories.archivedAt} IS NULL
+          LIMIT 1
+        )
+      )
+    `);
   }
   if (input.budgetId) {
     conditions.push(eq(pgTransactionPostings.budgetId, input.budgetId));
@@ -1845,7 +1884,18 @@ function buildPostgresHydrationFilterConditions(input: ListTransactionsInput | u
         SELECT 1
         FROM transaction_postings AS posting_filter
         WHERE posting_filter.journal_id = ${pgTransactionJournals.id}
-          AND posting_filter.category_id = ${input.categoryId}
+          AND (
+            posting_filter.category_id = ${input.categoryId}
+            OR posting_filter.account_id = (
+              SELECT ${pgCategories.counterpartyAccountId}
+              FROM ${pgCategories}
+              WHERE ${pgCategories.id} = ${input.categoryId}
+                AND ${pgCategories.workspaceId} = ${pgTransactionJournals.workspaceId}
+                AND ${pgCategories.ledgerId} = ${pgTransactionJournals.ledgerId}
+                AND ${pgCategories.archivedAt} IS NULL
+              LIMIT 1
+            )
+          )
       )
     `);
   }

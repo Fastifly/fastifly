@@ -300,11 +300,11 @@ export function TransactionCreatePanel({
                 {en.transactions.addTransactionBody}
               </CardDescription>
             </div>
-            <CardAction>
+            {/* <CardAction>
               <div className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-muted/40 text-emerald-700 dark:text-emerald-200">
                 <PlusCircle aria-hidden="true" />
               </div>
-            </CardAction>
+            </CardAction> */}
           </CardHeader>
 
           <CardContent className="flex flex-col gap-1.5 px-3.5 pb-3 md:px-4">
@@ -316,7 +316,7 @@ export function TransactionCreatePanel({
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[36rem]"
+          className="sm:max-h-[calc(100dvh-2rem)] sm:max-w-[36rem]"
           data-testid={testIds.transactionCreate.dialog}
         >
           <DialogHeader>
@@ -328,6 +328,7 @@ export function TransactionCreatePanel({
             </DialogDescription>
           </DialogHeader>
           <form
+            autoComplete="off"
             className="flex flex-col gap-4"
             data-testid={testIds.transactionCreate.form}
             onSubmit={(event) => {
@@ -357,9 +358,9 @@ export function TransactionCreatePanel({
                       );
 
                 return (
-                  <div className="grid gap-4 grid-cols-2">
-                    <div className="md:col-span-2 flex justify-center">
-                      <div className="w-full max-w-[18rem]">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <div className="flex justify-center sm:col-span-2">
+                      <div className="w-full sm:max-w-[18rem]">
                         <form.Field
                           name="amount"
                           validators={{
@@ -378,6 +379,10 @@ export function TransactionCreatePanel({
                               <AmountInput
                                 ref={amountInputRef}
                                 aria-invalid={field.state.meta.errors.length > 0}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                data-form-type="other"
+                                data-lpignore="true"
                                 data-testid={testIds.transactionCreate.amountInput}
                                 id={field.name}
                                 inputMode="decimal"
@@ -751,7 +756,7 @@ function CompactChoiceGroup({
         const id = `${idPrefix}-${option.value}`;
         return (
           <Label
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[0.8125rem] leading-none transition-colors hover:bg-accent/40"
+            className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[0.8125rem] leading-none transition-colors hover:bg-accent/40"
             htmlFor={id}
             key={option.value}
           >

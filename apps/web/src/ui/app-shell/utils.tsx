@@ -47,6 +47,7 @@ export const transactionStatusFilterOptions: readonly {
 
 export const transactionFilterParsers = {
   accountId: parseAsString.withDefault(ALL_TRANSACTION_FILTER),
+  categoryId: parseAsString.withDefault(ALL_TRANSACTION_FILTER),
   limit: parseAsInteger.withDefault(10),
   status: parseAsStringLiteral(["all", "pending", "cleared", "reconciled"]).withDefault("all"),
   type: parseAsStringLiteral(["all", "expense", "income", "transfer"]).withDefault("all"),
@@ -148,6 +149,7 @@ export function formatThemeLabel(theme: Theme): string {
 export function hasActiveTransactionFilters(filters: TransactionListFilterState): boolean {
   return (
     filters.accountId !== ALL_TRANSACTION_FILTER ||
+    filters.categoryId !== ALL_TRANSACTION_FILTER ||
     filters.status !== ALL_TRANSACTION_FILTER ||
     filters.type !== ALL_TRANSACTION_FILTER
   );

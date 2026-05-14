@@ -134,7 +134,7 @@ export function DashboardCharts({
         title={en.shell.netWorthTrend}
       />
       <CategoryBreakdownCard
-        className="lg:row-span-2 lg:h-full lg:self-stretch"
+        className="order-3 lg:order-2 lg:row-span-2 lg:h-full lg:self-stretch"
         canGoNextMonth={selectedCategoryMonthIndex < monthlySeries.length - 1}
         canGoPreviousMonth={selectedCategoryMonthIndex > 0}
         currencyCode={currencyCode}
@@ -155,7 +155,7 @@ export function DashboardCharts({
         spendingData={spendingCategorySeries}
       />
       <MonthlyIncomeVsSpendingChart
-        className="lg:col-span-2"
+        className="order-2 lg:order-3 lg:col-span-2"
         currencyCode={currencyCode}
         data={monthlySeries}
         isTooltipVisible={isTooltipVisible}
@@ -222,6 +222,7 @@ function NetWorthTrendChart({
       : netChangeMinor < 0n
         ? "text-rose-700 dark:text-rose-300"
         : "text-muted-foreground";
+  const netChangeWindowLabel = `${MONTHLY_SERIES_WINDOW}-month change`;
 
   return (
     <Card className={className} data-testid={testIds.dashboard.netWorthTrendChart} size="sm">
@@ -244,6 +245,7 @@ function NetWorthTrendChart({
             </span>
           </div>
           <p className={`text-right text-[11px] font-medium ${netChangeToneClass}`}>
+            <span className="text-muted-foreground">{netChangeWindowLabel}: </span>
             {netChangePrefix}
             {formatMoneyMinor(absNetChangeMinor, currencyCode)}
           </p>
@@ -253,10 +255,10 @@ function NetWorthTrendChart({
           <p className="text-sm text-muted-foreground">{en.shell.noNetWorthTrendData}</p>
         ) : (
           <>
-            <div className="h-28">
+            <div className="h-28 [&_.recharts-layer:focus]:outline-none [&_.recharts-layer:focus-visible]:outline-none [&_.recharts-surface:focus]:outline-none [&_.recharts-surface:focus-visible]:outline-none [&_.recharts-wrapper:focus]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
               <ResponsiveContainer height="100%" width="100%">
                 <AreaChart
-                  accessibilityLayer
+                  accessibilityLayer={false}
                   data={chartData}
                   margin={{ bottom: 12, left: 8, right: 8, top: 2 }}
                   onClick={(eventState) => {
@@ -272,6 +274,7 @@ function NetWorthTrendChart({
                     }
                   }}
                   syncId="dashboard-month-sync"
+                  tabIndex={-1}
                 >
                   <defs>
                     <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
@@ -300,6 +303,8 @@ function NetWorthTrendChart({
                         payload?.[0]?.payload as
                           | {
                               readonly changeMinorRaw: string;
+                              readonly monthKey: string;
+                              readonly monthLabel: string;
                               readonly netWorthMinor: number;
                             }
                           | undefined;
@@ -318,24 +323,32 @@ function NetWorthTrendChart({
                           : changeMinor < 0n
                             ? "text-rose-600 dark:text-rose-400"
                             : "text-muted-foreground";
+                      const currentMonthIndex = chartData.findIndex(
+                        (point) => point.monthKey === first.monthKey,
+                      );
+                      const previousMonthLabel =
+                        currentMonthIndex > 0 ? chartData[currentMonthIndex - 1]?.monthLabel : null;
+                      const changeLabel = previousMonthLabel
+                        ? `Change (${previousMonthLabel}-${first.monthLabel})`
+                        : "Change";
                       return (
                         <div className="min-w-[12rem] rounded-md border border-border bg-background px-2 py-1.5 text-[11px] shadow-sm">
                           <p className="mb-1 font-medium text-foreground">{String(label)}</p>
                           <div className="grid grid-cols-[auto_auto] gap-x-2 gap-y-0.5">
                             <p className="text-muted-foreground">Net worth</p>
                             <p className={`text-right font-medium ${netWorthToneClass}`}>
-                              {formatMoneyMinor(netWorthMinor, currencyCode)}
+                              {formatMoneyMinorCompact(netWorthMinor, currencyCode)}
                             </p>
-                            <p className="text-muted-foreground">Change</p>
+                            <p className="text-muted-foreground">{changeLabel}</p>
                             <p className={`text-right font-medium ${changeToneClass}`}>
                               {changePrefix}
-                              {formatMoneyMinor(absChangeMinor, currencyCode)}
+                              {formatMoneyMinorCompact(absChangeMinor, currencyCode)}
                             </p>
                           </div>
                         </div>
                       );
                     }}
-                    cursor={{ stroke: netWorthSeriesColor, strokeOpacity: 0.3 }}
+                    cursor={{ fill: "transparent", stroke: "transparent", strokeWidth: 0 }}
                     defaultIndex={isTooltipVisible ? selectedMonthIndex : undefined}
                   />
                   <Area
@@ -453,10 +466,10 @@ function MonthlyIncomeVsSpendingChart({
           </div>
         </div>
 
-        <div className="h-28">
+        <div className="h-28 [&_.recharts-layer:focus]:outline-none [&_.recharts-layer:focus-visible]:outline-none [&_.recharts-surface:focus]:outline-none [&_.recharts-surface:focus-visible]:outline-none [&_.recharts-wrapper:focus]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
           <ResponsiveContainer height="100%" width="100%">
             <LineChart
-              accessibilityLayer
+              accessibilityLayer={false}
               data={chartData}
               margin={{ bottom: 12, left: 8, right: 8, top: 2 }}
               onClick={(eventState) => {
@@ -472,6 +485,7 @@ function MonthlyIncomeVsSpendingChart({
                 }
               }}
               syncId="dashboard-month-sync"
+              tabIndex={-1}
             >
               <XAxis
                 axisLine={false}
@@ -546,12 +560,12 @@ function MonthlyIncomeVsSpendingChart({
                       : "text-rose-600 dark:text-rose-400";
 
                   return (
-                    <div className="min-w-[12.25rem] rounded-md border border-border bg-background px-1.5 py-1 text-[11px] shadow-sm">
+                    <div className="min-w-[11.5rem] rounded-md border border-border bg-background px-1.5 py-1 text-[11px] shadow-sm">
                       <p className="mb-1 font-medium text-foreground">{String(label)}</p>
                       <div className="grid grid-cols-[auto_auto_auto] gap-x-1.5 gap-y-0.5">
                         <p />
                         <p className="text-right text-[10px] text-muted-foreground/85">Amount</p>
-                        <p className="text-right text-[10px] text-muted-foreground/85">Change</p>
+                        <p className="text-right text-[10px] text-muted-foreground/85">vs last mo.</p>
                         <p className="text-muted-foreground">{en.shell.income}</p>
                         <p className="text-right font-medium text-emerald-600 dark:text-emerald-400">
                           {formatMoneyMinorCompact(BigInt(first.incomeMinorRaw), currencyCode)}
@@ -584,7 +598,7 @@ function MonthlyIncomeVsSpendingChart({
                     </div>
                   );
                 }}
-                cursor={{ stroke: "#64748b", strokeOpacity: 0.3 }}
+                cursor={{ fill: "transparent", stroke: "transparent", strokeWidth: 0 }}
                 defaultIndex={isTooltipVisible ? selectedMonthIndex : undefined}
               />
               <Line

@@ -1,9 +1,12 @@
-import { type AccountWithBalanceResponse, isUserHeldAccountKind } from "@fastifly/common";
+import {
+  type AccountWithBalanceResponse,
+  formatMoneyMinor,
+  isUserHeldAccountKind,
+} from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card } from "@ui/card";
-import { Separator } from "@ui/separator";
 import {
   ArrowDownLeft,
   ArrowRight,
@@ -25,7 +28,7 @@ import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { BlockedActionGate } from "../blocked-action-gate";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
-import { AccountBalanceCard, GlassSection, MetricTile } from "./shared-components";
+import { GlassSection, MetricTile } from "./shared-components";
 import { formatDateTime, type Theme } from "./utils";
 
 export function ReportsPage({
@@ -573,34 +576,85 @@ export function DashboardAside({
       <GlassSection title={en.shell.accountBalances} testId={testIds.dashboard.accountBalances}>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2" data-testid={testIds.dashboard.summaryMetrics}>
-            <MetricTile
-              compact
-              icon={WalletCards}
-              label={en.shell.cashAndBank}
-              testId={testIds.dashboard.cashAndBankMetric}
-              value={cashAndBank}
-            />
-            <MetricTile
-              compact
-              icon={RefreshCcw}
-              label={en.shell.liabilities}
-              testId={testIds.dashboard.liabilitiesMetric}
-              tone="rose"
-              value={liabilities}
-            />
+            <Card
+              className="min-w-0 rounded-xl border-border/70 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-0 shadow-none"
+              data-testid={testIds.dashboard.cashAndBankMetric}
+              size="sm"
+            >
+              <div className="space-y-2 p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background/70">
+                    <WalletCards aria-hidden="true" className="size-3.5 text-emerald-600 dark:text-emerald-300" />
+                  </span>
+                  <span className="font-medium">{en.shell.cashAndBank}</span>
+                </div>
+                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">{cashAndBank}</p>
+              </div>
+            </Card>
+            <Card
+              className="min-w-0 rounded-xl border-border/70 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent p-0 shadow-none"
+              data-testid={testIds.dashboard.liabilitiesMetric}
+              size="sm"
+            >
+              <div className="space-y-2 p-3">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background/70">
+                    <RefreshCcw aria-hidden="true" className="size-3.5 text-rose-600 dark:text-rose-300" />
+                  </span>
+                  <span className="font-medium">{en.shell.liabilities}</span>
+                </div>
+                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">{liabilities}</p>
+              </div>
+            </Card>
           </div>
-          <Separator />
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
           <div
-            className="grid grid-cols-2 gap-2.5"
+            className="grid grid-cols-2 gap-2"
             data-testid={testIds.dashboard.accountBalancesList}
           >
             {accountPreview.length > 0 ? (
-              accountPreview.map((account) => (
-                <AccountBalanceCard key={account.id} account={account} />
-              ))
+              accountPreview.map((account) => {
+                const isLiability = account.kind === "liability";
+                return (
+                  <Card
+                    className={
+                      isLiability
+                        ? "min-w-0 rounded-xl border-rose-500/30 bg-gradient-to-br from-rose-500/15 via-rose-500/8 to-transparent p-0 shadow-none"
+                        : "min-w-0 rounded-xl border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-emerald-500/8 to-transparent p-0 shadow-none"
+                    }
+                    key={account.id}
+                    size="sm"
+                  >
+                    <div className="space-y-3 p-3">
+                      <div className="space-y-0.5">
+                        <p className="truncate font-semibold text-[0.98rem] text-foreground">
+                          {account.name}
+                        </p>
+                        <p className="text-[11px] capitalize text-muted-foreground">
+                          {account.kind}
+                        </p>
+                      </div>
+                      <div className="flex items-end justify-between gap-2">
+                        <p className="font-semibold text-[1.05rem] leading-none text-foreground">
+                          {formatMoneyMinor(
+                            BigInt(account.balance.amountMinor),
+                            account.balance.currencyCode,
+                          )}
+                        </p>
+                        <Badge
+                          className="rounded-md border-border/70 bg-background/60 text-[10px] text-muted-foreground"
+                          variant="outline"
+                        >
+                          {account.currencyCode}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })
             ) : (
               <p
-                className="py-3 text-[14px] text-slate-600 dark:text-white/62"
+                className="col-span-2 py-3 text-[14px] text-slate-600 dark:text-white/62"
                 data-testid={testIds.dashboard.accountBalancesEmpty}
               >
                 {accountsLoading ? (

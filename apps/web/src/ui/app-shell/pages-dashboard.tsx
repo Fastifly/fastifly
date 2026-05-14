@@ -1,4 +1,8 @@
-import type { AccountWithBalanceResponse, TransactionGroupResponse } from "@fastifly/common";
+import type {
+  AccountWithBalanceResponse,
+  CategoryResponse,
+  TransactionGroupResponse,
+} from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
@@ -15,7 +19,7 @@ import { Separator } from "@ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
 import { ArrowRight, RefreshCcw } from "lucide-react";
 import { useQueryStates } from "nuqs";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import {
   useCategoriesQuery,
   useInfiniteTransactionsQuery,
@@ -24,7 +28,11 @@ import {
 import {
   ALL_TRANSACTION_FILTER,
   buildTransactionListQuery,
+  getFilterableTransactionAccounts,
+  getFilterableTransactionCategories,
   makeTransactionListFilterDefaults,
+  normalizeTransactionAccountFilter,
+  normalizeTransactionCategoryFilter,
   type TransactionListFilterState,
   type TransactionStatusFilter,
   type TransactionTypeFilter,
@@ -561,9 +569,47 @@ export function TransactionsPage({
     }),
     [urlFilters],
   );
+  const categoriesQuery = useCategoriesQuery(ledgerContext);
+  const filterableCategories = useMemo(
+    () => getFilterableTransactionCategories(categoriesQuery.data?.data ?? []),
+    [categoriesQuery.data?.data],
+  );
+  const filterableAccounts = useMemo(() => getFilterableTransactionAccounts(accounts), [accounts]);
   const transactionQueryFilters = useMemo(() => buildTransactionListQuery(filters), [filters]);
   const transactionsQuery = useInfiniteTransactionsQuery(ledgerContext, transactionQueryFilters);
   const transactions = transactionsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+
+  useEffect(() => {
+    const normalizedFilters = {
+      accountId: normalizeTransactionAccountFilter(filters.accountId, filterableAccounts),
+      categoryId: categoriesQuery.isPending
+        ? filters.categoryId
+        : normalizeTransactionCategoryFilter(filters.categoryId, filterableCategories),
+    };
+
+    if (
+      normalizedFilters.accountId === filters.accountId &&
+      normalizedFilters.categoryId === filters.categoryId
+    ) {
+      return;
+    }
+
+    void setUrlFilters({
+      accountId: normalizedFilters.accountId,
+      categoryId: normalizedFilters.categoryId,
+      status: filters.status,
+      type: filters.type,
+    });
+  }, [
+    filterableAccounts,
+    filterableCategories,
+    filters.accountId,
+    filters.categoryId,
+    filters.status,
+    filters.type,
+    categoriesQuery.isPending,
+    setUrlFilters,
+  ]);
 
   return (
     <section
@@ -581,11 +627,13 @@ export function TransactionsPage({
           hasNextPage={Boolean(transactionsQuery.hasNextPage)}
           headerContent={
             <TransactionFilters
-              accounts={accounts}
+              accounts={filterableAccounts}
+              categories={filterableCategories}
               filters={filters}
               onChange={(nextFilters) => {
                 void setUrlFilters({
                   accountId: nextFilters.accountId,
+                  categoryId: nextFilters.categoryId,
                   status: nextFilters.status,
                   type: nextFilters.type,
                 });
@@ -619,17 +667,19 @@ export function TransactionsPage({
 
 export function TransactionFilters({
   accounts,
+  categories,
   filters,
   onChange,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly categories: readonly CategoryResponse[];
   readonly filters: TransactionListFilterState;
   readonly onChange: (filters: TransactionListFilterState) => void;
 }) {
   return (
     <div className="space-y-2" data-testid={testIds.transactions.filters.panel}>
       <Separator />
-      <div className="grid gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
         <Field className="gap-1.5">
           <FieldLabel>{en.transactions.filters.types}</FieldLabel>
           <ToggleGroup
@@ -677,6 +727,32 @@ export function TransactionFilters({
                 {accounts.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field className="gap-1.5">
+          <FieldLabel>{en.transactions.filters.category}</FieldLabel>
+          <Select
+            onValueChange={(categoryId) => onChange({ ...filters, categoryId })}
+            value={filters.categoryId}
+          >
+            <SelectTrigger
+              className="w-full"
+              data-testid={testIds.transactions.filters.categorySelect}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value={ALL_TRANSACTION_FILTER}>
+                  {en.transactions.filters.allCategories}
+                </SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectGroup>

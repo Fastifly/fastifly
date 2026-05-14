@@ -43,6 +43,7 @@ type TransactionTableRow = {
 };
 
 const transactionColumnHelper = createColumnHelper<TransactionTableRow>();
+const MOBILE_HIDDEN_TRANSACTION_COLUMN_IDS = new Set(["occurredAt", "type"]);
 
 export function TransactionsPanel({
   descriptionTestId,
@@ -225,6 +226,32 @@ export function TransactionsPanel({
     state: { sorting },
   });
 
+  const getResponsiveHeaderClassName = (columnId: string): string => {
+    if (MOBILE_HIDDEN_TRANSACTION_COLUMN_IDS.has(columnId)) {
+      return "hidden md:table-cell";
+    }
+    if (columnId === "title") {
+      return "min-w-0 px-2 md:px-3";
+    }
+    if (columnId === "amount") {
+      return "w-[7rem] whitespace-nowrap px-2 text-right md:px-3";
+    }
+    return "px-2 md:px-3";
+  };
+
+  const getResponsiveCellClassName = (columnId: string): string => {
+    if (MOBILE_HIDDEN_TRANSACTION_COLUMN_IDS.has(columnId)) {
+      return "hidden md:table-cell";
+    }
+    if (columnId === "title") {
+      return "min-w-0 max-w-0 px-2 py-2.5 md:p-3";
+    }
+    if (columnId === "amount") {
+      return "w-[7rem] whitespace-nowrap px-2 py-2.5 text-right md:p-3";
+    }
+    return "px-2 py-2.5 md:p-3";
+  };
+
   useEffect(() => {
     if (!isFetchingNextPage) {
       autoLoadRequestedRef.current = false;
@@ -287,12 +314,15 @@ export function TransactionsPanel({
         {showInitialSkeleton ? (
           transactionSkeletonRowKeys.map((rowKey) => <TransactionRowSkeleton key={rowKey} />)
         ) : hasTransactions ? (
-          <Table>
+          <Table className="table-fixed md:table-auto">
             <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/70">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
+                    <TableHead
+                      className={getResponsiveHeaderClassName(header.column.id)}
+                      key={header.id}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
@@ -308,7 +338,7 @@ export function TransactionsPanel({
                   key={row.id}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell className={getResponsiveCellClassName(cell.column.id)} key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
