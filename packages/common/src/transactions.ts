@@ -62,6 +62,45 @@ export function sumTransactionsByJournalTypeMinor(
   return totalMinor;
 }
 
+export function toUtcMonthKey(date: Date): string {
+  const year = date.getUTCFullYear().toString();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+export function toUtcMonthKeyFromIso(occurredAt: string): string | null {
+  const date = new Date(occurredAt);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return toUtcMonthKey(date);
+}
+
+export function sumTransactionsByJournalTypeForMonthMinor(
+  transactions: readonly TransactionGroupLike[],
+  type: TransactionJournalType,
+  monthKey: string,
+): bigint {
+  let totalMinor = 0n;
+
+  for (const transaction of transactions) {
+    for (const journal of transaction.journals) {
+      if (journal.type !== type) {
+        continue;
+      }
+
+      if (toUtcMonthKeyFromIso(journal.occurredAt) !== monthKey) {
+        continue;
+      }
+
+      totalMinor += getTransactionJournalAbsoluteMinor(journal.postings);
+    }
+  }
+
+  return totalMinor;
+}
+
 export function getTransactionMinorTotals(
   transaction: TransactionGroupLike,
 ): TransactionMinorTotals {
