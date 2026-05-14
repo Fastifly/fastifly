@@ -8,8 +8,10 @@ import {
   cleanPglitePostgres,
   cleanSqlite,
   createConfiguredSqliteClient,
+  createPostgresReportQueryService,
   createPglitePostgresDatabaseFromClient,
   createPostgresAccountRepository,
+  createSqliteReportQueryService,
   createSqliteAccountRepository,
   type PglitePostgresClient,
   SEED_CREDENTIALS,
@@ -28,9 +30,25 @@ import {
 type SeedTestContext = {
   readonly clean: () => Promise<void>;
   readonly countRows: (tableName: SeedCountTable) => Promise<number>;
+  readonly readNetWorthTrend: () => Promise<readonly SeedNetWorthPoint[]>;
+  readonly readScenarioSummary: () => Promise<SeedScenarioSummary>;
   readonly readCheckingBalance: () => Promise<bigint | null>;
   readonly readUserPasswordHash: (username: string) => Promise<string | null>;
   readonly runSeed: () => Promise<void>;
+};
+
+type SeedNetWorthPoint = {
+  readonly monthKey: string;
+  readonly netWorthMinor: bigint;
+};
+
+type SeedScenarioSummary = {
+  readonly distinctMonths: number;
+  readonly expenseCount: number;
+  readonly incomeCount: number;
+  readonly pendingCount: number;
+  readonly splitCount: number;
+  readonly transferCount: number;
 };
 
 type SeedCountTable =
@@ -41,8 +59,8 @@ type SeedCountTable =
   | "users"
   | "workspace_members";
 
-const expectedSeededAccountCount = 14;
-const expectedSeededTransactionCount = 18;
+const expectedSeededAccountCount: number = 15;
+const expectedSeededTransactionCount: number = 41;
 
 describe("seed data", () => {
   it("seeds full demo data idempotently on SQLite", async () => {
@@ -112,7 +130,8 @@ async function assertFullSeedIsIdempotent(context: SeedTestContext): Promise<voi
 
   await assertSeededRows(context);
   await assertSeededCredentials(context);
-  expect(await context.readCheckingBalance()).toBe(128_061_00n);
+  await assertNetWorthMilestones(context);
+  expect(await context.readCheckingBalance()).toBe(275_581_00n);
 
   await context.clean();
 
@@ -126,7 +145,8 @@ async function assertFullSeedIsIdempotent(context: SeedTestContext): Promise<voi
   await context.runSeed();
   await assertSeededRows(context);
   await assertSeededCredentials(context);
-  expect(await context.readCheckingBalance()).toBe(128_061_00n);
+  await assertNetWorthMilestones(context);
+  expect(await context.readCheckingBalance()).toBe(275_581_00n);
 }
 
 async function assertSeededRows(context: SeedTestContext): Promise<void> {
@@ -138,6 +158,14 @@ async function assertSeededRows(context: SeedTestContext): Promise<void> {
   expect(await context.countRows("balance_recalculation_queue")).toBeGreaterThanOrEqual(
     expectedSeededTransactionCount,
   );
+
+  const summary = await context.readScenarioSummary();
+  expect(summary.distinctMonths).toBeGreaterThanOrEqual(7);
+  expect(summary.expenseCount).toBeGreaterThan(0);
+  expect(summary.incomeCount).toBeGreaterThan(0);
+  expect(summary.transferCount).toBeGreaterThan(0);
+  expect(summary.splitCount).toBeGreaterThan(0);
+  expect(summary.pendingCount).toBeGreaterThan(0);
 }
 
 async function assertSeededCredentials(context: SeedTestContext): Promise<void> {
@@ -154,8 +182,29 @@ async function assertSeededCredentials(context: SeedTestContext): Promise<void> 
   );
 }
 
+async function assertNetWorthMilestones(context: SeedTestContext): Promise<void> {
+  const points = await context.readNetWorthTrend();
+  const january = points.find((point) => point.monthKey === "2026-01");
+  const february = points.find((point) => point.monthKey === "2026-02");
+  const march = points.find((point) => point.monthKey === "2026-03");
+
+  expect(january).toBeDefined();
+  expect(february).toBeDefined();
+  expect(march).toBeDefined();
+
+  const januaryMinor = january?.netWorthMinor ?? 0n;
+  const februaryMinor = february?.netWorthMinor ?? 0n;
+  const marchMinor = march?.netWorthMinor ?? 0n;
+
+  expect(januaryMinor).toBeLessThan(0n);
+  expect(februaryMinor).toBeLessThan(0n);
+  expect(februaryMinor).toBeGreaterThan(januaryMinor);
+  expect(marchMinor).toBeGreaterThan(0n);
+}
+
 function createSqliteSeedContext(client: SqliteClient): SeedTestContext {
   const accountRepository = createSqliteAccountRepository(client);
+  const reportService = createSqliteReportQueryService(client);
 
   return {
     clean() {
@@ -178,6 +227,62 @@ function createSqliteSeedContext(client: SqliteClient): SeedTestContext {
       });
       return balance?.balanceMinor ?? null;
     },
+    async readNetWorthTrend() {
+      const report = await reportService.getNetWorthTrend({
+        asOfDate: "2026-05-31",
+        ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
+        months: 6,
+        workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
+      });
+      return report.points.map((point) => ({
+        monthKey: point.monthKey,
+        netWorthMinor: point.netWorthMinor,
+      }));
+    },
+    readScenarioSummary() {
+      const typeRow = client
+        .prepare<
+          unknown[],
+          {
+            readonly expenseCount: number;
+            readonly incomeCount: number;
+            readonly splitCount: number;
+            readonly transferCount: number;
+          }
+        >(
+          `SELECT
+             SUM(CASE WHEN type = 'expense' THEN 1 ELSE 0 END) AS expenseCount,
+             SUM(CASE WHEN type = 'income' THEN 1 ELSE 0 END) AS incomeCount,
+             SUM(CASE WHEN type = 'transfer' THEN 1 ELSE 0 END) AS transferCount,
+             SUM(CASE WHEN type = 'split' THEN 1 ELSE 0 END) AS splitCount
+           FROM transaction_groups
+           WHERE workspace_id = ? AND ledger_id = ?`,
+        )
+        .get(SEED_IDS.WORKSPACE_HOUSEHOLD, SEED_IDS.LEDGER_HOUSEHOLD);
+      const journalRow = client
+        .prepare<
+          unknown[],
+          {
+            readonly distinctMonths: number;
+            readonly pendingCount: number;
+          }
+        >(
+          `SELECT
+             COUNT(DISTINCT substr(occurred_at, 1, 7)) AS distinctMonths,
+             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pendingCount
+           FROM transaction_journals
+           WHERE workspace_id = ? AND ledger_id = ?`,
+        )
+        .get(SEED_IDS.WORKSPACE_HOUSEHOLD, SEED_IDS.LEDGER_HOUSEHOLD);
+      return Promise.resolve({
+        distinctMonths: journalRow?.distinctMonths ?? 0,
+        expenseCount: typeRow?.expenseCount ?? 0,
+        incomeCount: typeRow?.incomeCount ?? 0,
+        pendingCount: journalRow?.pendingCount ?? 0,
+        splitCount: typeRow?.splitCount ?? 0,
+        transferCount: typeRow?.transferCount ?? 0,
+      });
+    },
     readUserPasswordHash(username) {
       const row = client
         .prepare<[string], { readonly password_hash: string }>(
@@ -195,6 +300,7 @@ function createSqliteSeedContext(client: SqliteClient): SeedTestContext {
 function createPostgresSeedContext(client: PglitePostgresClient): SeedTestContext {
   const db = createPglitePostgresDatabaseFromClient(client);
   const accountRepository = createPostgresAccountRepository(db);
+  const reportService = createPostgresReportQueryService(db);
 
   return {
     clean() {
@@ -213,6 +319,64 @@ function createPostgresSeedContext(client: PglitePostgresClient): SeedTestContex
         workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
       });
       return balance?.balanceMinor ?? null;
+    },
+    async readNetWorthTrend() {
+      const report = await reportService.getNetWorthTrend({
+        asOfDate: "2026-05-31",
+        ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
+        months: 6,
+        workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
+      });
+      return report.points.map((point) => ({
+        monthKey: point.monthKey,
+        netWorthMinor: point.netWorthMinor,
+      }));
+    },
+    async readScenarioSummary() {
+      const typeResult = (await client.query(
+        `SELECT
+           SUM(CASE WHEN type = 'expense' THEN 1 ELSE 0 END)::int AS "expenseCount",
+           SUM(CASE WHEN type = 'income' THEN 1 ELSE 0 END)::int AS "incomeCount",
+           SUM(CASE WHEN type = 'transfer' THEN 1 ELSE 0 END)::int AS "transferCount",
+           SUM(CASE WHEN type = 'split' THEN 1 ELSE 0 END)::int AS "splitCount"
+         FROM transaction_groups
+         WHERE workspace_id = $1 AND ledger_id = $2`,
+        [SEED_IDS.WORKSPACE_HOUSEHOLD, SEED_IDS.LEDGER_HOUSEHOLD],
+      )) as {
+        readonly rows: readonly [
+          {
+            readonly expenseCount: unknown;
+            readonly incomeCount: unknown;
+            readonly splitCount: unknown;
+            readonly transferCount: unknown;
+          },
+        ];
+      };
+      const journalResult = (await client.query(
+        `SELECT
+           COUNT(DISTINCT substring(occurred_at::text, 1, 7))::int AS "distinctMonths",
+           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::int AS "pendingCount"
+         FROM transaction_journals
+         WHERE workspace_id = $1 AND ledger_id = $2`,
+        [SEED_IDS.WORKSPACE_HOUSEHOLD, SEED_IDS.LEDGER_HOUSEHOLD],
+      )) as {
+        readonly rows: readonly [
+          {
+            readonly distinctMonths: unknown;
+            readonly pendingCount: unknown;
+          },
+        ];
+      };
+      const typeRow = typeResult.rows[0];
+      const journalRow = journalResult.rows[0];
+      return {
+        distinctMonths: Number(journalRow?.distinctMonths ?? 0),
+        expenseCount: Number(typeRow?.expenseCount ?? 0),
+        incomeCount: Number(typeRow?.incomeCount ?? 0),
+        pendingCount: Number(journalRow?.pendingCount ?? 0),
+        splitCount: Number(typeRow?.splitCount ?? 0),
+        transferCount: Number(typeRow?.transferCount ?? 0),
+      };
     },
     async readUserPasswordHash(username) {
       const result = (await client.query(
