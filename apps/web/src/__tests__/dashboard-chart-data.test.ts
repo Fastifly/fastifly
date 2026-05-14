@@ -125,6 +125,7 @@ describe("dashboard chart data helpers", () => {
       categories,
       fallbackCategoryId: "uncategorized",
       fallbackCategoryLabel: "Uncategorized",
+      journalType: "expense",
       limit: 5,
       monthKey: "2026-05",
       transactions,

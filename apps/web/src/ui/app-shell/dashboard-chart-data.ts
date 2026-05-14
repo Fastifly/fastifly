@@ -69,6 +69,7 @@ export function buildSpendingByCategorySeries(input: {
   readonly categories: readonly CategoryResponse[];
   readonly fallbackCategoryId: string;
   readonly fallbackCategoryLabel: string;
+  readonly journalType: "expense" | "income";
   readonly limit: number;
   readonly monthKey: string;
   readonly transactions: readonly TransactionGroupResponse[];
@@ -88,7 +89,7 @@ export function buildSpendingByCategorySeries(input: {
 
   for (const transaction of input.transactions) {
     for (const journal of transaction.journals) {
-      if (journal.type !== "expense") {
+      if (journal.type !== input.journalType) {
         continue;
       }
 
@@ -123,8 +124,8 @@ export function buildSpendingByCategorySeries(input: {
         });
       }
 
-      // Keep uncategorized spend visible when a journal has no mapped category
-      // postings, or when mapped postings cover only part of the journal amount.
+      // Keep uncategorized category totals visible when a journal has no mapped
+      // category postings, or when mapped postings cover only part of the journal amount.
       const uncategorizedMinor = journalTotal - categorizedTotal;
       if (uncategorizedMinor > 0n) {
         addCategoryAmount(totalByCategory, {

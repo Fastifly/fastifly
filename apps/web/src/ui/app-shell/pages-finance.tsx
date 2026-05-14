@@ -570,55 +570,55 @@ export function DashboardAside({
 }) {
   return (
     <aside className="flex flex-col gap-4" data-testid={testIds.dashboard.aside}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2" data-testid={testIds.dashboard.summaryMetrics}>
-          <MetricTile
-            dense
-            icon={WalletCards}
-            label={en.shell.cashAndBank}
-            testId={testIds.dashboard.cashAndBankMetric}
-            value={cashAndBank}
-          />
-          <MetricTile
-            dense
-            icon={RefreshCcw}
-            label={en.shell.liabilities}
-            testId={testIds.dashboard.liabilitiesMetric}
-            tone="rose"
-            value={liabilities}
-          />
-        </div>
-        <Separator />
-      </div>
       <GlassSection title={en.shell.accountBalances} testId={testIds.dashboard.accountBalances}>
-        <div
-          className="grid grid-cols-2 gap-2.5"
-          data-testid={testIds.dashboard.accountBalancesList}
-        >
-          {accountPreview.length > 0 ? (
-            accountPreview.map((account) => (
-              <AccountBalanceCard key={account.id} account={account} />
-            ))
-          ) : (
-            <p
-              className="py-3 text-[14px] text-slate-600 dark:text-white/62"
-              data-testid={testIds.dashboard.accountBalancesEmpty}
-            >
-              {accountsLoading ? (
-                en.shell.loadingData
-              ) : (
-                <>
-                  {en.shell.noAccountsBody}{" "}
-                  <Link
-                    className="font-medium text-primary underline underline-offset-2"
-                    to="/accounts"
-                  >
-                    {en.accounts.addAccount}
-                  </Link>
-                </>
-              )}
-            </p>
-          )}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2" data-testid={testIds.dashboard.summaryMetrics}>
+            <MetricTile
+              compact
+              icon={WalletCards}
+              label={en.shell.cashAndBank}
+              testId={testIds.dashboard.cashAndBankMetric}
+              value={cashAndBank}
+            />
+            <MetricTile
+              compact
+              icon={RefreshCcw}
+              label={en.shell.liabilities}
+              testId={testIds.dashboard.liabilitiesMetric}
+              tone="rose"
+              value={liabilities}
+            />
+          </div>
+          <Separator />
+          <div
+            className="grid grid-cols-2 gap-2.5"
+            data-testid={testIds.dashboard.accountBalancesList}
+          >
+            {accountPreview.length > 0 ? (
+              accountPreview.map((account) => (
+                <AccountBalanceCard key={account.id} account={account} />
+              ))
+            ) : (
+              <p
+                className="py-3 text-[14px] text-slate-600 dark:text-white/62"
+                data-testid={testIds.dashboard.accountBalancesEmpty}
+              >
+                {accountsLoading ? (
+                  en.shell.loadingData
+                ) : (
+                  <>
+                    {en.shell.noAccountsBody}{" "}
+                    <Link
+                      className="font-medium text-primary underline underline-offset-2"
+                      to="/accounts"
+                    >
+                      {en.accounts.addAccount}
+                    </Link>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
         </div>
       </GlassSection>
     </aside>
