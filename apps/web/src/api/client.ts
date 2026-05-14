@@ -158,7 +158,14 @@ export type ApiClient = {
       Partial<
         Pick<
           ListTransactionsQuery,
-          "accountId" | "cursor" | "fromOccurredAt" | "limit" | "status" | "toOccurredAt" | "type"
+          | "accountId"
+          | "categoryId"
+          | "cursor"
+          | "fromOccurredAt"
+          | "limit"
+          | "status"
+          | "toOccurredAt"
+          | "type"
         >
       >,
   ) => Promise<ListTransactionsResponse>;
@@ -766,6 +773,7 @@ export const apiClient: ApiClient = {
   async listTransactions(input) {
     const {
       accountId,
+      categoryId,
       cursor,
       fromOccurredAt,
       ledgerId,
@@ -787,6 +795,7 @@ export const apiClient: ApiClient = {
               },
               query: {
                 ...(accountId ? { accountId } : {}),
+                ...(categoryId ? { categoryId } : {}),
                 ...(cursor ? { cursor } : {}),
                 ...(fromOccurredAt ? { fromOccurredAt } : {}),
                 limit,
