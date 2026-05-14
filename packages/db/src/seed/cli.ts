@@ -12,7 +12,7 @@ try {
   await seedDatabase({ databaseUrl, driver, level });
   console.log(`Seeded Fastifly ${level} data for ${driver}.`);
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(formatSeedError(error));
   process.exitCode = 1;
 }
 
@@ -30,4 +30,22 @@ function parseDriver(value: string | undefined): SeedDriver {
   }
 
   throw new Error("DATABASE_DRIVER must be `sqlite` or `postgres`.");
+}
+
+function formatSeedError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const messages = [error.message];
+  let cause: unknown = error.cause;
+  while (cause instanceof Error) {
+    messages.push(cause.message);
+    cause = cause.cause;
+  }
+  if (cause !== undefined) {
+    messages.push(String(cause));
+  }
+
+  return messages.join("\ncaused by: ");
 }

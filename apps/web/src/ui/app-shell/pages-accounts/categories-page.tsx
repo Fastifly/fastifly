@@ -41,7 +41,6 @@ import { BlockedActionGate } from "../../blocked-action-gate";
 import {
   CATEGORY_ICON_OPTIONS,
   CategoryToken,
-  getCategoryIconComponent,
 } from "../../category-metadata";
 import { GlassSection } from "../shared-components";
 import type { CategoriesPageProps } from "./types";
@@ -422,7 +421,6 @@ function CategoryUpsertDialog({
       : isPending
         ? en.categories.updating
         : en.categories.update;
-  const SelectedCategoryIcon = getCategoryIconComponent(formValues.icon);
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -449,20 +447,14 @@ function CategoryUpsertDialog({
         >
           <div className="grid items-start gap-3 md:grid-cols-[auto_minmax(0,1fr)]">
             <div className="flex gap-2 md:flex-col">
-              <Button
-                className="h-10 w-10 rounded-lg p-0"
-                onClick={() => setAppearancePickerOpen(true)}
-                style={{ backgroundColor: formValues.color }}
-                type="button"
-                variant="outline"
-              >
-                {SelectedCategoryIcon ? (
-                  <SelectedCategoryIcon aria-hidden="true" className="size-4" />
-                ) : (
-                  <CircleOff aria-hidden="true" className="size-4" />
-                )}
-                <span className="sr-only">{en.categories.categoryIcon}</span>
-              </Button>
+              {CategoryToken({
+                color: formValues.color,
+                editable: true,
+                hideName: true,
+                icon: formValues.icon,
+                name: en.categories.categoryIcon,
+                onEdit: () => setAppearancePickerOpen(true),
+              })}
             </div>
             <Field className="gap-1.5">
               <FieldLabel>{en.categories.categoryName}</FieldLabel>
@@ -541,15 +533,13 @@ function CategoryUpsertDialog({
             <DialogDescription>{en.categories.addCategoryBody}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div
-              className="inline-flex h-12 w-12 items-center justify-center rounded-lg border"
-              style={{ backgroundColor: formValues.color }}
-            >
-              {SelectedCategoryIcon ? (
-                <SelectedCategoryIcon aria-hidden="true" className="size-5" />
-              ) : (
-                <CircleOff aria-hidden="true" className="size-5" />
-              )}
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg border">
+              {CategoryToken({
+                color: formValues.color,
+                hideName: true,
+                icon: formValues.icon,
+                name: en.categories.categoryIcon,
+              })}
             </div>
             <Input
               data-testid={testIds.categories.create.colorInput}

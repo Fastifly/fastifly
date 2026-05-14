@@ -1,4 +1,5 @@
 import type { AccountKind, AccountSubtype, SyncedId } from "@fastifly/common";
+import { eq } from "drizzle-orm";
 
 import {
   closePostgresClient,
@@ -59,6 +60,11 @@ export type SeedDatabaseInput = {
   readonly databaseUrl: string;
   readonly driver: SeedDriver;
   readonly level: SeedLevel;
+};
+
+type SeedFoundationContext = {
+  readonly ownerUserId: SyncedId;
+  readonly partnerUserId: SyncedId;
 };
 
 type SeedAccount = {
@@ -546,9 +552,9 @@ export async function seedSqlite(client: SqliteClient, level: SeedLevel): Promis
     return;
   }
 
-  await runSeedStage("sqlite:demo", () => seedDemoSqlite(client, db));
+  const foundation = await runSeedStage("sqlite:demo", () => seedDemoSqlite(client, db));
   if (level === "e2e") {
-    await runSeedStage("sqlite:e2e", () => seedE2eSqlite(client, db));
+    await runSeedStage("sqlite:e2e", () => seedE2eSqlite(client, foundation.ownerUserId));
   }
 }
 
@@ -566,15 +572,15 @@ export async function seedPostgresDatabase(db: PostgresDatabase, level: SeedLeve
     return;
   }
 
-  await runSeedStage("postgres:demo", () => seedDemoPostgres(db));
+  const foundation = await runSeedStage("postgres:demo", () => seedDemoPostgres(db));
   if (level === "e2e") {
-    await runSeedStage("postgres:e2e", () => seedE2ePostgres(db));
+    await runSeedStage("postgres:e2e", () => seedE2ePostgres(db, foundation.ownerUserId));
   }
 }
 
-async function runSeedStage(label: string, task: () => Promise<void>): Promise<void> {
+async function runSeedStage<T>(label: string, task: () => Promise<T>): Promise<T> {
   try {
-    await task();
+    return await task();
   } catch (error) {
     throw new Error(`Seed stage failed: ${label}`, { cause: error });
   }
@@ -604,84 +610,70 @@ async function seedEssentialPostgres(db: PostgresDatabase): Promise<void> {
   }
 }
 
-async function seedDemoSqlite(client: SqliteClient, db: SqliteDatabase): Promise<void> {
-  await runSeedStage("sqlite:demo:foundation", () => seedFoundationSqlite(db));
+async function seedDemoSqlite(
+  client: SqliteClient,
+  db: SqliteDatabase,
+): Promise<SeedFoundationContext> {
+  const foundation = await runSeedStage("sqlite:demo:foundation", () => seedFoundationSqlite(db));
   await runSeedStage("sqlite:demo:accounts", () => seedAccountsSqlite(client));
   await runSeedStage("sqlite:demo:reference-data", () => seedReferenceDataSqlite(db));
   await runSeedStage("sqlite:demo:budget-limits", () => seedBudgetLimitsSqlite(db));
   await runSeedStage("sqlite:demo:transactions", () =>
-    seedTransactionsSqlite(client, demoTransactions),
+    seedTransactionsSqlite(client, demoTransactions, foundation.ownerUserId),
   );
+  return foundation;
 }
 
-async function seedDemoPostgres(db: PostgresDatabase): Promise<void> {
-  await runSeedStage("postgres:demo:foundation", () => seedFoundationPostgres(db));
+async function seedDemoPostgres(db: PostgresDatabase): Promise<SeedFoundationContext> {
+  const foundation = await runSeedStage("postgres:demo:foundation", () => seedFoundationPostgres(db));
   await runSeedStage("postgres:demo:accounts", () => seedAccountsPostgres(db));
   await runSeedStage("postgres:demo:reference-data", () => seedReferenceDataPostgres(db));
   await runSeedStage("postgres:demo:budget-limits", () => seedBudgetLimitsPostgres(db));
   await runSeedStage("postgres:demo:transactions", () =>
-    seedTransactionsPostgres(db, demoTransactions),
+    seedTransactionsPostgres(db, demoTransactions, foundation.ownerUserId),
   );
+  return foundation;
 }
 
-async function seedE2eSqlite(client: SqliteClient, db: SqliteDatabase): Promise<void> {
-  void db;
-  await seedTransactionsSqlite(client, e2eTransactions);
+async function seedE2eSqlite(client: SqliteClient, ownerUserId: SyncedId): Promise<void> {
+  await seedTransactionsSqlite(client, e2eTransactions, ownerUserId);
 }
 
-async function seedE2ePostgres(db: PostgresDatabase): Promise<void> {
-  await seedTransactionsPostgres(db, e2eTransactions);
+async function seedE2ePostgres(db: PostgresDatabase, ownerUserId: SyncedId): Promise<void> {
+  await seedTransactionsPostgres(db, e2eTransactions, ownerUserId);
 }
 
-async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
+async function seedFoundationSqlite(db: SqliteDatabase): Promise<SeedFoundationContext> {
   const ownerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.owner.password);
   const partnerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.partner.password);
-
-  await db
-    .insert(sqliteUsers)
-    .values({
-      id: SEED_IDS.USER_OWNER,
-      username: SEED_CREDENTIALS.owner.username,
-      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
-      displayName: "Demo Owner",
-      passwordHash: ownerPasswordHash,
-      createdAt: SEED_NOW,
-      updatedAt: SEED_NOW,
-    })
-    .onConflictDoUpdate({
-      target: sqliteUsers.id,
-      set: { passwordHash: ownerPasswordHash, updatedAt: SEED_NOW },
-    });
-
-  await db
-    .insert(sqliteUsers)
-    .values({
-      id: SEED_IDS.USER_PARTNER,
-      username: SEED_CREDENTIALS.partner.username,
-      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
-      displayName: "Demo Partner",
-      passwordHash: partnerPasswordHash,
-      createdAt: SEED_NOW,
-      updatedAt: SEED_NOW,
-    })
-    .onConflictDoUpdate({
-      target: sqliteUsers.id,
-      set: { passwordHash: partnerPasswordHash, updatedAt: SEED_NOW },
-    });
+  const ownerUserId = await upsertSeedSqliteUser(
+    db,
+    SEED_IDS.USER_OWNER,
+    SEED_CREDENTIALS.owner.username,
+    "Demo Owner",
+    ownerPasswordHash,
+  );
+  const partnerUserId = await upsertSeedSqliteUser(
+    db,
+    SEED_IDS.USER_PARTNER,
+    SEED_CREDENTIALS.partner.username,
+    "Demo Partner",
+    partnerPasswordHash,
+  );
 
   await db
     .insert(sqliteWorkspaces)
     .values({
       id: SEED_IDS.WORKSPACE_HOUSEHOLD,
       name: "Demo household",
-      ownerUserId: SEED_IDS.USER_OWNER,
+      ownerUserId,
       status: "active",
       createdAt: SEED_NOW,
       updatedAt: SEED_NOW,
     })
     .onConflictDoUpdate({
       target: sqliteWorkspaces.id,
-      set: { name: "Demo household", status: "active", updatedAt: SEED_NOW },
+      set: { name: "Demo household", ownerUserId, status: "active", updatedAt: SEED_NOW },
     });
 
   await db
@@ -712,7 +704,7 @@ async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
       {
         id: SEED_IDS.MEMBER_OWNER,
         workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-        userId: SEED_IDS.USER_OWNER,
+        userId: ownerUserId,
         role: "owner",
         createdAt: SEED_NOW,
         updatedAt: SEED_NOW,
@@ -720,7 +712,7 @@ async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
       {
         id: SEED_IDS.MEMBER_PARTNER,
         workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-        userId: SEED_IDS.USER_PARTNER,
+        userId: partnerUserId,
         role: "editor",
         createdAt: SEED_NOW,
         updatedAt: SEED_NOW,
@@ -730,58 +722,64 @@ async function seedFoundationSqlite(db: SqliteDatabase): Promise<void> {
       target: sqliteWorkspaceMembers.id,
       set: { removedAt: null, updatedAt: SEED_NOW },
     });
+
+  await db
+    .update(sqliteWorkspaceMembers)
+    .set({
+      role: "owner",
+      removedAt: null,
+      updatedAt: SEED_NOW,
+      userId: ownerUserId,
+    })
+    .where(eq(sqliteWorkspaceMembers.id, SEED_IDS.MEMBER_OWNER));
+
+  await db
+    .update(sqliteWorkspaceMembers)
+    .set({
+      role: "editor",
+      removedAt: null,
+      updatedAt: SEED_NOW,
+      userId: partnerUserId,
+    })
+    .where(eq(sqliteWorkspaceMembers.id, SEED_IDS.MEMBER_PARTNER));
+
+  return { ownerUserId, partnerUserId };
 }
 
-async function seedFoundationPostgres(db: PostgresDatabase): Promise<void> {
+async function seedFoundationPostgres(db: PostgresDatabase): Promise<SeedFoundationContext> {
   const now = new Date(SEED_NOW);
   const ownerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.owner.password);
   const partnerPasswordHash = await createSeedPasswordHash(SEED_CREDENTIALS.partner.password);
-
-  await db
-    .insert(pgUsers)
-    .values({
-      id: SEED_IDS.USER_OWNER,
-      username: SEED_CREDENTIALS.owner.username,
-      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.owner.username),
-      displayName: "Demo Owner",
-      passwordHash: ownerPasswordHash,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: pgUsers.id,
-      set: { passwordHash: ownerPasswordHash, updatedAt: now },
-    });
-
-  await db
-    .insert(pgUsers)
-    .values({
-      id: SEED_IDS.USER_PARTNER,
-      username: SEED_CREDENTIALS.partner.username,
-      usernameNormalized: normalizeUsername(SEED_CREDENTIALS.partner.username),
-      displayName: "Demo Partner",
-      passwordHash: partnerPasswordHash,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: pgUsers.id,
-      set: { passwordHash: partnerPasswordHash, updatedAt: now },
-    });
+  const ownerUserId = await upsertSeedPostgresUser(
+    db,
+    now,
+    SEED_IDS.USER_OWNER,
+    SEED_CREDENTIALS.owner.username,
+    "Demo Owner",
+    ownerPasswordHash,
+  );
+  const partnerUserId = await upsertSeedPostgresUser(
+    db,
+    now,
+    SEED_IDS.USER_PARTNER,
+    SEED_CREDENTIALS.partner.username,
+    "Demo Partner",
+    partnerPasswordHash,
+  );
 
   await db
     .insert(pgWorkspaces)
     .values({
       id: SEED_IDS.WORKSPACE_HOUSEHOLD,
       name: "Demo household",
-      ownerUserId: SEED_IDS.USER_OWNER,
+      ownerUserId,
       status: "active",
       createdAt: now,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: pgWorkspaces.id,
-      set: { name: "Demo household", status: "active", updatedAt: now },
+      set: { name: "Demo household", ownerUserId, status: "active", updatedAt: now },
     });
 
   await db
@@ -807,7 +805,7 @@ async function seedFoundationPostgres(db: PostgresDatabase): Promise<void> {
       {
         id: SEED_IDS.MEMBER_OWNER,
         workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-        userId: SEED_IDS.USER_OWNER,
+        userId: ownerUserId,
         role: "owner",
         createdAt: now,
         updatedAt: now,
@@ -815,7 +813,7 @@ async function seedFoundationPostgres(db: PostgresDatabase): Promise<void> {
       {
         id: SEED_IDS.MEMBER_PARTNER,
         workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-        userId: SEED_IDS.USER_PARTNER,
+        userId: partnerUserId,
         role: "editor",
         createdAt: now,
         updatedAt: now,
@@ -825,6 +823,28 @@ async function seedFoundationPostgres(db: PostgresDatabase): Promise<void> {
       target: pgWorkspaceMembers.id,
       set: { removedAt: null, updatedAt: now },
     });
+
+  await db
+    .update(pgWorkspaceMembers)
+    .set({
+      role: "owner",
+      removedAt: null,
+      updatedAt: now,
+      userId: ownerUserId,
+    })
+    .where(eq(pgWorkspaceMembers.id, SEED_IDS.MEMBER_OWNER));
+
+  await db
+    .update(pgWorkspaceMembers)
+    .set({
+      role: "editor",
+      removedAt: null,
+      updatedAt: now,
+      userId: partnerUserId,
+    })
+    .where(eq(pgWorkspaceMembers.id, SEED_IDS.MEMBER_PARTNER));
+
+  return { ownerUserId, partnerUserId };
 }
 
 async function seedReferenceDataSqlite(db: SqliteDatabase): Promise<void> {
@@ -1150,6 +1170,7 @@ async function seedAccountsPostgres(db: PostgresDatabase): Promise<void> {
 async function seedTransactionsSqlite(
   client: SqliteClient,
   transactions: readonly SeedTransaction[],
+  ownerUserId: SyncedId,
 ): Promise<void> {
   const query = createSqliteTransactionQueryService(client);
 
@@ -1169,7 +1190,7 @@ async function seedTransactionsSqlite(
     });
     await repository.createTransaction({
       ...transaction,
-      createdBy: SEED_IDS.USER_OWNER,
+      createdBy: ownerUserId,
       ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
       source: "manual",
       workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
@@ -1180,6 +1201,7 @@ async function seedTransactionsSqlite(
 async function seedTransactionsPostgres(
   db: PostgresDatabase,
   transactions: readonly SeedTransaction[],
+  ownerUserId: SyncedId,
 ): Promise<void> {
   const query = createPostgresTransactionQueryService(db);
 
@@ -1199,7 +1221,7 @@ async function seedTransactionsPostgres(
     });
     await repository.createTransaction({
       ...transaction,
-      createdBy: SEED_IDS.USER_OWNER,
+      createdBy: ownerUserId,
       ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
       source: "manual",
       workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
@@ -1220,6 +1242,75 @@ function createSeedIdGenerator(first: SyncedId, sequenceBase: number): () => Syn
     next += 1;
     return seedId(next);
   };
+}
+
+async function upsertSeedSqliteUser(
+  db: SqliteDatabase,
+  fallbackId: SyncedId,
+  username: string,
+  displayName: string,
+  passwordHash: string,
+): Promise<SyncedId> {
+  const usernameNormalized = normalizeUsername(username);
+  const existingByUsername = await db
+    .select({ id: sqliteUsers.id })
+    .from(sqliteUsers)
+    .where(eq(sqliteUsers.usernameNormalized, usernameNormalized))
+    .limit(1);
+  const resolvedId = existingByUsername[0]?.id ?? fallbackId;
+
+  await db
+    .insert(sqliteUsers)
+    .values({
+      id: resolvedId,
+      username,
+      usernameNormalized,
+      displayName,
+      passwordHash,
+      createdAt: SEED_NOW,
+      updatedAt: SEED_NOW,
+    })
+    .onConflictDoUpdate({
+      target: sqliteUsers.id,
+      set: { displayName, passwordHash, updatedAt: SEED_NOW, username, usernameNormalized },
+    });
+
+  return resolvedId;
+}
+
+async function upsertSeedPostgresUser(
+  db: PostgresDatabase,
+  now: Date,
+  fallbackId: SyncedId,
+  username: string,
+  displayName: string,
+  passwordHash: string,
+): Promise<SyncedId> {
+  const usernameNormalized = normalizeUsername(username);
+  const existingByUsername = await db
+    .select({ id: pgUsers.id })
+    .from(pgUsers)
+    .where(eq(pgUsers.usernameNormalized, usernameNormalized))
+    .limit(1);
+  const resolvedId = existingByUsername[0]?.id ?? fallbackId;
+
+  await db
+    .insert(pgUsers)
+    .values({
+      id: resolvedId,
+      username,
+      usernameNormalized,
+      displayName,
+      passwordHash,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: pgUsers.id,
+      set: { displayName, passwordHash, updatedAt: now, username, usernameNormalized },
+    });
+
+  return resolvedId;
 }
 
 function categoryRowWithCounterparty<TNow extends Date | string = string>(
