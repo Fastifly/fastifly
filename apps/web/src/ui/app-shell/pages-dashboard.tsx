@@ -13,7 +13,7 @@ import {
 } from "@ui/select";
 import { Separator } from "@ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
+import { ArrowRight, RefreshCcw } from "lucide-react";
 import { useQueryStates } from "nuqs";
 import { lazy, Suspense, useMemo } from "react";
 import {
@@ -247,32 +247,6 @@ export function DashboardPage({
         </Card>
       ) : null}
       <div className="flex flex-col gap-4">
-        <Card
-          className="rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
-          data-testid={testIds.dashboard.netWorthCard}
-        >
-          <CardContent className="space-y-3 p-3.5 max-[380px]:p-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div data-testid={testIds.dashboard.monthlyMetrics}>
-                <CompactDashboardMetric
-                  icon={ArrowDownLeft}
-                  label={en.shell.incomeThisMonth}
-                  testId={testIds.dashboard.incomeMetric}
-                  tone="green"
-                  value={income}
-                />
-              </div>
-              <CompactDashboardMetric
-                icon={ArrowUpRight}
-                label={en.shell.spentThisMonth}
-                testId={testIds.dashboard.spendingMetric}
-                tone="rose"
-                value={spending}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
         <Suspense fallback={<DashboardChartsShimmer />}>
           <DashboardCharts
             categories={categories}
@@ -484,42 +458,6 @@ function hasBankAccount(accounts: readonly AccountWithBalanceResponse[]): boolea
         account.subtype === "cash" ||
         account.subtype === "wallet" ||
         account.subtype === "investment"),
-  );
-}
-
-function CompactDashboardMetric({
-  icon: Icon,
-  label,
-  testId,
-  tone = "default",
-  value,
-}: {
-  readonly icon: typeof WalletCards;
-  readonly label: string;
-  readonly testId: string;
-  readonly tone?: "default" | "green" | "rose";
-  readonly value: string;
-}) {
-  const iconToneClass =
-    tone === "green"
-      ? "text-emerald-700 dark:text-emerald-300"
-      : tone === "rose"
-        ? "text-rose-700 dark:text-rose-300"
-        : "text-slate-700 dark:text-slate-300";
-
-  return (
-    <div
-      className="rounded-lg border border-border/80 bg-muted/35 px-2.5 py-2"
-      data-testid={testId}
-    >
-      <div className="flex items-center gap-1.5 text-[0.72rem] text-muted-foreground">
-        <span className={`inline-flex h-4.5 w-4.5 items-center justify-center ${iconToneClass}`}>
-          <Icon aria-hidden="true" className="size-3.5" />
-        </span>
-        <span className="truncate">{label}</span>
-      </div>
-      <p className="mt-1.5 break-words font-semibold text-[1.05rem] leading-none">{value}</p>
-    </div>
   );
 }
 

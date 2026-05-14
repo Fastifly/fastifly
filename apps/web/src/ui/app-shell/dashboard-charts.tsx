@@ -8,7 +8,6 @@ import { Card, CardContent } from "@ui/card";
 import {
   Area,
   AreaChart,
-  CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -26,9 +25,10 @@ import {
   type MonthlyCashflowPoint,
   type SpendingCategoryPoint,
 } from "./dashboard-chart-data";
+import { Separator } from "@/components/ui/separator";
 
 const MONTHLY_SERIES_WINDOW = 6;
-const CATEGORY_SERIES_LIMIT = 5;
+const CATEGORY_SERIES_LIMIT = 40;
 
 export function DashboardCharts({
   categories,
@@ -62,12 +62,26 @@ export function DashboardCharts({
   const selectedCategoryMonthKey = selectedCategoryMonth?.monthKey ?? toMonthKey(now);
   const selectedCategoryMonthLabel =
     selectedCategoryMonth?.monthLabel ?? MONTH_LABEL_FORMATTER.format(now);
-  const categorySeries = useMemo(
+  const spendingCategorySeries = useMemo(
     () =>
       buildSpendingByCategorySeries({
         categories,
         fallbackCategoryId: "uncategorized",
         fallbackCategoryLabel: en.shell.spendingByCategoryUncategorized,
+        journalType: "expense",
+        limit: CATEGORY_SERIES_LIMIT,
+        monthKey: selectedCategoryMonthKey,
+        transactions,
+      }),
+    [categories, selectedCategoryMonthKey, transactions],
+  );
+  const incomeCategorySeries = useMemo(
+    () =>
+      buildSpendingByCategorySeries({
+        categories,
+        fallbackCategoryId: "uncategorized-income",
+        fallbackCategoryLabel: en.shell.spendingByCategoryUncategorized,
+        journalType: "income",
         limit: CATEGORY_SERIES_LIMIT,
         monthKey: selectedCategoryMonthKey,
         transactions,
@@ -77,24 +91,21 @@ export function DashboardCharts({
 
   return (
     <div
-      className="grid items-start gap-3 lg:grid-cols-2 xl:grid-cols-3"
+      className="grid items-start gap-3 lg:grid-cols-3"
       data-testid={testIds.dashboard.chartsSection}
     >
       <NetWorthTrendChart
+        className="lg:col-span-2"
         currencyCode={currencyCode}
         data={netWorthTrend}
         title={en.shell.netWorthTrend}
       />
-      <MonthlyIncomeVsSpendingChart
-        currencyCode={currencyCode}
-        data={monthlySeries}
-        title={en.shell.incomeVsSpendingTrend}
-      />
-      <SpendingByCategoryChart
+      <CategoryBreakdownCard
+        className="lg:row-span-2 lg:h-full lg:self-stretch"
         canGoNextMonth={clampedCategoryMonthIndex < monthlySeries.length - 1}
         canGoPreviousMonth={clampedCategoryMonthIndex > 0}
         currencyCode={currencyCode}
-        data={categorySeries}
+        incomeData={incomeCategorySeries}
         monthLabel={selectedCategoryMonthLabel}
         onNextMonth={() =>
           setSelectedCategoryMonthIndex((current) =>
@@ -104,17 +115,25 @@ export function DashboardCharts({
         onPreviousMonth={() =>
           setSelectedCategoryMonthIndex((current) => Math.max(current - 1, 0))
         }
-        title={en.shell.spendingByCategory}
+        spendingData={spendingCategorySeries}
+      />
+      <MonthlyIncomeVsSpendingChart
+        className="lg:col-span-2"
+        currencyCode={currencyCode}
+        data={monthlySeries}
+        title={en.shell.incomeVsSpendingTrend}
       />
     </div>
   );
 }
 
 function NetWorthTrendChart({
+  className,
   currencyCode,
   data,
   title,
 }: {
+  readonly className?: string;
   readonly currencyCode: string;
   readonly data: readonly NetWorthTrendResponse["data"]["points"][number][];
   readonly title: string;
@@ -142,6 +161,8 @@ function NetWorthTrendChart({
   const netChangePrefix = netChangeMinor > 0n ? "+" : netChangeMinor < 0n ? "-" : "";
   const currentNetWorthToneClass =
     currentNetWorthMinor < 0n ? "text-rose-700 dark:text-rose-300" : "text-foreground";
+  const netWorthSeriesColor = currentNetWorthMinor < 0n ? "#e11d48" : "#10b981";
+  const netWorthAreaColor = currentNetWorthMinor < 0n ? "#f43f5e" : "#10b981";
   const netChangeToneClass =
     netChangeMinor > 0n
       ? "text-emerald-700 dark:text-emerald-300"
@@ -150,7 +171,7 @@ function NetWorthTrendChart({
         : "text-muted-foreground";
 
   return (
-    <Card data-testid={testIds.dashboard.netWorthTrendChart} size="sm">
+    <Card className={className} data-testid={testIds.dashboard.netWorthTrendChart} size="sm">
       <CardContent className="space-y-2 px-3">
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium text-sm text-foreground">{title}</p>
@@ -179,24 +200,27 @@ function NetWorthTrendChart({
           <p className="text-sm text-muted-foreground">{en.shell.noNetWorthTrendData}</p>
         ) : (
           <>
-            <div className="h-32 rounded-md border border-border bg-muted/20 p-1.5">
+            <div className="h-28">
               <ResponsiveContainer height="100%" width="100%">
                 <AreaChart
                   accessibilityLayer
                   data={chartData}
-                  margin={{ bottom: 4, left: 0, right: 0, top: 4 }}
+                  margin={{ bottom: 12, left: 8, right: 8, top: 2 }}
                 >
                   <defs>
                     <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor={netWorthAreaColor} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={netWorthAreaColor} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="2 3" vertical={false} />
                   <XAxis
                     axisLine={false}
                     dataKey="monthLabel"
+                    interval={0}
+                    minTickGap={0}
+                    padding={{ left: 12, right: 12 }}
                     tick={{ fill: "#6b7280", fontSize: 11 }}
+                    tickMargin={6}
                     tickLine={false}
                   />
                   <YAxis hide width={0} />
@@ -244,7 +268,7 @@ function NetWorthTrendChart({
                         </div>
                       );
                     }}
-                    cursor={{ stroke: "#10b981", strokeOpacity: 0.3 }}
+                    cursor={{ stroke: netWorthSeriesColor, strokeOpacity: 0.3 }}
                   />
                   <Area
                     dataKey="netWorthMinor"
@@ -270,7 +294,7 @@ function NetWorthTrendChart({
                       );
                     }}
                     fill={`url(#${gradientId})`}
-                    stroke="#10b981"
+                    stroke={netWorthSeriesColor}
                     strokeWidth={2}
                     type="monotone"
                   />
@@ -290,10 +314,12 @@ function NetWorthTrendChart({
 }
 
 function MonthlyIncomeVsSpendingChart({
+  className,
   currencyCode,
   data,
   title,
 }: {
+  readonly className?: string;
   readonly currencyCode: string;
   readonly data: readonly MonthlyCashflowPoint[];
   readonly title: string;
@@ -330,7 +356,7 @@ function MonthlyIncomeVsSpendingChart({
   );
 
   return (
-    <Card data-testid={testIds.dashboard.cashflowChart} size="sm">
+    <Card className={className} data-testid={testIds.dashboard.cashflowChart} size="sm">
       <CardContent className="space-y-2 px-3">
         <p className="font-medium text-sm text-foreground">{title}</p>
         <div className="space-y-1">
@@ -346,18 +372,21 @@ function MonthlyIncomeVsSpendingChart({
           </div>
         </div>
 
-        <div className="h-32 rounded-md border border-border bg-muted/20 p-1.5">
+        <div className="h-28">
           <ResponsiveContainer height="100%" width="100%">
             <LineChart
               accessibilityLayer
               data={chartData}
-              margin={{ bottom: 4, left: 0, right: 0, top: 4 }}
+              margin={{ bottom: 12, left: 8, right: 8, top: 2 }}
             >
-              <CartesianGrid stroke="#e5e7eb" strokeDasharray="2 3" vertical={false} />
               <XAxis
                 axisLine={false}
                 dataKey="monthLabel"
+                interval={0}
+                minTickGap={0}
+                padding={{ left: 12, right: 12 }}
                 tick={{ fill: "#6b7280", fontSize: 11 }}
+                tickMargin={6}
                 tickLine={false}
               />
               <YAxis hide width={0} />
@@ -534,54 +563,49 @@ function MonthlyIncomeVsSpendingChart({
   );
 }
 
-function SpendingByCategoryChart({
+function CategoryBreakdownCard({
   canGoNextMonth,
   canGoPreviousMonth,
+  className,
   currencyCode,
-  data,
+  incomeData,
   monthLabel,
   onNextMonth,
   onPreviousMonth,
-  title,
+  spendingData,
 }: {
   readonly canGoNextMonth: boolean;
   readonly canGoPreviousMonth: boolean;
+  readonly className?: string;
   readonly currencyCode: string;
-  readonly data: readonly SpendingCategoryPoint[];
+  readonly incomeData: readonly SpendingCategoryPoint[];
   readonly monthLabel: string;
   readonly onNextMonth: () => void;
   readonly onPreviousMonth: () => void;
-  readonly title: string;
+  readonly spendingData: readonly SpendingCategoryPoint[];
 }) {
-  const totalMinor = useMemo(
-    () => data.reduce((sum, category) => sum + category.amountMinor, 0n),
-    [data],
+  const spendingTotalMinor = useMemo(
+    () => spendingData.reduce((sum, category) => sum + category.amountMinor, 0n),
+    [spendingData],
   );
-  const progressData = useMemo(
-    () =>
-      data.map((item, index) => ({
-        amountMinorRaw: item.amountMinor,
-        barColor:
-          item.categoryColor ??
-          CATEGORY_PROGRESS_FALLBACK_COLORS[index % CATEGORY_PROGRESS_FALLBACK_COLORS.length],
-        categoryColor: item.categoryColor,
-        categoryIcon: item.categoryIcon,
-        categoryId: item.categoryId,
-        categoryName: item.categoryName,
-        parentCategoryName: item.parentCategoryName,
-        share:
-          totalMinor > 0n
-            ? Number((item.amountMinor * 10000n) / totalMinor) / 100
-            : 0,
-      })),
-    [data, totalMinor],
+  const incomeTotalMinor = useMemo(
+    () => incomeData.reduce((sum, category) => sum + category.amountMinor, 0n),
+    [incomeData],
+  );
+  const spendingProgressData = useMemo(
+    () => buildCategoryProgressData(spendingData, spendingTotalMinor),
+    [spendingData, spendingTotalMinor],
+  );
+  const incomeProgressData = useMemo(
+    () => buildCategoryProgressData(incomeData, incomeTotalMinor),
+    [incomeData, incomeTotalMinor],
   );
 
   return (
-    <Card data-testid={testIds.dashboard.categoryChart} size="sm">
-      <CardContent className="space-y-2 px-3">
+    <Card className={className} data-testid={testIds.dashboard.categoryChart} size="sm">
+      <CardContent className="flex h-full min-h-0 flex-col space-y-2 px-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="font-medium text-sm text-foreground">{title}</p>
+          <p className="font-medium text-sm text-foreground">{en.shell.topCategories}</p>
           <div className="flex items-center gap-1">
             <button
               aria-label={en.shell.previousMonth}
@@ -606,54 +630,132 @@ function SpendingByCategoryChart({
             </button>
           </div>
         </div>
-        {progressData.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {en.shell.noCategorySpendDataForMonth.replace("{month}", monthLabel)}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            <div className="space-y-1.5">
-              {progressData.map((item) => (
-                <div
-                  className="space-y-1"
-                  data-testid={testIds.dashboard.categoryChartItem(item.categoryId)}
-                  key={item.categoryId}
-                >
-                  <div className="flex items-center justify-between gap-2 text-[12px]">
-                    <p className="min-w-0 truncate font-medium text-foreground">
-                      {CategoryToken({
-                        color: item.categoryColor,
-                        icon: item.categoryIcon,
-                        name: item.categoryName,
-                        parentName: item.parentCategoryName,
-                      })}
-                    </p>
-                    <p className="shrink-0 text-muted-foreground">
-                      {formatMoneyMinor(item.amountMinorRaw, currencyCode)}
-                    </p>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-300 ease-out"
-                      style={{
-                        backgroundColor: item.barColor,
-                        width: `${item.share > 0 ? Math.max(item.share, 2) : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              {en.shell.spendingMonthSummary
-                .replace("{month}", monthLabel)
-                .replace("{total}", formatMoneyMinor(totalMinor, currencyCode))}
-            </p>
-          </div>
-        )}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+          <CategoryBreakdownSection
+            currencyCode={currencyCode}
+            data={spendingProgressData}
+            emptyStateTemplate={en.shell.noCategorySpendDataForMonth}
+            monthLabel={monthLabel}
+            title={en.shell.spending}
+            totalMinor={spendingTotalMinor}
+          />
+          <CategoryBreakdownSection
+            currencyCode={currencyCode}
+            data={incomeProgressData}
+            emptyStateTemplate={en.shell.noCategoryIncomeDataForMonth}
+            monthLabel={monthLabel}
+            title={en.shell.income}
+            totalMinor={incomeTotalMinor}
+          />
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+function CategoryBreakdownSection({
+  currencyCode,
+  data,
+  emptyStateTemplate,
+  monthLabel,
+  title,
+  totalMinor,
+}: {
+  readonly currencyCode: string;
+  readonly data: readonly {
+    readonly amountMinorRaw: bigint;
+    readonly barColor: string;
+    readonly categoryColor: string | null;
+    readonly categoryIcon: string | null;
+    readonly categoryId: string;
+    readonly categoryName: string;
+    readonly parentCategoryName: string | null;
+    readonly share: number;
+  }[];
+  readonly emptyStateTemplate: string;
+  readonly monthLabel: string;
+  readonly title: string;
+  readonly totalMinor: bigint;
+}) {
+  return (
+    <section className="space-y-2">
+      <p className="font-semibold text-foreground">{title}</p>
+      {data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyStateTemplate.replace("{month}", monthLabel)}</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="space-y-1.5">
+            {data.map((item) => (
+              <div
+                className="space-y-1"
+                data-testid={testIds.dashboard.categoryChartItem(item.categoryId)}
+                key={item.categoryId}
+              >
+                <div className="flex items-center justify-between gap-2 text-[12px]">
+                  <p className="min-w-0 truncate font-medium text-foreground">
+                    {CategoryToken({
+                      color: item.categoryColor,
+                      icon: item.categoryIcon,
+                      name: item.categoryName,
+                      parentName: item.parentCategoryName,
+                    })}
+                  </p>
+                  <p className="shrink-0 text-muted-foreground">
+                    {formatMoneyMinor(item.amountMinorRaw, currencyCode)}
+                  </p>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-300 ease-out"
+                    style={{
+                      backgroundColor: item.barColor,
+                      width: `${item.share > 0 ? Math.max(item.share, 2) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <Separator className="mt-3"></Separator>
+          <p className="text-right text-[12px] text-foreground">
+            {en.shell.spendingMonthSummary
+              .replace("{month}", monthLabel)
+              .replace("{total}", formatMoneyMinor(totalMinor, currencyCode))}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function buildCategoryProgressData(
+  categories: readonly SpendingCategoryPoint[],
+  totalMinor: bigint,
+): readonly {
+  amountMinorRaw: bigint;
+  barColor: string;
+  categoryColor: string | null;
+  categoryIcon: string | null;
+  categoryId: string;
+  categoryName: string;
+  parentCategoryName: string | null;
+  share: number;
+}[] {
+  return categories.map((item, index) => ({
+    amountMinorRaw: item.amountMinor,
+    barColor:
+      item.categoryColor ??
+      CATEGORY_PROGRESS_FALLBACK_COLORS[index % CATEGORY_PROGRESS_FALLBACK_COLORS.length],
+    categoryColor: item.categoryColor,
+    categoryIcon: item.categoryIcon,
+    categoryId: item.categoryId,
+    categoryName: item.categoryName,
+    parentCategoryName: item.parentCategoryName,
+    share:
+      totalMinor > 0n
+        ? Number((item.amountMinor * 10000n) / totalMinor) / 100
+        : 0,
+  }));
 }
 
 const CATEGORY_PROGRESS_FALLBACK_COLORS = [
