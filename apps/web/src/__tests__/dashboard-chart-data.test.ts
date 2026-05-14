@@ -123,11 +123,10 @@ describe("dashboard chart data helpers", () => {
 
     const series = buildSpendingByCategorySeries({
       categories,
-      days: 30,
       fallbackCategoryId: "uncategorized",
       fallbackCategoryLabel: "Uncategorized",
       limit: 5,
-      now: new Date("2026-05-20T00:00:00.000Z"),
+      monthKey: "2026-05",
       transactions,
     });
 

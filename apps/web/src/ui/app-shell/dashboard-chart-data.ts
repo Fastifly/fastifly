@@ -1,6 +1,8 @@
 import {
   type CategoryResponse,
   getTransactionJournalAbsoluteMinor,
+  toUtcMonthKey,
+  toUtcMonthKeyFromIso,
   type TransactionGroupResponse,
   toAbsoluteAmountMinor,
 } from "@fastifly/common";
@@ -41,12 +43,11 @@ export function buildMonthlyCashflowSeries(input: {
         continue;
       }
 
-      const occurredAt = new Date(journal.occurredAt);
-      if (Number.isNaN(occurredAt.getTime())) {
+      const monthKey = toUtcMonthKeyFromIso(journal.occurredAt);
+      if (!monthKey) {
         continue;
       }
 
-      const monthKey = toMonthKey(occurredAt);
       const bucket = monthMap.get(monthKey);
       if (!bucket) {
         continue;
@@ -66,17 +67,13 @@ export function buildMonthlyCashflowSeries(input: {
 
 export function buildSpendingByCategorySeries(input: {
   readonly categories: readonly CategoryResponse[];
-  readonly days: number;
   readonly fallbackCategoryId: string;
   readonly fallbackCategoryLabel: string;
   readonly limit: number;
-  readonly now: Date;
+  readonly monthKey: string;
   readonly transactions: readonly TransactionGroupResponse[];
 }): readonly SpendingCategoryPoint[] {
   const normalizedLimit = Math.max(1, input.limit);
-  const windowStart = new Date(input.now);
-  windowStart.setUTCHours(0, 0, 0, 0);
-  windowStart.setUTCDate(windowStart.getUTCDate() - Math.max(1, input.days) + 1);
 
   const categoryByAccountId = new Map(
     input.categories
@@ -95,12 +92,7 @@ export function buildSpendingByCategorySeries(input: {
         continue;
       }
 
-      const occurredAt = new Date(journal.occurredAt);
-      if (
-        Number.isNaN(occurredAt.getTime()) ||
-        occurredAt < windowStart ||
-        occurredAt > input.now
-      ) {
+      if (toUtcMonthKeyFromIso(journal.occurredAt) !== input.monthKey) {
         continue;
       }
 
@@ -159,12 +151,6 @@ export function buildSpendingByCategorySeries(input: {
     .slice(0, normalizedLimit);
 }
 
-function toMonthKey(date: Date): string {
-  const year = date.getUTCFullYear().toString();
-  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  return `${year}-${month}`;
-}
-
 function createMonthBuckets(now: Date, months: number): MonthlyCashflowPoint[] {
   const startMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   startMonthDate.setUTCMonth(startMonthDate.getUTCMonth() - (months - 1));
@@ -176,7 +162,7 @@ function createMonthBuckets(now: Date, months: number): MonthlyCashflowPoint[] {
     buckets.push({
       expenseMinor: 0n,
       incomeMinor: 0n,
-      monthKey: toMonthKey(current),
+      monthKey: toUtcMonthKey(current),
       monthLabel: MONTH_KEY_FORMATTER.format(current),
     });
   }

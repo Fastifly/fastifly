@@ -15,7 +15,7 @@ import { Separator } from "@ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@ui/toggle-group";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, RefreshCcw, WalletCards } from "lucide-react";
 import { useQueryStates } from "nuqs";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import {
   useCategoriesQuery,
   useInfiniteTransactionsQuery,
@@ -34,7 +34,6 @@ import { testIds } from "../../testing/testid-registry";
 import { AccountCreateDialog } from "../account-create-panel";
 import { CategoryCreateDialog } from "../category-create-dialog";
 import { TransactionCreatePanel } from "../transaction-create-panel";
-import { DashboardCharts } from "./dashboard-charts";
 import {
   AccountsPage,
   BudgetPage,
@@ -44,7 +43,6 @@ import {
   RulesPage,
 } from "./pages-accounts";
 import { DashboardAside, ReportsPage, SettingsPage, SyncPage } from "./pages-finance";
-import { MetricTile } from "./shared-components";
 import { TransactionsPanel } from "./transaction-components";
 import {
   hasActiveTransactionFilters,
@@ -54,6 +52,11 @@ import {
   transactionTypeFilterOptions,
 } from "./utils";
 
+const DashboardCharts = lazy(async () => {
+  const module = await import("./dashboard-charts");
+  return { default: module.DashboardCharts };
+});
+
 export function DashboardPage({
   accounts,
   accountPreview,
@@ -62,11 +65,11 @@ export function DashboardPage({
   income,
   ledgerContext,
   liabilities,
-  moneySummaryValue,
   reportingCurrencyCode,
   spending,
   transactions,
   transactionCount,
+  transactionsLoading,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
   readonly accountPreview: readonly AccountWithBalanceResponse[];
@@ -78,16 +81,18 @@ export function DashboardPage({
     readonly workspaceId: string;
   } | null;
   readonly liabilities: string;
-  readonly moneySummaryValue: string;
   readonly reportingCurrencyCode: string;
   readonly spending: string;
   readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionCount: number;
+  readonly transactionsLoading: boolean;
 }) {
   const categoriesQuery = useCategoriesQuery(ledgerContext);
   const netWorthTrendQuery = useNetWorthTrendQuery(ledgerContext, { months: 6 });
-  const categoryCount = categoriesQuery.data?.data.length ?? 0;
+  const categoryCount = categoriesQuery.data?.data.length;
   const categories = categoriesQuery.data?.data ?? [];
+  const isCategoryChecklistLoading = categoriesQuery.isPending && categoryCount === undefined;
+  const isChecklistLoading = accountsLoading || isCategoryChecklistLoading || transactionsLoading;
   const setupItems = useMemo(
     () => [
       {
@@ -101,7 +106,7 @@ export function DashboardPage({
       {
         actionHref: "/categories" as const,
         actionLabel: en.categories.addCategory,
-        completed: categoryCount > 0,
+        completed: isCategoryChecklistLoading ? true : (categoryCount ?? 0) > 0,
         hint: en.shell.gettingStartedHints.expenseCategory,
         key: "expenseCategory",
         label: en.shell.gettingStartedItems.expenseCategory,
@@ -109,15 +114,15 @@ export function DashboardPage({
       {
         actionHref: "/transactions" as const,
         actionLabel: en.shell.gettingStartedActions.openTransactions,
-        completed: transactionCount > 0,
+        completed: transactionsLoading ? true : transactionCount > 0,
         hint: en.shell.gettingStartedHints.firstTransaction,
         key: "firstTransaction",
         label: en.shell.gettingStartedItems.firstTransaction,
       },
     ],
-    [accounts, categoryCount, transactionCount],
+    [accounts, categoryCount, isCategoryChecklistLoading, transactionCount, transactionsLoading],
   );
-  const showGettingStarted = setupItems.some((item) => !item.completed);
+  const showGettingStarted = !isChecklistLoading && setupItems.some((item) => !item.completed);
   const completedSetupCount = setupItems.filter((item) => item.completed).length;
   const setupProgressPercent = Math.round((completedSetupCount / setupItems.length) * 100);
   const nextSetupItem = setupItems.find((item) => !item.completed);
@@ -246,75 +251,46 @@ export function DashboardPage({
           className="rounded-lg border border-border bg-card p-0 text-card-foreground shadow-sm"
           data-testid={testIds.dashboard.netWorthCard}
         >
-          <CardContent className="p-5 max-[380px]:p-4">
-            <p
-              className="font-bold text-[0.8125rem] text-muted-foreground"
-              data-testid={testIds.dashboard.netWorthLabel}
-            >
-              {en.shell.netWorth}
-            </p>
-            <p
-              className="mt-2 break-words font-[750] text-[2.55rem] leading-none tracking-normal text-foreground max-[380px]:text-[2.15rem]"
-              data-testid={testIds.dashboard.netWorthValue}
-            >
-              {moneySummaryValue}
-            </p>
+          <CardContent className="space-y-3 p-3.5 max-[380px]:p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div data-testid={testIds.dashboard.monthlyMetrics}>
+                <CompactDashboardMetric
+                  icon={ArrowDownLeft}
+                  label={en.shell.incomeThisMonth}
+                  testId={testIds.dashboard.incomeMetric}
+                  tone="green"
+                  value={income}
+                />
+              </div>
+              <CompactDashboardMetric
+                icon={ArrowUpRight}
+                label={en.shell.spentThisMonth}
+                testId={testIds.dashboard.spendingMetric}
+                tone="rose"
+                value={spending}
+              />
+            </div>
           </CardContent>
         </Card>
 
-        <Card
-          className="border border-border bg-card text-card-foreground shadow-sm"
-          data-testid={testIds.dashboard.summaryMetrics}
-        >
-          <CardContent className="grid grid-cols-2 gap-2.5 p-4 max-[380px]:gap-2 max-[380px]:p-3">
-            <MetricTile
-              compact
-              icon={WalletCards}
-              label={en.shell.cashAndBank}
-              testId={testIds.dashboard.cashAndBankMetric}
-              value={cashAndBank}
-            />
-            <MetricTile
-              compact
-              icon={RefreshCcw}
-              label={en.shell.liabilities}
-              testId={testIds.dashboard.liabilitiesMetric}
-              tone="rose"
-              value={liabilities}
-            />
-          </CardContent>
-        </Card>
-
-        <section className="grid grid-cols-2 gap-3" data-testid={testIds.dashboard.monthlyMetrics}>
-          <MetricTile
-            dense
-            icon={ArrowDownLeft}
-            label={en.shell.incomeThisMonth}
-            testId={testIds.dashboard.incomeMetric}
-            value={income}
-            tone="green"
+        <Suspense fallback={<DashboardChartsShimmer />}>
+          <DashboardCharts
+            categories={categories}
+            currencyCode={reportingCurrencyCode}
+            netWorthTrend={netWorthTrendQuery.data?.points ?? []}
+            transactions={transactions}
           />
-          <MetricTile
-            dense
-            icon={ArrowUpRight}
-            label={en.shell.spentThisMonth}
-            testId={testIds.dashboard.spendingMetric}
-            value={spending}
-            tone="rose"
-          />
-        </section>
-
-        <DashboardCharts
-          categories={categories}
-          currencyCode={reportingCurrencyCode}
-          netWorthTrend={netWorthTrendQuery.data?.points ?? []}
-          transactions={transactions}
-        />
+        </Suspense>
 
         <TransactionCreatePanel accounts={accounts} ledgerContext={ledgerContext} />
       </div>
 
-      <DashboardAside accountPreview={accountPreview} accountsLoading={accountsLoading} />
+      <DashboardAside
+        accountPreview={accountPreview}
+        accountsLoading={accountsLoading}
+        cashAndBank={cashAndBank}
+        liabilities={liabilities}
+      />
     </section>
   );
 }
@@ -331,7 +307,6 @@ export function PageBody({
   isUpdateReady,
   ledgerContext,
   liabilities,
-  moneySummaryValue,
   onApplyUpdate,
   onLogout,
   onThemeChange,
@@ -346,6 +321,7 @@ export function PageBody({
   reportingCurrencyCode,
   transactions,
   transactionCount,
+  transactionsLoading,
   theme,
   transferCount,
   workspaceId,
@@ -369,7 +345,6 @@ export function PageBody({
     readonly workspaceId: string;
   } | null;
   readonly liabilities: string;
-  readonly moneySummaryValue: string;
   readonly openConflictCount: number;
   readonly pageSlug: string;
   readonly pendingOutboxCount: number;
@@ -392,6 +367,7 @@ export function PageBody({
   readonly reportingCurrencyCode: string;
   readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionCount: number;
+  readonly transactionsLoading: boolean;
   readonly theme: Theme;
   readonly onApplyUpdate: () => void;
   readonly onLogout: () => void;
@@ -491,11 +467,11 @@ export function PageBody({
       income={income}
       ledgerContext={ledgerContext}
       liabilities={liabilities}
-      moneySummaryValue={moneySummaryValue}
       reportingCurrencyCode={reportingCurrencyCode}
       spending={spending}
       transactions={transactions}
       transactionCount={transactionCount}
+      transactionsLoading={transactionsLoading}
     />
   );
 }
@@ -508,6 +484,69 @@ function hasBankAccount(accounts: readonly AccountWithBalanceResponse[]): boolea
         account.subtype === "cash" ||
         account.subtype === "wallet" ||
         account.subtype === "investment"),
+  );
+}
+
+function CompactDashboardMetric({
+  icon: Icon,
+  label,
+  testId,
+  tone = "default",
+  value,
+}: {
+  readonly icon: typeof WalletCards;
+  readonly label: string;
+  readonly testId: string;
+  readonly tone?: "default" | "green" | "rose";
+  readonly value: string;
+}) {
+  const iconToneClass =
+    tone === "green"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "rose"
+        ? "text-rose-700 dark:text-rose-300"
+        : "text-slate-700 dark:text-slate-300";
+
+  return (
+    <div
+      className="rounded-lg border border-border/80 bg-muted/35 px-2.5 py-2"
+      data-testid={testId}
+    >
+      <div className="flex items-center gap-1.5 text-[0.72rem] text-muted-foreground">
+        <span className={`inline-flex h-4.5 w-4.5 items-center justify-center ${iconToneClass}`}>
+          <Icon aria-hidden="true" className="size-3.5" />
+        </span>
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="mt-1.5 break-words font-semibold text-[1.05rem] leading-none">{value}</p>
+    </div>
+  );
+}
+
+function DashboardChartsShimmer() {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3" data-testid={testIds.dashboard.chartsSection}>
+      <ChartCardShimmer />
+      <ChartCardShimmer />
+      <ChartCardShimmer />
+    </div>
+  );
+}
+
+function ChartCardShimmer() {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-3 p-4">
+        <div className="h-4 w-40 animate-pulse rounded bg-muted/70" />
+        <div className="h-24 animate-pulse rounded-md border border-border bg-muted/40" />
+        <div className="grid grid-cols-6 gap-2">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div className="h-3 animate-pulse rounded bg-muted/60" key={`chart-label-${index}`} />
+          ))}
+        </div>
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted/60" />
+      </CardContent>
+    </Card>
   );
 }
 
