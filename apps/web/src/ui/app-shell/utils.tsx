@@ -4,6 +4,7 @@ import {
   getTransactionAbsoluteMinor as getCommonTransactionAbsoluteMinor,
   getTransactionCurrencyCode,
   getTransactionSignedMinor,
+  sumTransactionsByJournalTypeForMonthMinor,
   sumTransactionsByJournalTypeMinor,
   type TransactionGroupResponse,
 } from "@fastifly/common";
@@ -192,7 +193,14 @@ export function getAccountArchiveError(error: unknown): string {
 export function sumTransactionAmounts(
   transactions: readonly TransactionGroupResponse[],
   type: "expense" | "income",
+  options?: {
+    readonly monthKey?: string;
+  },
 ): bigint {
+  if (options?.monthKey) {
+    return sumTransactionsByJournalTypeForMonthMinor(transactions, type, options.monthKey);
+  }
+
   return sumTransactionsByJournalTypeMinor(transactions, type);
 }
 

@@ -34,6 +34,30 @@ describe("transaction amount helpers", () => {
     expect(sumTransactionAmounts(transactions, "income")).toBe(50000n);
   });
 
+  it("can scope totals to a month key used by dashboard monthly metrics", () => {
+    const transactions = [
+      transaction({
+        journals: [
+          journal("income", [posting("acct-income", "-100000"), posting("acct-bank", "100000")]),
+        ],
+        occurredAt: "2026-04-30T23:59:59.000Z",
+        type: "income",
+      }),
+      transaction({
+        journals: [
+          journal("income", [posting("acct-income", "-45000"), posting("acct-bank", "45000")]),
+          journal("expense", [posting("acct-bank", "-12000"), posting("acct-rent", "12000")]),
+        ],
+        occurredAt: "2026-05-01T00:00:00.000Z",
+        type: "split",
+      }),
+    ] as const;
+
+    expect(sumTransactionAmounts(transactions, "income", { monthKey: "2026-05" })).toBe(45000n);
+    expect(sumTransactionAmounts(transactions, "expense", { monthKey: "2026-05" })).toBe(12000n);
+    expect(sumTransactionAmounts(transactions, "income", { monthKey: "2026-04" })).toBe(100000n);
+  });
+
   it("formats amounts using signed direction from journal-level totals", () => {
     const splitExpense = transaction({
       journals: [
@@ -57,6 +81,7 @@ describe("transaction amount helpers", () => {
 });
 
 function transaction(input: {
+  readonly occurredAt?: string;
   readonly journals: readonly {
     readonly postings: readonly {
       readonly accountId: string;
@@ -72,7 +97,7 @@ function transaction(input: {
     journals: input.journals.map((journalEntry, journalIndex) => ({
       description: `journal-${journalIndex + 1}`,
       id: `019dfbac-3319-7773-9a7d-52fb8d9b73e${journalIndex}`,
-      occurredAt: "2026-05-10T00:00:00.000Z",
+      occurredAt: input.occurredAt ?? "2026-05-10T00:00:00.000Z",
       postings: journalEntry.postings.map((postingEntry, postingIndex) => ({
         accountId: postingEntry.accountId,
         amountMinor: postingEntry.amountMinor,

@@ -8,8 +8,11 @@ import {
   getTransactionMinorTotals,
   getTransactionOccurredAt,
   getTransactionSignedMinor,
+  sumTransactionsByJournalTypeForMonthMinor,
   sumTransactionJournalTypeMinor,
   sumTransactionsByJournalTypeMinor,
+  toUtcMonthKey,
+  toUtcMonthKeyFromIso,
   toAbsoluteAmountMinor,
 } from "../transactions.js";
 
@@ -146,6 +149,52 @@ describe("transaction domain helpers", () => {
     expect(sumTransactionsByJournalTypeMinor(transactions, "income")).toBe(100000n);
     expect(sumTransactionsByJournalTypeMinor(transactions, "expense")).toBe(20000n);
     expect(sumTransactionsByJournalTypeMinor(transactions, "transfer")).toBe(0n);
+  });
+
+  it("scopes journal type totals to a specific month key", () => {
+    const transactions = [
+      transactionGroup({
+        journals: [
+          journal({
+            occurredAt: "2026-05-01T10:00:00.000Z",
+            postings: [posting("acct-income", "-50000"), posting("acct-bank", "50000")],
+            type: "income",
+          }),
+        ],
+        type: "income",
+      }),
+      transactionGroup({
+        journals: [
+          journal({
+            occurredAt: "2026-04-30T23:59:59.000Z",
+            postings: [posting("acct-bank", "-7000"), posting("acct-rent", "7000")],
+            type: "expense",
+          }),
+          journal({
+            occurredAt: "2026-05-02T00:00:00.000Z",
+            postings: [posting("acct-bank", "-12000"), posting("acct-food", "12000")],
+            type: "expense",
+          }),
+        ],
+        type: "split",
+      }),
+    ] as const;
+
+    expect(sumTransactionsByJournalTypeForMonthMinor(transactions, "income", "2026-05")).toBe(
+      50000n,
+    );
+    expect(sumTransactionsByJournalTypeForMonthMinor(transactions, "expense", "2026-05")).toBe(
+      12000n,
+    );
+    expect(sumTransactionsByJournalTypeForMonthMinor(transactions, "expense", "2026-04")).toBe(
+      7000n,
+    );
+  });
+
+  it("normalizes valid utc month keys and rejects invalid timestamps", () => {
+    expect(toUtcMonthKey(new Date("2026-05-31T23:59:59.000Z"))).toBe("2026-05");
+    expect(toUtcMonthKeyFromIso("2026-01-05T00:00:00.000Z")).toBe("2026-01");
+    expect(toUtcMonthKeyFromIso("invalid")).toBeNull();
   });
 
   it("returns stable occurredAt and display type for UI consumers", () => {

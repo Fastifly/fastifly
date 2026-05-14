@@ -256,7 +256,10 @@ export {
   getTransactionMinorTotals,
   getTransactionOccurredAt,
   getTransactionSignedMinor,
+  sumTransactionsByJournalTypeForMonthMinor,
   sumTransactionJournalTypeMinor,
   sumTransactionsByJournalTypeMinor,
+  toUtcMonthKey,
+  toUtcMonthKeyFromIso,
   toAbsoluteAmountMinor,
 } from "./transactions.js";
