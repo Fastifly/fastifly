@@ -22,7 +22,13 @@ type LedgerQueryInput =
 type TransactionListQueryInput = Partial<
   Pick<
     ListTransactionsQuery,
-    "accountId" | "fromOccurredAt" | "limit" | "status" | "toOccurredAt" | "type"
+    | "accountId"
+    | "categoryId"
+    | "fromOccurredAt"
+    | "limit"
+    | "status"
+    | "toOccurredAt"
+    | "type"
   >
 >;
 
@@ -233,6 +239,7 @@ function makeTransactionsQueryKey(input: LedgerQueryInput, query: TransactionLis
     input?.workspaceId,
     input?.ledgerId,
     query.accountId ?? null,
+    query.categoryId ?? null,
     query.fromOccurredAt ?? null,
     query.limit ?? null,
     query.status ?? null,

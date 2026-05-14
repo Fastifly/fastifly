@@ -252,8 +252,10 @@ export const en = {
     filters: {
       account: "Account",
       allAccounts: "All accounts",
+      allCategories: "All categories",
       allStatuses: "All statuses",
       allTypes: "All",
+      category: "Category",
       reset: "Reset",
       status: "Status",
       title: "Filters",
@@ -265,7 +267,7 @@ export const en = {
     loadingMore: "Loading more...",
     loadMore: "Load more",
     retry: "Retry",
-    noFilteredTransactionsBody: "Try a different account, type, or status filter.",
+    noFilteredTransactionsBody: "Try a different account, category, type, or status filter.",
     prerequisites: {
       addAccount: "Add at least one account before recording transactions.",
       addCategory: "Create a category before adding an expense.",

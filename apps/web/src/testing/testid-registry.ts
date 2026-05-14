@@ -138,6 +138,7 @@ export const testIds = {
     page: "transactions-page",
     filters: {
       accountSelect: "transactions-filter-account-select",
+      categorySelect: "transactions-filter-category-select",
       panel: "transactions-filter-panel",
       resetButton: "transactions-filter-reset-button",
       statusSelect: "transactions-filter-status-select",
