@@ -1,4 +1,13 @@
-import type { AccountKind, AccountSubtype, SyncedId } from "@fastifly/common";
+import {
+  type CreateAccountRequest,
+  CreateAccountRequestSchema,
+  type CreateTransactionRequest,
+  CreateTransactionRequestSchema,
+  type CurrencyCode,
+  formatAmountMinor,
+  parseAmountMinor,
+  type SyncedId,
+} from "@fastifly/common";
 import { eq } from "drizzle-orm";
 
 import {
@@ -21,6 +30,7 @@ import {
   pgWorkspaces,
 } from "../postgres/schema.js";
 import {
+  type CreateAccountInput,
   createPostgresAccountRepository,
   createSqliteAccountRepository,
 } from "../repositories/accounts.js";
@@ -70,33 +80,91 @@ type SeedFoundationContext = {
 type SeedAccount = {
   readonly id: SyncedId;
   readonly sequenceBase: number;
-  readonly name: string;
-  readonly kind: AccountKind;
-  readonly subtype: AccountSubtype;
-};
+} & Omit<CreateAccountInput, "workspaceId" | "ledgerId" | "createdBy">;
 
-type SeedTransaction = Pick<
-  CreateTransactionInput,
-  | "currencyCode"
-  | "description"
-  | "lines"
-  | "occurredAt"
-  | "sourceAccountId"
-  | "status"
-  | "title"
-  | "type"
-> & {
+type SeedTransaction = {
   readonly id: SyncedId;
   readonly sequenceBase: number;
+} & Omit<CreateTransactionInput, "workspaceId" | "ledgerId" | "createdBy" | "source">;
+
+type SeedCurrency = {
+  readonly code: CurrencyCode;
+  readonly decimalPlaces: number;
+  readonly name: string;
+  readonly symbol: string;
 };
 
-const seedCurrencies = [
+type SeedBudgetLimit = {
+  readonly amountMinor: bigint;
+  readonly budgetId: SyncedId;
+  readonly categoryId: SyncedId;
+  readonly currencyCode: CurrencyCode;
+  readonly endDate: string;
+  readonly id: SyncedId;
+  readonly startDate: string;
+};
+
+const seedCurrencies: readonly SeedCurrency[] = [
   { code: "INR", decimalPlaces: 2, name: "Indian Rupee", symbol: "₹" },
   { code: "USD", decimalPlaces: 2, name: "US Dollar", symbol: "$" },
   { code: "EUR", decimalPlaces: 2, name: "Euro", symbol: "€" },
 ] as const;
 
-const seedBudgetLimits = [
+const seedBudgetLimits: readonly SeedBudgetLimit[] = [
+  {
+    amountMinor: 36_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+    categoryId: SEED_IDS.CATEGORY_FOOD,
+    currencyCode: "INR",
+    endDate: "2026-03-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_FOOD_MAR_2026,
+    startDate: "2026-03-01",
+  },
+  {
+    amountMinor: 70_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+    categoryId: SEED_IDS.CATEGORY_HOUSING,
+    currencyCode: "INR",
+    endDate: "2026-03-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_LIVING_MAR_2026,
+    startDate: "2026-03-01",
+  },
+  {
+    amountMinor: 10_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+    categoryId: SEED_IDS.CATEGORY_TRANSPORT,
+    currencyCode: "INR",
+    endDate: "2026-03-31",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_TRANSPORT_MAR_2026,
+    startDate: "2026-03-01",
+  },
+  {
+    amountMinor: 38_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+    categoryId: SEED_IDS.CATEGORY_FOOD,
+    currencyCode: "INR",
+    endDate: "2026-04-30",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_FOOD_APR_2026,
+    startDate: "2026-04-01",
+  },
+  {
+    amountMinor: 82_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+    categoryId: SEED_IDS.CATEGORY_HOUSING,
+    currencyCode: "INR",
+    endDate: "2026-04-30",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_LIVING_APR_2026,
+    startDate: "2026-04-01",
+  },
+  {
+    amountMinor: 12_000_00n,
+    budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+    categoryId: SEED_IDS.CATEGORY_TRANSPORT,
+    currencyCode: "INR",
+    endDate: "2026-04-30",
+    id: SEED_IDS.BUDGET_LIMIT_MONTHLY_TRANSPORT_APR_2026,
+    startDate: "2026-04-01",
+  },
   {
     amountMinor: 40_000_00n,
     budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
@@ -126,9 +194,10 @@ const seedBudgetLimits = [
   },
 ] as const;
 
-const seedAccounts = [
+const seedAccounts: readonly SeedAccount[] = [
   {
     id: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
     kind: "asset",
     name: "HDFC Checking",
     sequenceBase: 21_000,
@@ -136,6 +205,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_CASH,
+    currencyCode: "INR",
     kind: "asset",
     name: "Cash Wallet",
     sequenceBase: 22_000,
@@ -143,6 +213,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_SAVINGS,
+    currencyCode: "INR",
     kind: "asset",
     name: "Emergency Savings",
     sequenceBase: 23_000,
@@ -150,6 +221,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_CREDIT_CARD,
+    currencyCode: "INR",
     kind: "liability",
     name: "Credit Card",
     sequenceBase: 24_000,
@@ -157,6 +229,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
     kind: "revenue",
     name: "Salary",
     sequenceBase: 25_000,
@@ -164,13 +237,23 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_INTEREST,
+    currencyCode: "INR",
     kind: "revenue",
     name: "Interest",
     sequenceBase: 26_000,
     subtype: "external",
   },
   {
+    id: SEED_IDS.ACCOUNT_REFUNDS,
+    currencyCode: "INR",
+    kind: "revenue",
+    name: "Refunds & Cashback",
+    sequenceBase: 26_500,
+    subtype: "external",
+  },
+  {
     id: SEED_IDS.ACCOUNT_GROCERIES,
+    currencyCode: "INR",
     kind: "expense",
     name: "Groceries",
     sequenceBase: 27_000,
@@ -178,6 +261,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_DINING,
+    currencyCode: "INR",
     kind: "expense",
     name: "Dining Out",
     sequenceBase: 28_000,
@@ -185,6 +269,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_RENT,
+    currencyCode: "INR",
     kind: "expense",
     name: "Rent",
     sequenceBase: 29_000,
@@ -192,6 +277,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_UTILITIES,
+    currencyCode: "INR",
     kind: "expense",
     name: "Utilities",
     sequenceBase: 30_000,
@@ -199,6 +285,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_TRANSPORT,
+    currencyCode: "INR",
     kind: "expense",
     name: "Transport",
     sequenceBase: 31_000,
@@ -206,6 +293,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_HEALTH,
+    currencyCode: "INR",
     kind: "expense",
     name: "Healthcare",
     sequenceBase: 32_000,
@@ -213,6 +301,7 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_SHOPPING,
+    currencyCode: "INR",
     kind: "expense",
     name: "Shopping",
     sequenceBase: 33_000,
@@ -220,32 +309,33 @@ const seedAccounts = [
   },
   {
     id: SEED_IDS.ACCOUNT_ENTERTAINMENT,
+    currencyCode: "INR",
     kind: "expense",
     name: "Entertainment",
     sequenceBase: 34_000,
     subtype: "external",
   },
-] as const satisfies readonly SeedAccount[];
+] as const;
 
-const demoTransactions = [
+const demoTransactions: readonly SeedTransaction[] = [
   {
-    id: SEED_IDS.TX_SALARY,
-    sequenceBase: 61_000,
+    id: SEED_IDS.TX_NOV_SALARY,
+    sequenceBase: 53_000,
     type: "income",
-    title: "May salary",
-    description: "May salary",
-    occurredAt: "2026-05-01T09:00:00.000Z",
+    title: "November salary",
+    description: "November salary",
+    occurredAt: "2025-11-01T09:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
     currencyCode: "INR",
-    lines: [{ amountMinor: 250_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+    lines: [{ amountMinor: 200_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
   },
   {
-    id: SEED_IDS.TX_RENT,
-    sequenceBase: 62_000,
+    id: SEED_IDS.TX_NOV_RENT,
+    sequenceBase: 54_000,
     type: "expense",
-    title: "Monthly rent",
-    description: "Monthly rent",
-    occurredAt: "2026-05-02T10:00:00.000Z",
+    title: "November rent",
+    description: "November rent",
+    occurredAt: "2025-11-02T10:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
     lines: [
@@ -257,29 +347,464 @@ const demoTransactions = [
     ],
   },
   {
-    id: SEED_IDS.TX_GROCERIES,
-    sequenceBase: 63_000,
+    id: SEED_IDS.TX_DEC_SALARY,
+    sequenceBase: 55_000,
+    type: "income",
+    title: "December salary",
+    description: "December salary",
+    occurredAt: "2025-12-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 200_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_DEC_SHOPPING,
+    sequenceBase: 56_000,
     type: "expense",
-    title: "Weekly groceries",
-    description: "Weekly groceries",
-    occurredAt: "2026-05-04T18:30:00.000Z",
+    title: "Year-end shopping",
+    description: "Year-end shopping",
+    occurredAt: "2025-12-21T16:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
     lines: [
       {
-        amountMinor: 6_850_00n,
+        amountMinor: 95_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_JAN_SALARY,
+    sequenceBase: 57_000,
+    type: "income",
+    title: "January salary",
+    description: "January salary",
+    occurredAt: "2026-01-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 210_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_JAN_TRANSFER_SAVINGS,
+    sequenceBase: 58_000,
+    type: "transfer",
+    title: "January savings transfer",
+    description: "January savings transfer",
+    occurredAt: "2026-01-22T08:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 35_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
+  },
+  {
+    id: SEED_IDS.TX_JAN_MEDICAL_ADVANCE,
+    sequenceBase: 58_500,
+    type: "expense",
+    title: "Family medical advance",
+    description: "Family medical advance",
+    occurredAt: "2026-01-25T11:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 750_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_FEB_SALARY,
+    sequenceBase: 59_000,
+    type: "income",
+    title: "February salary",
+    description: "February salary",
+    occurredAt: "2026-02-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 210_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_FEB_UTILITIES,
+    sequenceBase: 60_000,
+    type: "expense",
+    title: "February utilities",
+    description: "February utilities",
+    occurredAt: "2026-02-19T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 3_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_SALARY,
+    sequenceBase: 61_000,
+    type: "income",
+    title: "March salary",
+    description: "March salary",
+    occurredAt: "2026-03-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 220_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_MAR_RENT,
+    sequenceBase: 62_000,
+    type: "expense",
+    title: "March rent",
+    description: "March rent",
+    occurredAt: "2026-03-02T10:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 45_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_RENT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_GROCERIES_WEEK1,
+    sequenceBase: 63_000,
+    type: "expense",
+    title: "Groceries week 1",
+    description: "Groceries week 1",
+    occurredAt: "2026-03-06T18:30:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 4_200_00n,
         budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
         destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
       },
     ],
   },
   {
-    id: SEED_IDS.TX_DINING,
+    id: SEED_IDS.TX_MAR_GROCERIES_WEEK3,
     sequenceBase: 64_000,
+    type: "expense",
+    title: "Groceries week 3",
+    description: "Groceries week 3",
+    occurredAt: "2026-03-18T19:20:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 5_100_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_UTILITIES,
+    sequenceBase: 65_000,
+    type: "expense",
+    title: "March electricity",
+    description: "March electricity",
+    occurredAt: "2026-03-20T08:40:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 2_600_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_TRANSFER_SAVINGS,
+    sequenceBase: 66_000,
+    type: "transfer",
+    title: "March savings transfer",
+    description: "March savings transfer",
+    occurredAt: "2026-03-22T08:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 30_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
+  },
+  {
+    id: SEED_IDS.TX_MAR_SPLIT_MARKET,
+    sequenceBase: 67_000,
+    type: "expense",
+    title: "March market run",
+    description: "March market run",
+    occurredAt: "2026-03-24T18:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 3_800_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        description: "Food staples",
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+      {
+        amountMinor: 1_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        description: "Home supplies",
+        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_DINING,
+    sequenceBase: 68_000,
     type: "expense",
     title: "Dinner with friends",
     description: "Dinner with friends",
-    occurredAt: "2026-05-05T20:00:00.000Z",
+    occurredAt: "2026-03-27T20:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 1_800_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_DINING,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAR_INTEREST,
+    sequenceBase: 69_000,
+    type: "income",
+    title: "March interest",
+    description: "March interest",
+    occurredAt: "2026-03-31T08:50:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_INTEREST,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 450_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
+  },
+  {
+    id: SEED_IDS.TX_APR_SALARY,
+    sequenceBase: 70_000,
+    type: "income",
+    title: "April salary",
+    description: "April salary",
+    occurredAt: "2026-04-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 220_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_APR_RENT,
+    sequenceBase: 71_000,
+    type: "expense",
+    title: "April rent",
+    description: "April rent",
+    occurredAt: "2026-04-02T10:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 45_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_RENT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_MEDICAL,
+    sequenceBase: 72_000,
+    type: "expense",
+    title: "Emergency medical expense",
+    description: "Emergency medical expense",
+    occurredAt: "2026-04-08T12:10:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 92_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_TRAVEL_BOOKING,
+    sequenceBase: 73_000,
+    type: "expense",
+    title: "Travel booking",
+    description: "Family travel booking",
+    occurredAt: "2026-04-11T14:30:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 68_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+        destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_UTILITIES,
+    sequenceBase: 74_000,
+    type: "expense",
+    title: "April utilities",
+    description: "April utilities",
+    occurredAt: "2026-04-16T09:05:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 3_400_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_GROCERIES,
+    sequenceBase: 75_000,
+    type: "expense",
+    title: "April groceries",
+    description: "April groceries",
+    occurredAt: "2026-04-19T18:20:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 7_600_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_CARD_SHOPPING,
+    sequenceBase: 76_000,
+    type: "expense",
+    title: "Appliance shopping",
+    description: "Appliance shopping",
+    occurredAt: "2026-04-22T15:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 17_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_APR_CASH_WITHDRAWAL,
+    sequenceBase: 77_000,
+    type: "transfer",
+    title: "ATM withdrawal",
+    description: "ATM withdrawal",
+    occurredAt: "2026-04-25T11:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 6_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CASH }],
+  },
+  {
+    id: SEED_IDS.TX_APR_METRO_PASS,
+    sequenceBase: 78_000,
+    type: "expense",
+    title: "Metro pass",
+    description: "Metro pass",
+    occurredAt: "2026-04-25T18:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CASH,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 1_800_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
+        destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAY_SALARY,
+    sequenceBase: 79_000,
+    type: "income",
+    title: "May salary",
+    description: "May salary",
+    occurredAt: "2026-05-01T09:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_SALARY,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 250_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_MAY_BONUS,
+    sequenceBase: 80_000,
+    type: "income",
+    title: "Performance bonus",
+    description: "Performance bonus",
+    occurredAt: "2026-05-03T10:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_REFUNDS,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 110_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_MAY_RENT,
+    sequenceBase: 81_000,
+    type: "expense",
+    title: "May rent",
+    description: "May rent",
+    occurredAt: "2026-05-03T12:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 45_000_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_RENT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAY_SPLIT_MARKET,
+    sequenceBase: 82_000,
+    type: "expense",
+    title: "May market run",
+    description: "May market run",
+    occurredAt: "2026-05-04T18:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 4_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        description: "Food staples",
+        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+      },
+      {
+        amountMinor: 1_800_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        description: "Home supplies",
+        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAY_TRANSFER_SAVINGS,
+    sequenceBase: 83_000,
+    type: "transfer",
+    title: "May savings transfer",
+    description: "May savings transfer",
+    occurredAt: "2026-05-06T08:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 55_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
+  },
+  {
+    id: SEED_IDS.TX_MAY_DINING,
+    sequenceBase: 84_000,
+    type: "expense",
+    title: "Team dinner",
+    description: "Team dinner",
+    occurredAt: "2026-05-07T20:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
     currencyCode: "INR",
     lines: [
@@ -291,153 +816,22 @@ const demoTransactions = [
     ],
   },
   {
-    id: SEED_IDS.TX_TRANSFER_SAVINGS,
-    sequenceBase: 65_000,
-    type: "transfer",
-    title: "Move to savings",
-    description: "Move to savings",
-    occurredAt: "2026-05-06T08:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
-    currencyCode: "INR",
-    lines: [{ amountMinor: 50_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
-  },
-] as const satisfies readonly SeedTransaction[];
-
-const e2eTransactions = [
-  {
-    id: SEED_IDS.TX_UTILITIES,
-    sequenceBase: 66_000,
-    type: "expense",
-    title: "Electricity bill",
-    description: "Electricity bill",
-    occurredAt: "2026-05-07T12:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 3_250_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
-        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_CASH_WITHDRAWAL,
-    sequenceBase: 67_000,
-    type: "transfer",
-    title: "ATM withdrawal",
-    description: "ATM withdrawal",
-    occurredAt: "2026-05-08T11:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
-    currencyCode: "INR",
-    lines: [{ amountMinor: 5_000_00n, destinationAccountId: SEED_IDS.ACCOUNT_CASH }],
-  },
-  {
-    id: SEED_IDS.TX_PHARMACY,
-    sequenceBase: 68_000,
-    type: "expense",
-    title: "Pharmacy",
-    description: "Pharmacy",
-    occurredAt: "2026-05-08T19:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CASH,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 850_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
-        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_INTEREST,
-    sequenceBase: 69_000,
+    id: SEED_IDS.TX_MAY_INTEREST,
+    sequenceBase: 85_000,
     type: "income",
-    title: "Savings interest",
-    description: "Savings interest",
+    title: "May interest",
+    description: "May interest",
     occurredAt: "2026-05-09T09:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_INTEREST,
     currencyCode: "INR",
-    lines: [{ amountMinor: 625_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
+    lines: [{ amountMinor: 620_00n, destinationAccountId: SEED_IDS.ACCOUNT_SAVINGS }],
   },
+] as const;
+
+const e2eTransactions: readonly SeedTransaction[] = [
   {
-    id: SEED_IDS.TX_SPLIT_MARKET,
-    sequenceBase: 70_000,
-    type: "expense",
-    title: "Market run",
-    description: "Market run",
-    occurredAt: "2026-05-09T18:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 4_200_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
-        description: "Food staples",
-        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
-      },
-      {
-        amountMinor: 1_300_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
-        description: "Home supplies",
-        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_CARD_SHOPPING,
-    sequenceBase: 71_000,
-    type: "expense",
-    title: "Clothes",
-    description: "Clothes",
-    occurredAt: "2026-05-10T15:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 3_750_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
-        destinationAccountId: SEED_IDS.ACCOUNT_SHOPPING,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_BUS_PASS,
-    sequenceBase: 72_000,
-    type: "expense",
-    title: "Metro pass",
-    description: "Metro pass",
-    occurredAt: "2026-05-11T08:30:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 1_500_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
-        destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_COFFEE,
-    sequenceBase: 73_000,
-    type: "expense",
-    title: "Coffee",
-    description: "Coffee",
-    occurredAt: "2026-05-11T17:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CASH,
-    currencyCode: "INR",
-    lines: [
-      {
-        amountMinor: 240_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
-        destinationAccountId: SEED_IDS.ACCOUNT_DINING,
-      },
-    ],
-  },
-  {
-    id: SEED_IDS.TX_PENDING_BILL,
-    sequenceBase: 74_000,
+    id: SEED_IDS.TX_MAY_PENDING_BILL,
+    sequenceBase: 86_000,
     type: "expense",
     status: "pending",
     title: "Pending internet bill",
@@ -454,42 +848,53 @@ const e2eTransactions = [
     ],
   },
   {
-    id: SEED_IDS.TX_QA_GROCERIES_2,
-    sequenceBase: 75_000,
+    id: SEED_IDS.TX_MAY_PHARMACY,
+    sequenceBase: 87_000,
     type: "expense",
-    title: "Fruit and vegetables",
-    description: "Fruit and vegetables",
+    title: "Pharmacy",
+    description: "Pharmacy",
     occurredAt: "2026-05-12T19:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
+    sourceAccountId: SEED_IDS.ACCOUNT_CASH,
     currencyCode: "INR",
     lines: [
       {
-        amountMinor: 1_120_00n,
-        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
-        destinationAccountId: SEED_IDS.ACCOUNT_GROCERIES,
+        amountMinor: 1_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
       },
     ],
   },
   {
-    id: SEED_IDS.TX_QA_DINING_2,
-    sequenceBase: 76_000,
+    id: SEED_IDS.TX_MAY_REFUND,
+    sequenceBase: 88_000,
+    type: "income",
+    title: "Merchant refund",
+    description: "Merchant refund",
+    occurredAt: "2026-05-13T10:10:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_REFUNDS,
+    currencyCode: "INR",
+    lines: [{ amountMinor: 9_500_00n, destinationAccountId: SEED_IDS.ACCOUNT_CHECKING }],
+  },
+  {
+    id: SEED_IDS.TX_MAY_COFFEE,
+    sequenceBase: 89_000,
     type: "expense",
-    title: "Lunch",
-    description: "Lunch",
-    occurredAt: "2026-05-13T13:00:00.000Z",
-    sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
+    title: "Coffee",
+    description: "Coffee",
+    occurredAt: "2026-05-13T17:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CASH,
     currencyCode: "INR",
     lines: [
       {
-        amountMinor: 680_00n,
+        amountMinor: 260_00n,
         budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
         destinationAccountId: SEED_IDS.ACCOUNT_DINING,
       },
     ],
   },
   {
-    id: SEED_IDS.TX_QA_TRANSPORT_2,
-    sequenceBase: 77_000,
+    id: SEED_IDS.TX_MAY_RIDE_SHARE,
+    sequenceBase: 90_000,
     type: "expense",
     title: "Ride share",
     description: "Ride share",
@@ -498,30 +903,52 @@ const e2eTransactions = [
     currencyCode: "INR",
     lines: [
       {
-        amountMinor: 520_00n,
+        amountMinor: 620_00n,
         budgetId: SEED_IDS.BUDGET_MONTHLY_TRANSPORT,
         destinationAccountId: SEED_IDS.ACCOUNT_TRANSPORT,
       },
     ],
   },
   {
-    id: SEED_IDS.TX_QA_HEALTH_2,
-    sequenceBase: 78_000,
+    id: SEED_IDS.TX_MAY_ENTERTAINMENT,
+    sequenceBase: 91_000,
     type: "expense",
-    title: "Doctor visit",
-    description: "Doctor visit",
-    occurredAt: "2026-05-14T10:30:00.000Z",
+    title: "Weekend movie",
+    description: "Weekend movie",
+    occurredAt: "2026-05-14T13:00:00.000Z",
+    sourceAccountId: SEED_IDS.ACCOUNT_CREDIT_CARD,
+    currencyCode: "INR",
+    lines: [
+      {
+        amountMinor: 2_200_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_FOOD,
+        destinationAccountId: SEED_IDS.ACCOUNT_ENTERTAINMENT,
+      },
+    ],
+  },
+  {
+    id: SEED_IDS.TX_MAY_SPLIT_HOME_REPAIR,
+    sequenceBase: 92_000,
+    type: "expense",
+    title: "Home repair",
+    description: "Home repair",
+    occurredAt: "2026-05-14T18:00:00.000Z",
     sourceAccountId: SEED_IDS.ACCOUNT_CHECKING,
     currencyCode: "INR",
     lines: [
       {
-        amountMinor: 2_000_00n,
+        amountMinor: 2_600_00n,
+        budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
+        destinationAccountId: SEED_IDS.ACCOUNT_UTILITIES,
+      },
+      {
+        amountMinor: 1_400_00n,
         budgetId: SEED_IDS.BUDGET_MONTHLY_LIVING,
         destinationAccountId: SEED_IDS.ACCOUNT_HEALTH,
       },
     ],
   },
-] as const satisfies readonly SeedTransaction[];
+] as const;
 
 export async function seedDatabase(input: SeedDatabaseInput): Promise<void> {
   if (input.driver === "sqlite") {
@@ -625,7 +1052,9 @@ async function seedDemoSqlite(
 }
 
 async function seedDemoPostgres(db: PostgresDatabase): Promise<SeedFoundationContext> {
-  const foundation = await runSeedStage("postgres:demo:foundation", () => seedFoundationPostgres(db));
+  const foundation = await runSeedStage("postgres:demo:foundation", () =>
+    seedFoundationPostgres(db),
+  );
   await runSeedStage("postgres:demo:accounts", () => seedAccountsPostgres(db));
   await runSeedStage("postgres:demo:reference-data", () => seedReferenceDataPostgres(db));
   await runSeedStage("postgres:demo:budget-limits", () => seedBudgetLimitsPostgres(db));
@@ -1128,12 +1557,17 @@ async function seedAccountsSqlite(client: SqliteClient): Promise<void> {
     const repository = createSqliteAccountRepository(client, {
       createId: createSeedIdGenerator(account.id, account.sequenceBase),
     });
+    const request = toCreateAccountRequest(account);
     await repository.createAccount({
-      currencyCode: "INR",
-      kind: account.kind,
+      currencyCode: request.currencyCode,
+      kind: request.kind,
       ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
-      name: account.name,
-      subtype: account.subtype,
+      name: request.name,
+      openingBalanceDate: request.openingBalanceDate ?? null,
+      openingBalanceMinor: request.openingBalanceMinor
+        ? parseAmountMinor(request.openingBalanceMinor)
+        : null,
+      subtype: request.subtype,
       workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
     });
   }
@@ -1156,12 +1590,17 @@ async function seedAccountsPostgres(db: PostgresDatabase): Promise<void> {
     const repository = createPostgresAccountRepository(db, {
       createId: createSeedIdGenerator(account.id, account.sequenceBase),
     });
+    const request = toCreateAccountRequest(account);
     await repository.createAccount({
-      currencyCode: "INR",
-      kind: account.kind,
+      currencyCode: request.currencyCode,
+      kind: request.kind,
       ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
-      name: account.name,
-      subtype: account.subtype,
+      name: request.name,
+      openingBalanceDate: request.openingBalanceDate ?? null,
+      openingBalanceMinor: request.openingBalanceMinor
+        ? parseAmountMinor(request.openingBalanceMinor)
+        : null,
+      subtype: request.subtype,
       workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
     });
   }
@@ -1188,13 +1627,8 @@ async function seedTransactionsSqlite(
     const repository = createSqliteTransactionWriteRepository(client, {
       createId: createSeedIdGenerator(transaction.id, transaction.sequenceBase),
     });
-    await repository.createTransaction({
-      ...transaction,
-      createdBy: ownerUserId,
-      ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
-      source: "manual",
-      workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-    });
+    const request = toCreateTransactionRequest(transaction);
+    await repository.createTransaction(toRepositoryCreateTransactionInput(request, ownerUserId));
   }
 }
 
@@ -1219,13 +1653,8 @@ async function seedTransactionsPostgres(
     const repository = createPostgresTransactionWriteRepository(db, {
       createId: createSeedIdGenerator(transaction.id, transaction.sequenceBase),
     });
-    await repository.createTransaction({
-      ...transaction,
-      createdBy: ownerUserId,
-      ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
-      source: "manual",
-      workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
-    });
+    const request = toCreateTransactionRequest(transaction);
+    await repository.createTransaction(toRepositoryCreateTransactionInput(request, ownerUserId));
   }
 }
 
@@ -1242,6 +1671,80 @@ function createSeedIdGenerator(first: SyncedId, sequenceBase: number): () => Syn
     next += 1;
     return seedId(next);
   };
+}
+
+function toCreateAccountRequest(account: SeedAccount): CreateAccountRequest {
+  const request: CreateAccountRequest = {
+    currencyCode: account.currencyCode,
+    kind: account.kind,
+    name: account.name,
+    openingBalanceDate:
+      typeof account.openingBalanceDate === "string" ? account.openingBalanceDate : null,
+    openingBalanceMinor:
+      typeof account.openingBalanceMinor === "bigint"
+        ? formatAmountMinor(account.openingBalanceMinor)
+        : null,
+    subtype: account.subtype,
+  };
+  return CreateAccountRequestSchema.parse(request);
+}
+
+function toCreateTransactionRequest(transaction: SeedTransaction): CreateTransactionRequest {
+  const requestBase = {
+    currencyCode: transaction.currencyCode,
+    description: transaction.description,
+    occurredAt: transaction.occurredAt,
+    source: "manual",
+    sourceAccountId: transaction.sourceAccountId,
+    title: transaction.title ?? null,
+    transactions: transaction.lines.map((line) => ({
+      amountMinor: formatAmountMinor(line.amountMinor),
+      budgetId: line.budgetId ?? null,
+      categoryId: line.categoryId ?? null,
+      description: line.description ?? null,
+      destinationAccountId: line.destinationAccountId,
+      reportingAmountMinor:
+        typeof line.reportingAmountMinor === "bigint"
+          ? formatAmountMinor(line.reportingAmountMinor)
+          : null,
+      reportingCurrencyCode: line.reportingCurrencyCode ?? null,
+    })),
+    type: transaction.type,
+  } satisfies Omit<CreateTransactionRequest, "status">;
+  const request: CreateTransactionRequest = transaction.status
+    ? { ...requestBase, status: transaction.status }
+    : requestBase;
+  return CreateTransactionRequestSchema.parse(request);
+}
+
+function toRepositoryCreateTransactionInput(
+  request: CreateTransactionRequest,
+  ownerUserId: SyncedId,
+): CreateTransactionInput {
+  const baseInput = {
+    currencyCode: request.currencyCode,
+    createdBy: ownerUserId,
+    description: request.description,
+    ledgerId: SEED_IDS.LEDGER_HOUSEHOLD,
+    lines: request.transactions.map((line) => ({
+      amountMinor: parseAmountMinor(line.amountMinor),
+      budgetId: line.budgetId ?? null,
+      categoryId: line.categoryId ?? null,
+      description: line.description ?? null,
+      destinationAccountId: line.destinationAccountId,
+      reportingAmountMinor: line.reportingAmountMinor
+        ? parseAmountMinor(line.reportingAmountMinor)
+        : null,
+      reportingCurrencyCode: line.reportingCurrencyCode ?? null,
+    })),
+    occurredAt: request.occurredAt,
+    source: request.source ?? "manual",
+    sourceAccountId: request.sourceAccountId,
+    title: request.title ?? null,
+    type: request.type,
+    workspaceId: SEED_IDS.WORKSPACE_HOUSEHOLD,
+  } satisfies Omit<CreateTransactionInput, "status">;
+  return request.status ? { ...baseInput, status: request.status } : baseInput;
 }
 
 async function upsertSeedSqliteUser(
