@@ -1,4 +1,4 @@
-import { formatMoneyMinor, isUserHeldAccountKind } from "@fastifly/common";
+import { formatMoneyMinor, isUserHeldAccountKind, toUtcMonthKey } from "@fastifly/common";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Button } from "@ui/button";
@@ -251,16 +251,17 @@ export function AppShell({ children }: PropsWithChildren) {
   const syncLastOperationAt = syncStatusQuery.data?.data.lastOperationAt ?? null;
   const syncConflicts = syncConflictsQuery.data?.data.conflicts ?? [];
   const transactions = transactionsQuery.data?.data ?? [];
+  const currentMonthKey = toUtcMonthKey(new Date());
   const userHeldAccounts = accounts.filter((account) => isUserHeldAccountKind(account.kind));
   const assetAccounts = userHeldAccounts.filter((account) => account.kind === "asset");
   const liabilityAccounts = userHeldAccounts.filter((account) => account.kind === "liability");
-  const incomeMinor = sumTransactionAmounts(transactions, "income");
-  const expenseMinor = sumTransactionAmounts(transactions, "expense");
+  const incomeMinor = sumTransactionAmounts(transactions, "income", { monthKey: currentMonthKey });
+  const expenseMinor = sumTransactionAmounts(transactions, "expense", {
+    monthKey: currentMonthKey,
+  });
   const transferCount = transactions.filter(
     (transaction) => transaction.type === "transfer",
   ).length;
-  const netWorthMinor = sumAccountBalances([...assetAccounts, ...liabilityAccounts]);
-  const netWorth = formatMoneyMinor(netWorthMinor, reportingCurrencyCode);
   const cashAndBank = formatMoneyMinor(sumAccountBalances(assetAccounts), reportingCurrencyCode);
   const liabilities = formatMoneyMinor(
     sumAccountBalances(liabilityAccounts),
@@ -271,8 +272,6 @@ export function AppShell({ children }: PropsWithChildren) {
   const cashflow = formatMoneyMinor(incomeMinor - expenseMinor, reportingCurrencyCode);
   const spendingRate =
     incomeMinor > 0n ? `${((expenseMinor * 100n) / incomeMinor).toString()}%` : "0%";
-  const moneySummaryValue =
-    meContext.isPending || accountsQuery.isPending ? en.shell.loadingData : netWorth;
   const accountPreview = userHeldAccounts.slice(0, 5);
 
   if (isAuthRoute) {
@@ -348,7 +347,6 @@ export function AppShell({ children }: PropsWithChildren) {
             isUpdateReady={isUpdateReady}
             ledgerContext={ledgerContext}
             liabilities={liabilities}
-            moneySummaryValue={moneySummaryValue}
             onApplyUpdate={() => {
               setIsUpdateReady(false);
               void activateServiceWorkerUpdate();
@@ -366,6 +364,7 @@ export function AppShell({ children }: PropsWithChildren) {
             reportingCurrencyCode={reportingCurrencyCode}
             transactions={transactions}
             transactionCount={transactions.length}
+            transactionsLoading={transactionsQuery.isPending}
             theme={theme}
             transferCount={transferCount}
             workspaceId={meContext.data.data.activeWorkspace.id}

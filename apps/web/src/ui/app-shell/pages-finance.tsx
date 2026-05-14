@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card } from "@ui/card";
+import { Separator } from "@ui/separator";
 import {
   ArrowDownLeft,
   ArrowRight,
@@ -559,12 +560,36 @@ export function SyncPage({
 export function DashboardAside({
   accountPreview,
   accountsLoading,
+  cashAndBank,
+  liabilities,
 }: {
   readonly accountPreview: readonly AccountWithBalanceResponse[];
   readonly accountsLoading: boolean;
+  readonly cashAndBank: string;
+  readonly liabilities: string;
 }) {
   return (
     <aside className="flex flex-col gap-4" data-testid={testIds.dashboard.aside}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2" data-testid={testIds.dashboard.summaryMetrics}>
+          <MetricTile
+            dense
+            icon={WalletCards}
+            label={en.shell.cashAndBank}
+            testId={testIds.dashboard.cashAndBankMetric}
+            value={cashAndBank}
+          />
+          <MetricTile
+            dense
+            icon={RefreshCcw}
+            label={en.shell.liabilities}
+            testId={testIds.dashboard.liabilitiesMetric}
+            tone="rose"
+            value={liabilities}
+          />
+        </div>
+        <Separator />
+      </div>
       <GlassSection title={en.shell.accountBalances} testId={testIds.dashboard.accountBalances}>
         <div
           className="grid grid-cols-2 gap-2.5"
