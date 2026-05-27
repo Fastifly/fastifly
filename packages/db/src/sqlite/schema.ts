@@ -5,9 +5,11 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import type {
   AuditAction,
   ImportJobStatus,
+  ImportKind,
   JobQueueStatus,
   JsonObject,
   RecurringCadence,
+  RecurringOccurrenceStatus,
   RecurringTemplateStatus,
   RuleActionType,
   SyncConflictStatus,
@@ -638,10 +640,12 @@ export const sqliteImportJobs = sqliteTable(
     workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
     ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
     fileName: text("file_name"),
+    kind: text("kind").$type<ImportKind>().notNull().default("csv"),
     csvText: text("csv_text").notNull(),
     previewRowsJson: text("preview_rows_json", { mode: "json" })
       .$type<readonly JsonObject[]>()
       .notNull(),
+    planJson: text("plan_json", { mode: "json" }).$type<JsonObject>(),
     status: text("status").$type<ImportJobStatus>().notNull(),
     committedGroupIdsJson: text("committed_group_ids_json", { mode: "json" })
       .$type<readonly string[]>()
@@ -659,6 +663,7 @@ export const sqliteImportJobs = sqliteTable(
       "import_jobs_status_check",
       sql`${table.status} IN ('preview_ready', 'committed', 'undone', 'failed')`,
     ),
+    check("import_jobs_kind_check", sql`${table.kind} IN ('csv', 'actual_budget')`),
   ],
 );
 
@@ -722,6 +727,38 @@ export const sqliteRecurringTemplates = sqliteTable(
       sql`${table.status} IN ('active', 'paused', 'archived')`,
     ),
     check("recurring_templates_interval_check", sql`${table.intervalCount} >= 1`),
+  ],
+);
+
+export const sqliteRecurringOccurrences = sqliteTable(
+  "recurring_occurrences",
+  {
+    id: idText(),
+    workspaceId: requiredIdText("workspace_id").references(() => sqliteWorkspaces.id),
+    ledgerId: requiredIdText("ledger_id").references(() => sqliteLedgers.id),
+    recurringTemplateId: requiredIdText("recurring_template_id").references(
+      () => sqliteRecurringTemplates.id,
+    ),
+    scheduledFor: timestampText("scheduled_for"),
+    transactionGroupId: text("transaction_group_id").references(
+      () => sqliteTransactionGroups.id,
+    ),
+    status: text("status").$type<RecurringOccurrenceStatus>().notNull(),
+    errorMessage: text("error_message"),
+    createdAt: timestampText("created_at"),
+    updatedAt: timestampText("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("recurring_occurrences_template_scheduled_unique").on(
+      table.recurringTemplateId,
+      table.scheduledFor,
+    ),
+    index("recurring_occurrences_workspace_ledger_idx").on(table.workspaceId, table.ledgerId),
+    index("recurring_occurrences_template_idx").on(table.recurringTemplateId),
+    check(
+      "recurring_occurrences_status_check",
+      sql`${table.status} IN ('generated', 'skipped', 'failed')`,
+    ),
   ],
 );
 
@@ -956,6 +993,7 @@ export const sqliteSchema = {
   payeeAliases: sqlitePayeeAliases,
   payeeMappings: sqlitePayeeMappings,
   payees: sqlitePayees,
+  recurringOccurrences: sqliteRecurringOccurrences,
   recurringTemplates: sqliteRecurringTemplates,
   recoveryCodes: sqliteRecoveryCodes,
   rules: sqliteRules,

@@ -41,6 +41,7 @@ describe("PostgreSQL-compat migrations (PGlite)", () => {
         "payee_mappings",
         "payees",
         "recovery_codes",
+        "recurring_occurrences",
         "recurring_templates",
         "rules",
         "sessions",

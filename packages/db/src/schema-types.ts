@@ -4,11 +4,15 @@ export type JobQueueStatus = "available" | "running" | "succeeded" | "failed" | 
 
 export type ImportJobStatus = "preview_ready" | "committed" | "undone" | "failed";
 
+export type ImportKind = "csv" | "actual_budget";
+
 export type RuleActionType = "set_transaction_status";
 
 export type RecurringCadence = "daily" | "weekly" | "monthly";
 
 export type RecurringTemplateStatus = "active" | "paused" | "archived";
+
+export type RecurringOccurrenceStatus = "generated" | "skipped" | "failed";
 
 export type SyncOperationStatus = "accepted" | "rejected" | "conflict" | "superseded";
 
