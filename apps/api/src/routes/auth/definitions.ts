@@ -1,8 +1,9 @@
-import { type AuthUserSchema, parseSyncedId } from "@fastifly/common";
+import { type AuthUserSchema, parseSyncedId, type SyncedId } from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
-import type { IdentityRepository, UserRecord } from "@fastifly/db";
+import type { ApiKeyRecord, IdentityRepository, UserRecord } from "@fastifly/db";
 import type { FastifyReply } from "fastify";
 import { z } from "zod/v4";
+import { hashApiKeyToken, parseApiKeyFromAuthorizationHeader } from "../../auth/api-keys.js";
 import { DEFAULT_RECOVERY_CODE_COUNT, hashSessionToken } from "../../auth/sessions.js";
 
 export const PasskeyOptionsResponseSchema = z
@@ -66,6 +67,51 @@ export const PasskeyParamsSchema = z
 export const RenamePasskeyBodySchema = z
   .object({
     name: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export const ApiKeySchema = z
+  .object({
+    id: z.uuidv7(),
+    name: z.string().min(1),
+    tokenPrefix: z.string().min(1),
+    createdAt: z.string().min(1),
+    lastUsedAt: z.string().nullable(),
+    revokedAt: z.string().nullable(),
+  })
+  .strict();
+
+export const ApiKeyListResponseSchema = z
+  .object({
+    data: z
+      .object({
+        apiKeys: z.array(ApiKeySchema),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const CreateApiKeyBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export const CreatedApiKeyResponseSchema = z
+  .object({
+    data: z
+      .object({
+        apiKey: ApiKeySchema,
+        // The plaintext key, returned only once at creation time.
+        token: z.string().min(1),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const ApiKeyParamsSchema = z
+  .object({
+    apiKeyId: z.uuidv7(),
   })
   .strict();
 
@@ -279,6 +325,17 @@ export function toPasskeyResponse(
   };
 }
 
+export function toApiKeyResponse(apiKey: ApiKeyRecord): z.infer<typeof ApiKeySchema> {
+  return {
+    id: apiKey.id,
+    name: apiKey.name,
+    tokenPrefix: apiKey.tokenPrefix,
+    createdAt: apiKey.createdAt,
+    lastUsedAt: apiKey.lastUsedAt,
+    revokedAt: apiKey.revokedAt,
+  };
+}
+
 export function toWorkspaceMemberResponse(member: {
   id: string;
   workspaceId: string;
@@ -335,4 +392,34 @@ export function resolveSessionUser(
       return identityRepository.findUserById(session.userId);
     })
     .then((user) => (user && !user.disabledAt ? user : null));
+}
+
+export type ApiKeyAuthResolution = {
+  readonly user: UserRecord;
+  readonly apiKeyId: SyncedId;
+};
+
+export async function resolveApiKeyUser(
+  identityRepository: IdentityRepository,
+  authorizationHeader: string | undefined,
+): Promise<ApiKeyAuthResolution | null> {
+  const token = parseApiKeyFromAuthorizationHeader(authorizationHeader);
+
+  if (!token) {
+    return null;
+  }
+
+  const apiKey = await identityRepository.findActiveApiKeyByTokenHash(hashApiKeyToken(token));
+
+  if (!apiKey) {
+    return null;
+  }
+
+  const user = await identityRepository.findUserById(apiKey.userId);
+
+  if (!user || user.disabledAt) {
+    return null;
+  }
+
+  return { apiKeyId: apiKey.id, user };
 }

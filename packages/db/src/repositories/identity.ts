@@ -3,6 +3,7 @@ import { and, asc, eq, gt, isNull } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
+  pgApiKeys,
   pgAuditLog,
   pgLedgers,
   pgPasskeyChallenges,
@@ -17,6 +18,7 @@ import {
 import type { AuditAction, JsonObject } from "../schema-types.js";
 import type { SqliteDatabase } from "../sqlite/client.js";
 import {
+  sqliteApiKeys,
   sqliteAuditLog,
   sqliteLedgers,
   sqlitePasskeyChallenges,
@@ -126,6 +128,29 @@ export type WorkspaceInvitationRecord = {
   readonly expiresAt: string;
   readonly acceptedAt: string | null;
   readonly revokedAt: string | null;
+};
+
+export type ApiKeyRecord = {
+  readonly id: SyncedId;
+  readonly userId: SyncedId;
+  readonly name: string;
+  readonly tokenPrefix: string;
+  readonly tokenHash: string;
+  readonly createdAt: string;
+  readonly lastUsedAt: string | null;
+  readonly revokedAt: string | null;
+};
+
+export type CreateApiKeyInput = {
+  readonly userId: SyncedId;
+  readonly name: string;
+  readonly tokenPrefix: string;
+  readonly tokenHash: string;
+};
+
+export type RevokeApiKeyInput = {
+  readonly userId: SyncedId;
+  readonly apiKeyId: SyncedId;
 };
 
 export type PasskeyChallengeKind = "registration" | "login";
@@ -355,10 +380,16 @@ export type IdentityRepository = {
   readonly updatePasskeyAfterLogin: (
     input: UpdatePasskeyAfterLoginInput,
   ) => Promise<PasskeyRecord | null>;
+  readonly createApiKey: (input: CreateApiKeyInput) => Promise<ApiKeyRecord>;
+  readonly listApiKeysForUser: (userId: SyncedId) => Promise<readonly ApiKeyRecord[]>;
+  readonly findActiveApiKeyByTokenHash: (tokenHash: string) => Promise<ApiKeyRecord | null>;
+  readonly touchApiKeyLastUsed: (apiKeyId: SyncedId) => Promise<void>;
+  readonly revokeApiKey: (input: RevokeApiKeyInput) => Promise<ApiKeyRecord | null>;
 };
 
 type SqliteUserRow = typeof sqliteUsers.$inferSelect;
 type SqliteSessionRow = typeof sqliteSessions.$inferSelect;
+type SqliteApiKeyRow = typeof sqliteApiKeys.$inferSelect;
 type SqlitePasskeyRow = typeof sqlitePasskeys.$inferSelect;
 type SqlitePasskeyChallengeRow = typeof sqlitePasskeyChallenges.$inferSelect;
 type SqliteWorkspaceRow = typeof sqliteWorkspaces.$inferSelect;
@@ -369,6 +400,7 @@ type SqliteWorkspaceInvitationRow = typeof sqliteWorkspaceInvitations.$inferSele
 
 type PostgresUserRow = typeof pgUsers.$inferSelect;
 type PostgresSessionRow = typeof pgSessions.$inferSelect;
+type PostgresApiKeyRow = typeof pgApiKeys.$inferSelect;
 type PostgresPasskeyRow = typeof pgPasskeys.$inferSelect;
 type PostgresPasskeyChallengeRow = typeof pgPasskeyChallenges.$inferSelect;
 type PostgresWorkspaceRow = typeof pgWorkspaces.$inferSelect;
@@ -438,6 +470,19 @@ function toSessionRecord(row: SqliteSessionRow | PostgresSessionRow): SessionRec
     ipAddress: row.ipAddress,
     createdAt: toIsoString(row.createdAt) ?? "",
     expiresAt: toIsoString(row.expiresAt) ?? "",
+    revokedAt: toIsoString(row.revokedAt),
+  };
+}
+
+function toApiKeyRecord(row: SqliteApiKeyRow | PostgresApiKeyRow): ApiKeyRecord {
+  return {
+    id: parseSyncedId(row.id),
+    userId: parseSyncedId(row.userId),
+    name: row.name,
+    tokenPrefix: row.tokenPrefix,
+    tokenHash: row.tokenHash,
+    createdAt: toIsoString(row.createdAt) ?? "",
+    lastUsedAt: toIsoString(row.lastUsedAt),
     revokedAt: toIsoString(row.revokedAt),
   };
 }
@@ -1241,6 +1286,69 @@ export function createSqliteIdentityRepository(
 
       return rows[0] ? toPasskeyRecord(rows[0]) : null;
     },
+
+    async createApiKey(input) {
+      const now = makeTimestamp(resolved.clock);
+      const row = assertCreated(
+        await db
+          .insert(sqliteApiKeys)
+          .values({
+            id: resolved.createId(),
+            userId: input.userId,
+            name: input.name.trim() || "API key",
+            tokenPrefix: input.tokenPrefix,
+            tokenHash: input.tokenHash,
+            createdAt: now,
+          })
+          .returning(),
+        "API key",
+      );
+
+      return toApiKeyRecord(row);
+    },
+
+    async listApiKeysForUser(userId) {
+      const rows = await db
+        .select()
+        .from(sqliteApiKeys)
+        .where(eq(sqliteApiKeys.userId, userId))
+        .orderBy(asc(sqliteApiKeys.createdAt), asc(sqliteApiKeys.id));
+
+      return rows.map(toApiKeyRecord);
+    },
+
+    async findActiveApiKeyByTokenHash(tokenHash) {
+      const rows = await db
+        .select()
+        .from(sqliteApiKeys)
+        .where(and(eq(sqliteApiKeys.tokenHash, tokenHash), isNull(sqliteApiKeys.revokedAt)))
+        .limit(1);
+
+      return rows[0] ? toApiKeyRecord(rows[0]) : null;
+    },
+
+    async touchApiKeyLastUsed(apiKeyId) {
+      await db
+        .update(sqliteApiKeys)
+        .set({ lastUsedAt: makeTimestamp(resolved.clock) })
+        .where(eq(sqliteApiKeys.id, apiKeyId));
+    },
+
+    async revokeApiKey(input) {
+      const rows = await db
+        .update(sqliteApiKeys)
+        .set({ revokedAt: makeTimestamp(resolved.clock) })
+        .where(
+          and(
+            eq(sqliteApiKeys.id, input.apiKeyId),
+            eq(sqliteApiKeys.userId, input.userId),
+            isNull(sqliteApiKeys.revokedAt),
+          ),
+        )
+        .returning();
+
+      return rows[0] ? toApiKeyRecord(rows[0]) : null;
+    },
   };
 }
 
@@ -1893,6 +2001,69 @@ export function createPostgresIdentityRepository(
         .returning();
 
       return rows[0] ? toPasskeyRecord(rows[0]) : null;
+    },
+
+    async createApiKey(input) {
+      const now = resolved.clock.now();
+      const row = assertCreated(
+        await db
+          .insert(pgApiKeys)
+          .values({
+            id: resolved.createId(),
+            userId: input.userId,
+            name: input.name.trim() || "API key",
+            tokenPrefix: input.tokenPrefix,
+            tokenHash: input.tokenHash,
+            createdAt: now,
+          })
+          .returning(),
+        "API key",
+      );
+
+      return toApiKeyRecord(row);
+    },
+
+    async listApiKeysForUser(userId) {
+      const rows = await db
+        .select()
+        .from(pgApiKeys)
+        .where(eq(pgApiKeys.userId, userId))
+        .orderBy(asc(pgApiKeys.createdAt), asc(pgApiKeys.id));
+
+      return rows.map(toApiKeyRecord);
+    },
+
+    async findActiveApiKeyByTokenHash(tokenHash) {
+      const rows = await db
+        .select()
+        .from(pgApiKeys)
+        .where(and(eq(pgApiKeys.tokenHash, tokenHash), isNull(pgApiKeys.revokedAt)))
+        .limit(1);
+
+      return rows[0] ? toApiKeyRecord(rows[0]) : null;
+    },
+
+    async touchApiKeyLastUsed(apiKeyId) {
+      await db
+        .update(pgApiKeys)
+        .set({ lastUsedAt: resolved.clock.now() })
+        .where(eq(pgApiKeys.id, apiKeyId));
+    },
+
+    async revokeApiKey(input) {
+      const rows = await db
+        .update(pgApiKeys)
+        .set({ revokedAt: resolved.clock.now() })
+        .where(
+          and(
+            eq(pgApiKeys.id, input.apiKeyId),
+            eq(pgApiKeys.userId, input.userId),
+            isNull(pgApiKeys.revokedAt),
+          ),
+        )
+        .returning();
+
+      return rows[0] ? toApiKeyRecord(rows[0]) : null;
     },
   };
 }

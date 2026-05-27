@@ -2,8 +2,10 @@ import type { OutgoingHttpHeaders } from "node:http";
 import { createUuidV7, type SyncedId } from "@fastifly/common";
 import type {
   AcceptWorkspaceInvitationInput,
+  ApiKeyRecord,
   BootstrapDefaultWorkspaceInput,
   BootstrapDefaultWorkspaceResult,
+  CreateApiKeyInput,
   CreatePasskeyChallengeInput,
   CreatePasskeyInput,
   CreateSessionInput,
@@ -23,6 +25,7 @@ import type {
   RemoveWorkspaceMemberInput,
   RenamePasskeyInput,
   ReplaceRecoveryCodesInput,
+  RevokeApiKeyInput,
   RevokeWorkspaceInvitationInput,
   SessionRecord,
   UpdatePasskeyAfterLoginInput,
@@ -68,6 +71,7 @@ class FakeIdentityRepository implements IdentityRepository {
   readonly auditEvents: RecordWorkspaceAuditEventInput[] = [];
   readonly members = new Map<SyncedId, WorkspaceMemberRecord>();
   readonly ledgers = new Map<SyncedId, LedgerRecord>();
+  readonly apiKeys = new Map<SyncedId, ApiKeyRecord>();
   readonly passkeyChallenges = new Map<SyncedId, PasskeyChallengeRecord>();
   readonly passkeys = new Map<SyncedId, PasskeyRecord>();
   readonly recoveryCodes = new Map<SyncedId, readonly RecoveryCodeRecord[]>();
@@ -612,6 +616,53 @@ class FakeIdentityRepository implements IdentityRepository {
     this.passkeys.set(passkey.id, updated);
     return updated;
   }
+
+  async createApiKey(input: CreateApiKeyInput): Promise<ApiKeyRecord> {
+    const apiKey: ApiKeyRecord = {
+      createdAt: "2026-05-09T00:00:00.000Z",
+      id: this.#createId(),
+      lastUsedAt: null,
+      name: input.name.trim() || "API key",
+      revokedAt: null,
+      tokenHash: input.tokenHash,
+      tokenPrefix: input.tokenPrefix,
+      userId: input.userId,
+    };
+    this.apiKeys.set(apiKey.id, apiKey);
+    return apiKey;
+  }
+
+  async listApiKeysForUser(userId: SyncedId): Promise<readonly ApiKeyRecord[]> {
+    return Array.from(this.apiKeys.values()).filter((apiKey) => apiKey.userId === userId);
+  }
+
+  async findActiveApiKeyByTokenHash(tokenHash: string): Promise<ApiKeyRecord | null> {
+    return (
+      Array.from(this.apiKeys.values()).find(
+        (apiKey) => apiKey.tokenHash === tokenHash && apiKey.revokedAt === null,
+      ) ?? null
+    );
+  }
+
+  async touchApiKeyLastUsed(apiKeyId: SyncedId): Promise<void> {
+    const apiKey = this.apiKeys.get(apiKeyId);
+
+    if (apiKey) {
+      this.apiKeys.set(apiKeyId, { ...apiKey, lastUsedAt: "2026-05-09T00:00:00.000Z" });
+    }
+  }
+
+  async revokeApiKey(input: RevokeApiKeyInput): Promise<ApiKeyRecord | null> {
+    const apiKey = this.apiKeys.get(input.apiKeyId);
+
+    if (!apiKey || apiKey.userId !== input.userId || apiKey.revokedAt !== null) {
+      return null;
+    }
+
+    const revoked: ApiKeyRecord = { ...apiKey, revokedAt: "2026-05-09T00:00:00.000Z" };
+    this.apiKeys.set(input.apiKeyId, revoked);
+    return revoked;
+  }
 }
 
 const fakeWebAuthnAdapter: WebAuthnAdapter = {
@@ -1014,6 +1065,111 @@ describe("auth routes", () => {
     });
     expect(remove.statusCode).toBe(204);
     expect(identityRepository.passkeys.size).toBe(0);
+  });
+
+  it("generates, lists, authenticates with, and revokes an API key", async () => {
+    const { app, identityRepository } = await makeApp();
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const sessionCookie = getCookiePair(register);
+
+    const create = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: { name: "CLI integration" },
+      url: "/api/v1/me/api-keys",
+    });
+    expect(create.statusCode).toBe(201);
+    const created = create.json<{
+      data: { apiKey: { id: SyncedId; name: string; tokenPrefix: string }; token: string };
+    }>().data;
+    expect(created.apiKey).toMatchObject({ name: "CLI integration" });
+    expect(created.token.startsWith("ffk_")).toBe(true);
+    expect(created.token.startsWith(created.apiKey.tokenPrefix)).toBe(true);
+
+    const list = await app.inject({
+      headers: { cookie: sessionCookie },
+      method: "GET",
+      url: "/api/v1/me/api-keys",
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json()).toMatchObject({
+      data: { apiKeys: [{ id: created.apiKey.id, name: "CLI integration", revokedAt: null }] },
+    });
+    // The plaintext token is never echoed back on subsequent reads.
+    expect(JSON.stringify(list.json())).not.toContain(created.token);
+
+    // The API key authenticates a request via the Authorization header without
+    // any session cookie, proving customers can use their own client.
+    const viaApiKey = await app.inject({
+      headers: { authorization: `Bearer ${created.token}` },
+      method: "GET",
+      url: "/api/v1/me/api-keys",
+    });
+    expect(viaApiKey.statusCode).toBe(200);
+    expect(viaApiKey.json()).toMatchObject({
+      data: { apiKeys: [{ id: created.apiKey.id }] },
+    });
+    expect(identityRepository.apiKeys.get(created.apiKey.id)?.lastUsedAt).not.toBeNull();
+
+    const revoke = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "DELETE",
+      url: `/api/v1/me/api-keys/${created.apiKey.id}`,
+    });
+    expect(revoke.statusCode).toBe(204);
+
+    // A revoked key no longer authenticates.
+    const afterRevoke = await app.inject({
+      headers: { authorization: `Bearer ${created.token}` },
+      method: "GET",
+      url: "/api/v1/me/api-keys",
+    });
+    expect(afterRevoke.statusCode).toBe(401);
+  });
+
+  it("requires authentication to manage API keys", async () => {
+    const { app } = await makeApp();
+
+    const create = await injectWithCsrf(app, {
+      method: "POST",
+      payload: { name: "No auth" },
+      url: "/api/v1/me/api-keys",
+    });
+    expect(create.statusCode).toBe(401);
+
+    const unknownKey = await app.inject({
+      headers: { authorization: "Bearer ffk_not-a-real-key" },
+      method: "GET",
+      url: "/api/v1/me/api-keys",
+    });
+    expect(unknownKey.statusCode).toBe(401);
+  });
+
+  it("returns 404 when revoking an API key that does not belong to the caller", async () => {
+    const { app } = await makeApp();
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const sessionCookie = getCookiePair(register);
+
+    const revoke = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "DELETE",
+      url: `/api/v1/me/api-keys/${createUuidV7()}`,
+    });
+    expect(revoke.statusCode).toBe(404);
   });
 
   it("rejects duplicate registration with a conflict response", async () => {
