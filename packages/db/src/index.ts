@@ -334,6 +334,8 @@ export {
   createSqliteDatabaseFromClient,
   readSqliteRuntimePragmas,
 } from "./sqlite/client.js";
+export type { SqliteBusyRetryOptions } from "./sqlite/busy-retry.js";
+export { isSqliteBusyError, withSqliteBusyRetry } from "./sqlite/busy-retry.js";
 export type { SqliteMoneyColumn, SqliteMoneyInput } from "./sqlite/money.js";
 export {
   bindSqliteMoneyMinor,
