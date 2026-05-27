@@ -9,6 +9,10 @@ export type AuthContext =
   | {
       readonly kind: "user";
       readonly userId: SyncedId;
+      // Present when the request was authenticated with an API key rather than
+      // an interactive session cookie. Lets routes audit or restrict key-based
+      // access without changing how `requireAuthenticatedUser` resolves a user.
+      readonly apiKeyId?: SyncedId;
     };
 
 export const anonymousAuthContext: AuthContext = { kind: "anonymous" };

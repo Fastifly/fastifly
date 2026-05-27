@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 
+import { registerAuthApiKeyRoutes } from "./api-keys.js";
 import type { RegisterAuthRoutesOptions } from "./contracts.js";
 import { registerAuthIdentityRoutes } from "./identity.js";
 import { registerAuthPasskeyRoutes } from "./passkeys.js";
@@ -14,4 +15,5 @@ export async function registerAuthRoutes(
   await registerAuthPasskeyRoutes(app, options);
   await registerAuthRecoveryRoutes(app, options);
   await registerAuthWorkspaceRoutes(app, options);
+  await registerAuthApiKeyRoutes(app, options);
 }
