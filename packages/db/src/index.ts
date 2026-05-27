@@ -129,8 +129,10 @@ export {
 } from "./repositories/devices.js";
 export type {
   AcceptWorkspaceInvitationInput,
+  ApiKeyRecord,
   BootstrapDefaultWorkspaceInput,
   BootstrapDefaultWorkspaceResult,
+  CreateApiKeyInput,
   CreatePasskeyChallengeInput,
   CreatePasskeyInput,
   CreateSessionInput,
@@ -153,6 +155,7 @@ export type {
   RenamePasskeyInput,
   ReplaceRecoveryCodesInput,
   RepositoryIdGenerator,
+  RevokeApiKeyInput,
   RevokeWorkspaceInvitationInput,
   SessionRecord,
   UpdatePasskeyAfterLoginInput,
@@ -172,6 +175,22 @@ export {
   normalizeInviteeIdentifier,
   normalizeUsername,
 } from "./repositories/identity.js";
+export type {
+  EnqueueJobInput,
+  JobRecord,
+  JobRepository,
+  JobRepositoryOptions,
+} from "./repositories/jobs.js";
+export {
+  createPostgresJobRepository,
+  createSqliteJobRepository,
+} from "./repositories/jobs.js";
+export type { ImportTargetCurrency, LedgerCurrencyReader } from "./repositories/ledger-currency.js";
+export {
+  createPostgresLedgerCurrencyReader,
+  createSqliteLedgerCurrencyReader,
+  LedgerCurrencyError,
+} from "./repositories/ledger-currency.js";
 export type {
   GetNetWorthTrendInput,
   NetWorthTrendDirection,
