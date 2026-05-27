@@ -113,7 +113,11 @@ export function CategoryToken(input: {
   const content = (
     <span className="flex min-w-0 items-center gap-1.5">
       {IconComponent ? (
-        <IconComponent aria-hidden="true" className="size-3.5 shrink-0" style={{ color: iconColor }} />
+        <IconComponent
+          aria-hidden="true"
+          className="size-3.5 shrink-0"
+          style={{ color: iconColor }}
+        />
       ) : (
         <CircleOff aria-hidden="true" className="size-3.5 shrink-0" style={{ color: iconColor }} />
       )}

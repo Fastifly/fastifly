@@ -15,6 +15,7 @@ Options:
   --app-url <value>            Public app URL. Default: http://<host>
   --seed-level <none|essential|demo|e2e>
                                Seed level after migrations. Default: essential
+  --reset-db                  Destructive reset of compose volumes before migrate/seed.
   --domain <value>             Domain for TLS proxy (example: fastifly.example.com).
   --setup-caddy                Install/configure Caddy as HTTPS reverse proxy for --domain.
   --cookie-secure <true|false> Cookie secure flag. Auto from app URL if omitted.
@@ -63,9 +64,13 @@ SESSION_SECRET=""
 POSTGRES_PASSWORD=""
 SKIP_DOCKER_INSTALL="false"
 SETUP_CADDY="false"
+RESET_DB="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --)
+      shift
+      ;;
     --host)
       HOST="${2:-}"
       shift 2
@@ -93,6 +98,10 @@ while [[ $# -gt 0 ]]; do
     --seed-level)
       SEED_LEVEL="${2:-}"
       shift 2
+      ;;
+    --reset-db)
+      RESET_DB="true"
+      shift
       ;;
     --domain)
       DOMAIN="${2:-}"
@@ -271,6 +280,14 @@ if [[ "$DB_MODE" == "sqlite" ]]; then
 else
   COMPOSE_FILE='docker-compose.postgres.yml'
 fi
+
+if [[ "$RESET_DB" == "true" ]]; then
+  log "Resetting database volumes (destructive)"
+  ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE down -v"
+fi
+
+log "Building migration image"
+ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE build fastifly-migrate"
 
 log "Running migrations"
 ssh "${SSH_OPTS[@]}" "$TARGET" "cd $(printf '%q' "$APP_DIR") && docker compose --env-file .env.vps -f $COMPOSE_FILE run --rm fastifly-migrate"

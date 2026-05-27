@@ -1,7 +1,14 @@
 import {
+  type ActualBudgetExport,
+  type ActualImportPlan,
+  buildActualImportPlan,
+  CreateAccountResponseSchema,
+  CreateCategoryResponseSchema,
   CreateTransactionResponseSchema,
   IsoDateTimeSchema,
   inferTransactionType,
+  type PlannedRef,
+  type PlannedTransactionLine,
   parseAmountMinor,
   parseCurrencyCode,
   parseSyncedId,
@@ -21,6 +28,13 @@ import type {
   TransactionQueryService,
   WorkflowRepository,
 } from "@fastifly/db";
+
+export type ImportTargetCurrency = {
+  readonly code: string;
+  readonly decimalPlaces: number;
+};
+
+export type ResolveImportTargetCurrency = (scope: WorkflowScope) => Promise<ImportTargetCurrency>;
 
 type WorkflowScope = {
   readonly ledgerId: SyncedId;
@@ -56,6 +70,13 @@ type GenerateRecurringInput = WorkflowMutationContext & {
 export type CreateImportFromCsvInput = {
   readonly actorUserId: SyncedId;
   readonly csvText: string;
+  readonly fileName: string | null;
+  readonly scope: WorkflowScope;
+};
+
+export type CreateImportFromActualBudgetInput = {
+  readonly actorUserId: SyncedId;
+  readonly fileBase64: string;
   readonly fileName: string | null;
   readonly scope: WorkflowScope;
 };
@@ -118,6 +139,9 @@ export type FinanceWorkflowService = {
   readonly commitImportJob: (
     input: CommitImportInput,
   ) => Promise<{ readonly importJob: ImportJobRecord }>;
+  readonly createImportJobFromActualBudget: (
+    input: CreateImportFromActualBudgetInput,
+  ) => Promise<ImportJobRecord>;
   readonly createImportJobFromCsv: (input: CreateImportFromCsvInput) => Promise<ImportJobRecord>;
   readonly createRecurringTemplate: (
     input: CreateRecurringTemplateInput,
@@ -156,6 +180,8 @@ export type FinanceWorkflowServiceOptions = {
   readonly accountRepository: AccountRepository;
   readonly categoryRepository?: CategoryRepository;
   readonly financeMutationService: LedgerFinanceMutationService;
+  readonly parseActualBudgetExport?: (zipBytes: Uint8Array) => ActualBudgetExport;
+  readonly resolveImportTargetCurrency?: ResolveImportTargetCurrency;
   readonly transactionQueryService: TransactionQueryService;
   readonly workflowRepository: WorkflowRepository;
 };
@@ -164,8 +190,10 @@ export class FinanceWorkflowServiceError extends Error {
   constructor(
     message: string,
     readonly code:
+      | "ACTUAL_IMPORT_UNAVAILABLE"
       | "IMPORT_JOB_NOT_FOUND"
       | "IMPORT_JOB_INVALID_STATE"
+      | "INVALID_ACTUAL_IMPORT"
       | "INVALID_IMPORT_CSV"
       | "INVALID_RECURRING_TEMPLATE"
       | "RECURRING_TEMPLATE_NOT_FOUND"
@@ -257,6 +285,33 @@ export function createFinanceWorkflowService(
         );
       }
 
+      if (importJob.kind === "actual_budget") {
+        const actualCommittedGroupIds = await commitActualImportPlan(options, {
+          actorUserId: input.actorUserId,
+          applyRules: input.applyRules,
+          // Derive a stable per-job key when the client omits an Idempotency-Key
+          // header, so a retried commit replays prior sub-mutations instead of
+          // creating duplicate accounts/categories/transactions.
+          idempotencyKey: input.idempotencyKey ?? `actual-import-commit:${input.importJobId}`,
+          plan: importJob.plan,
+          requestId: input.requestId,
+          scope: input.scope,
+        });
+        const committed = await options.workflowRepository.markImportJobCommitted({
+          committedGroupIds: actualCommittedGroupIds,
+          importJobId: input.importJobId,
+          ledgerId: input.scope.ledgerId,
+          workspaceId: input.scope.workspaceId,
+        });
+        if (!committed) {
+          throw new FinanceWorkflowServiceError(
+            "Import job was not found.",
+            "IMPORT_JOB_NOT_FOUND",
+          );
+        }
+        return { importJob: committed };
+      }
+
       const committedGroupIds: SyncedId[] = [];
       for (const row of importJob.previewRows) {
         const create = {
@@ -309,12 +364,53 @@ export function createFinanceWorkflowService(
       return { importJob: updated };
     },
 
+    async createImportJobFromActualBudget(input) {
+      const parse = options.parseActualBudgetExport;
+      const resolveCurrency = options.resolveImportTargetCurrency;
+      if (!parse || !resolveCurrency) {
+        throw new FinanceWorkflowServiceError(
+          "Actual Budget import is not available in this runtime.",
+          "ACTUAL_IMPORT_UNAVAILABLE",
+        );
+      }
+
+      const zipBytes = decodeBase64(input.fileBase64);
+      let exportData: ActualBudgetExport;
+      try {
+        exportData = parse(zipBytes);
+      } catch (error) {
+        throw new FinanceWorkflowServiceError(
+          error instanceof Error ? error.message : "The Actual Budget file could not be parsed.",
+          "INVALID_ACTUAL_IMPORT",
+        );
+      }
+
+      const currency = await resolveCurrency(input.scope);
+      const plan = buildActualImportPlan({
+        export: exportData,
+        targetCurrencyCode: currency.code,
+        targetCurrencyMinorUnits: currency.decimalPlaces,
+      });
+
+      return await options.workflowRepository.createImportJob({
+        createdBy: input.actorUserId,
+        csvText: "",
+        fileName: input.fileName,
+        kind: "actual_budget",
+        ledgerId: input.scope.ledgerId,
+        plan,
+        previewRows: [],
+        workspaceId: input.scope.workspaceId,
+      });
+    },
+
     async createImportJobFromCsv(input) {
       const previewRows = parseImportCsv(input.csvText);
       return await options.workflowRepository.createImportJob({
         createdBy: input.actorUserId,
         csvText: input.csvText,
         fileName: input.fileName,
+        kind: "csv",
         ledgerId: input.scope.ledgerId,
         previewRows,
         workspaceId: input.scope.workspaceId,
@@ -860,6 +956,216 @@ function toRecurringTransactionLine(
       : null,
     reportingCurrencyCode: line.reportingCurrencyCode ?? null,
   };
+}
+
+type CommitActualPlanInput = {
+  readonly actorUserId: SyncedId;
+  readonly applyRules: boolean;
+  readonly idempotencyKey: string | null;
+  readonly plan: ActualImportPlan | null;
+  readonly requestId: string;
+  readonly scope: WorkflowScope;
+};
+
+async function commitActualImportPlan(
+  options: FinanceWorkflowServiceOptions,
+  input: CommitActualPlanInput,
+): Promise<readonly SyncedId[]> {
+  const plan = input.plan;
+  if (!plan) {
+    throw new FinanceWorkflowServiceError(
+      "Import job has no Actual Budget plan to commit.",
+      "IMPORT_JOB_INVALID_STATE",
+    );
+  }
+  if (plan.expenseCategories.length > 0 && !options.categoryRepository) {
+    throw new FinanceWorkflowServiceError(
+      "Category creation is unavailable in this runtime.",
+      "INVALID_ACTUAL_IMPORT",
+    );
+  }
+
+  const sideEffectFlags = {
+    applyRules: input.applyRules,
+    batchSubmission: true,
+    fireWebhooks: false,
+    recalculateBalances: true,
+    skipNotifications: true,
+  } satisfies LedgerMutationEnvelope["sideEffectFlags"];
+
+  const accountIdByActual = new Map<string, SyncedId>();
+  const incomeSourceIdByActual = new Map<string, SyncedId>();
+  const categoryByActual = new Map<
+    string,
+    { readonly categoryId: SyncedId; readonly counterpartyAccountId: SyncedId }
+  >();
+  const committedGroupIds: SyncedId[] = [];
+
+  for (const account of plan.accounts) {
+    const hasOpening = account.openingBalanceMinor !== null && account.openingBalanceDate !== null;
+    const result = await options.financeMutationService.createAccount({
+      account: {
+        currencyCode: plan.targetCurrencyCode,
+        kind: account.kind,
+        name: account.name,
+        subtype: account.subtype,
+        ...(hasOpening
+          ? {
+              openingBalanceDate: account.openingBalanceDate,
+              openingBalanceMinor: parseAmountMinor(account.openingBalanceMinor as string),
+            }
+          : {}),
+      },
+      envelope: makeEnvelope({
+        action: "create",
+        actorUserId: input.actorUserId,
+        idempotencyKey: withSuffix(input.idempotencyKey, `account:${account.actualId}`),
+        requestId: `${input.requestId}:account:${account.actualId}`,
+        scope: input.scope,
+        sideEffectFlags,
+        source: "import",
+        subject: "Account",
+      }),
+    });
+    const parsed = CreateAccountResponseSchema.parse(result.body);
+    accountIdByActual.set(account.actualId, parseSyncedId(parsed.data.account.id));
+    if (parsed.data.openingBalanceGroupId) {
+      committedGroupIds.push(parseSyncedId(parsed.data.openingBalanceGroupId));
+    }
+  }
+
+  for (const source of plan.incomeSources) {
+    const result = await options.financeMutationService.createAccount({
+      account: {
+        currencyCode: plan.targetCurrencyCode,
+        kind: "revenue",
+        name: source.name,
+        subtype: "external",
+      },
+      envelope: makeEnvelope({
+        action: "create",
+        actorUserId: input.actorUserId,
+        idempotencyKey: withSuffix(input.idempotencyKey, `income:${source.actualId}`),
+        requestId: `${input.requestId}:income:${source.actualId}`,
+        scope: input.scope,
+        sideEffectFlags,
+        source: "import",
+        subject: "Account",
+      }),
+    });
+    const parsed = CreateAccountResponseSchema.parse(result.body);
+    incomeSourceIdByActual.set(source.actualId, parseSyncedId(parsed.data.account.id));
+  }
+
+  for (const expenseCategory of plan.expenseCategories) {
+    const result = await options.financeMutationService.createCategory({
+      category: { name: expenseCategory.name },
+      envelope: makeEnvelope({
+        action: "create",
+        actorUserId: input.actorUserId,
+        idempotencyKey: withSuffix(input.idempotencyKey, `category:${expenseCategory.actualId}`),
+        requestId: `${input.requestId}:category:${expenseCategory.actualId}`,
+        scope: input.scope,
+        sideEffectFlags,
+        source: "import",
+        subject: "Category",
+      }),
+    });
+    const parsed = CreateCategoryResponseSchema.parse(result.body);
+    const counterpartyAccountId = parsed.data.category.counterpartyAccountId;
+    if (!counterpartyAccountId) {
+      throw new FinanceWorkflowServiceError(
+        "Imported category is missing its internal account.",
+        "INVALID_ACTUAL_IMPORT",
+      );
+    }
+    categoryByActual.set(expenseCategory.actualId, {
+      categoryId: parseSyncedId(parsed.data.category.id),
+      counterpartyAccountId: parseSyncedId(counterpartyAccountId),
+    });
+  }
+
+  const resolveAccount = (ref: PlannedRef): SyncedId => {
+    const id =
+      ref.kind === "income_source"
+        ? incomeSourceIdByActual.get(ref.actualId)
+        : accountIdByActual.get(ref.actualId);
+    if (!id) {
+      throw new FinanceWorkflowServiceError(
+        "Imported transaction referenced an unresolved account.",
+        "INVALID_ACTUAL_IMPORT",
+      );
+    }
+    return id;
+  };
+
+  const resolveLine = (line: PlannedTransactionLine): CreateTransactionLineInput => {
+    if (line.destination.kind === "expense_category") {
+      const category = categoryByActual.get(line.destination.actualId);
+      if (!category) {
+        throw new FinanceWorkflowServiceError(
+          "Imported transaction referenced an unresolved category.",
+          "INVALID_ACTUAL_IMPORT",
+        );
+      }
+      return {
+        amountMinor: parseAmountMinor(line.amountMinor),
+        budgetId: null,
+        categoryId: category.categoryId,
+        description: line.description,
+        destinationAccountId: category.counterpartyAccountId,
+        reportingAmountMinor: null,
+        reportingCurrencyCode: null,
+      };
+    }
+    return {
+      amountMinor: parseAmountMinor(line.amountMinor),
+      budgetId: null,
+      categoryId: null,
+      description: line.description,
+      destinationAccountId: resolveAccount(line.destination),
+      reportingAmountMinor: null,
+      reportingCurrencyCode: null,
+    };
+  };
+
+  for (const [index, transaction] of plan.transactions.entries()) {
+    const create = {
+      expense: options.financeMutationService.createExpense,
+      income: options.financeMutationService.createIncome,
+      transfer: options.financeMutationService.createTransfer,
+    }[transaction.type].bind(options.financeMutationService);
+
+    const result = await create({
+      envelope: makeEnvelope({
+        action: "import",
+        actorUserId: input.actorUserId,
+        idempotencyKey: withSuffix(input.idempotencyKey, `txn:${index}`),
+        requestId: `${input.requestId}:txn:${index}`,
+        scope: input.scope,
+        sideEffectFlags,
+        source: "import",
+        subject: "Import",
+      }),
+      transaction: {
+        currencyCode: transaction.currencyCode,
+        description: transaction.description,
+        lines: transaction.lines.map(resolveLine),
+        occurredAt: transaction.occurredAt,
+        source: "import",
+        sourceAccountId: resolveAccount(transaction.source),
+        status: transaction.status,
+        title: transaction.title,
+      },
+    });
+    committedGroupIds.push(readCreatedTransactionGroupId(result));
+  }
+
+  return committedGroupIds;
+}
+
+function decodeBase64(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, "base64"));
 }
 
 function parseImportCsv(csvText: string): readonly ImportPreviewRow[] {

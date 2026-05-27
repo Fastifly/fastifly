@@ -44,6 +44,7 @@ describe("SQLite migrations", () => {
         "__drizzle_migrations",
         "account_meta",
         "accounts",
+        "api_keys",
         "audit_log",
         "balance_recalculation_queue",
         "budget_limits",

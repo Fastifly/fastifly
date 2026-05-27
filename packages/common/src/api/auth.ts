@@ -49,8 +49,38 @@ export const MeContextResponseSchema = z.strictObject({
   }),
 });
 
+export const ApiKeySchema = z.strictObject({
+  createdAt: z.string().min(1),
+  id: SyncedIdSchema,
+  lastUsedAt: z.string().nullable(),
+  name: z.string().min(1),
+  revokedAt: z.string().nullable(),
+  tokenPrefix: z.string().min(1),
+});
+
+export const ApiKeyListResponseSchema = z.strictObject({
+  data: z.strictObject({
+    apiKeys: z.array(ApiKeySchema),
+  }),
+});
+
+export const CreateApiKeyRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(100),
+});
+
+export const CreatedApiKeyResponseSchema = z.strictObject({
+  data: z.strictObject({
+    apiKey: ApiKeySchema,
+    token: z.string().min(1),
+  }),
+});
+
 export type AuthCredentials = RegisterCredentials;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+export type ApiKey = z.infer<typeof ApiKeySchema>;
+export type ApiKeyListResponse = z.infer<typeof ApiKeyListResponseSchema>;
+export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequestSchema>;
+export type CreatedApiKeyResponse = z.infer<typeof CreatedApiKeyResponseSchema>;
 export type CsrfTokenResponse = z.infer<typeof CsrfTokenResponseSchema>;
 export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>;
 export type MeContextResponse = z.infer<typeof MeContextResponseSchema>;

@@ -1,7 +1,7 @@
 import {
+  type AccountWithBalanceResponse,
   type CategoryResponse,
   isUserHeldAccountKind,
-  type AccountWithBalanceResponse,
   type ListTransactionsQuery,
 } from "@fastifly/common";
 
@@ -54,9 +54,7 @@ export function normalizeTransactionAccountFilter(
     return accountId;
   }
 
-  return accounts.some((account) => account.id === accountId)
-    ? accountId
-    : ALL_TRANSACTION_FILTER;
+  return accounts.some((account) => account.id === accountId) ? accountId : ALL_TRANSACTION_FILTER;
 }
 
 export function getFilterableTransactionCategories(
