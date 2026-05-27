@@ -41,6 +41,8 @@ describe("recurring form helpers", () => {
   });
 
   it("builds recurring template create request without float money parsing", () => {
+    // Use a future date so the "future start date" validation never time-rots.
+    const nextRunOn = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     expect(
       buildCreateRecurringTemplateRequest(
         {
@@ -49,7 +51,7 @@ describe("recurring form helpers", () => {
           categoryId: "cat_groceries",
           description: "Netflix",
           destinationAccountId: "",
-          nextRunOn: "2026-05-15",
+          nextRunOn,
           sourceAccountId: "acct_bank",
           title: "Netflix subscription",
           type: "expense",
@@ -60,7 +62,7 @@ describe("recurring form helpers", () => {
     ).toMatchObject({
       cadence: "monthly",
       intervalCount: 1,
-      nextRunAt: "2026-05-15T12:00:00.000Z",
+      nextRunAt: `${nextRunOn}T12:00:00.000Z`,
       payload: {
         currencyCode: "INR",
         description: "Netflix",

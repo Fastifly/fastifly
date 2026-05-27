@@ -70,11 +70,9 @@ export function DashboardPage({
   accountPreview,
   accountsLoading,
   cashAndBank,
-  income,
   ledgerContext,
   liabilities,
   reportingCurrencyCode,
-  spending,
   transactions,
   transactionCount,
   transactionsLoading,
@@ -83,14 +81,12 @@ export function DashboardPage({
   readonly accountPreview: readonly AccountWithBalanceResponse[];
   readonly accountsLoading: boolean;
   readonly cashAndBank: string;
-  readonly income: string;
   readonly ledgerContext: {
     readonly ledgerId: string;
     readonly workspaceId: string;
   } | null;
   readonly liabilities: string;
   readonly reportingCurrencyCode: string;
-  readonly spending: string;
   readonly transactions: readonly TransactionGroupResponse[];
   readonly transactionCount: number;
   readonly transactionsLoading: boolean;
@@ -446,17 +442,31 @@ export function PageBody({
       accountPreview={accountPreview}
       accountsLoading={accountsLoading}
       cashAndBank={cashAndBank}
-      income={income}
       ledgerContext={ledgerContext}
       liabilities={liabilities}
       reportingCurrencyCode={reportingCurrencyCode}
-      spending={spending}
       transactions={transactions}
       transactionCount={transactionCount}
       transactionsLoading={transactionsLoading}
     />
   );
 }
+
+const CHART_LABEL_SKELETON_KEYS = [
+  "chart-label-1",
+  "chart-label-2",
+  "chart-label-3",
+  "chart-label-4",
+  "chart-label-5",
+  "chart-label-6",
+] as const;
+
+const SPENDING_ROW_SKELETON_KEYS = [
+  "spending-row-1",
+  "spending-row-2",
+  "spending-row-3",
+  "spending-row-4",
+] as const;
 
 function hasBankAccount(accounts: readonly AccountWithBalanceResponse[]): boolean {
   return accounts.some(
@@ -499,8 +509,8 @@ function ChartCardShimmer({ className }: { readonly className?: string }) {
         </div>
         <div className="h-28 animate-pulse rounded-md border border-border bg-muted/30" />
         <div className="grid grid-cols-6 gap-2 px-2">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div className="h-3 animate-pulse rounded bg-muted/60" key={`chart-label-${index}`} />
+          {CHART_LABEL_SKELETON_KEYS.map((key) => (
+            <div className="h-3 animate-pulse rounded bg-muted/60" key={key} />
           ))}
         </div>
       </CardContent>
@@ -522,8 +532,8 @@ function CategoryCardShimmer({ className }: { readonly className?: string }) {
         </div>
         <div className="space-y-2.5">
           <div className="h-4 w-20 animate-pulse rounded bg-muted/60" />
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div className="space-y-1.5" key={`spending-item-${index}`}>
+          {SPENDING_ROW_SKELETON_KEYS.map((key) => (
+            <div className="space-y-1.5" key={key}>
               <div className="flex items-center justify-between gap-2">
                 <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
                 <div className="h-3 w-16 animate-pulse rounded bg-muted/50" />

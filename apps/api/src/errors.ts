@@ -7,6 +7,7 @@ import {
 import {
   CategoryRepositoryError,
   FinanceMutationError,
+  LedgerCurrencyError,
   LedgerMutationError,
   TransactionWriteError,
 } from "@fastifly/db";
@@ -218,6 +219,18 @@ function toFinanceWorkflowHttpError(error: FinanceWorkflowServiceError): {
         message: error.message,
         statusCode: 400,
       };
+    case "INVALID_ACTUAL_IMPORT":
+      return {
+        code: "BAD_REQUEST",
+        message: error.message,
+        statusCode: 400,
+      };
+    case "ACTUAL_IMPORT_UNAVAILABLE":
+      return {
+        code: "INTERNAL_SERVER_ERROR",
+        message: error.message,
+        statusCode: 500,
+      };
     case "INVALID_RECURRING_TEMPLATE":
       return {
         code: "BAD_REQUEST",
@@ -376,6 +389,20 @@ export function registerErrorHandlers(app: FastifyInstance): void {
         makeApiError({
           code: mappedError.code,
           message: mappedError.message,
+          details: {},
+          requestId: getRequestId(request),
+        }),
+      );
+      return;
+    }
+
+    if (error instanceof LedgerCurrencyError) {
+      sendError(
+        reply,
+        404,
+        makeApiError({
+          code: "NOT_FOUND",
+          message: "The requested ledger was not found.",
           details: {},
           requestId: getRequestId(request),
         }),

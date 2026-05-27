@@ -22,6 +22,7 @@ describe("PostgreSQL-compat migrations (PGlite)", () => {
       expect(result.rows.map((row) => row.table_name)).toEqual([
         "account_meta",
         "accounts",
+        "api_keys",
         "audit_log",
         "balance_recalculation_queue",
         "budget_limits",

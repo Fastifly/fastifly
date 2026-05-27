@@ -25,7 +25,7 @@ describe("apiClient listTransactions", () => {
   });
 
   it("forwards categoryId in transactions query params", async () => {
-    const fetchMock = vi.fn(async (request: Request) => {
+    const fetchMock = vi.fn(async (_request: Request) => {
       return new Response(JSON.stringify(EMPTY_TRANSACTIONS_RESPONSE), {
         headers: {
           "content-type": "application/json",

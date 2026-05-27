@@ -120,7 +120,9 @@ function makeImportJob(
       "type,sourceAccountId,destinationAccountId,amountMinor,currencyCode,occurredAt,description\nexpense,019f0b11-6ff9-79b3-bf95-2910aef65f11,019f0b11-6ff9-79b3-bf95-2910aef65f12,12000,INR,2026-05-11T10:00:00.000Z,Groceries",
     fileName: "seed.csv",
     id: createId(),
+    kind: "csv",
     ledgerId: scope.ledgerId,
+    plan: null,
     previewRows: [
       {
         amountMinor: "12000",
@@ -245,6 +247,7 @@ function makeWorkflowService(
       updatedTransactionGroupIds: [createId()],
     })),
     commitImportJob: vi.fn(async () => ({ importJob: committedImportJob })),
+    createImportJobFromActualBudget: vi.fn(async () => importJob),
     createImportJobFromCsv: vi.fn(async () => importJob),
     createRecurringTemplate: vi.fn(async () => recurringTemplate),
     createRule: vi.fn(async () => rule),

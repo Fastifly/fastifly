@@ -4807,6 +4807,567 @@ export interface paths {
     };
     trace?: never;
   };
+  "/api/v1/me/api-keys": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                apiKeys: {
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  tokenPrefix: string;
+                  createdAt: string;
+                  lastUsedAt: string | null;
+                  revokedAt: string | null;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                apiKey: {
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  tokenPrefix: string;
+                  createdAt: string;
+                  lastUsedAt: string | null;
+                  revokedAt: string | null;
+                };
+                token: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/me/api-keys/{apiKeyId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          apiKeyId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/devices": {
     parameters: {
       query?: never;
@@ -8289,6 +8850,25 @@ export interface paths {
             "application/json": {
               data: {
                 importJob: {
+                  actualImport: {
+                    budgetName: string | null;
+                    summary: {
+                      accountCount: number;
+                      expenseCategoryCount: number;
+                      incomeSourceCount: number;
+                      skippedCount: number;
+                      splitCount: number;
+                      transactionCount: number;
+                      transferCount: number;
+                      warningCount: number;
+                    };
+                    targetCurrencyCode: string;
+                    warnings: {
+                      actualTransactionId?: string;
+                      code: string;
+                      message: string;
+                    }[];
+                  } | null;
                   committedAt: string | null;
                   committedGroupIds: string[];
                   /** Format: date-time */
@@ -8298,6 +8878,258 @@ export interface paths {
                   fileName: string | null;
                   /** Format: uuid */
                   id: string;
+                  /** @enum {string} */
+                  kind: "csv" | "actual_budget";
+                  /** Format: uuid */
+                  ledgerId: string;
+                  previewRows: {
+                    amountMinor: string;
+                    currencyCode: string;
+                    description: string;
+                    /** Format: uuid */
+                    destinationAccountId: string;
+                    /** Format: date-time */
+                    occurredAt: string;
+                    rowNumber: number;
+                    /** Format: uuid */
+                    sourceAccountId: string;
+                    /** @enum {string} */
+                    type: "expense" | "income" | "transfer";
+                  }[];
+                  /** @enum {string} */
+                  status: "preview_ready" | "committed" | "undone" | "failed";
+                  undoneAt: string | null;
+                  /** Format: date-time */
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/imports/actual-budget": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            fileBase64: string;
+            fileName?: string | null;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                importJob: {
+                  actualImport: {
+                    budgetName: string | null;
+                    summary: {
+                      accountCount: number;
+                      expenseCategoryCount: number;
+                      incomeSourceCount: number;
+                      skippedCount: number;
+                      splitCount: number;
+                      transactionCount: number;
+                      transferCount: number;
+                      warningCount: number;
+                    };
+                    targetCurrencyCode: string;
+                    warnings: {
+                      actualTransactionId?: string;
+                      code: string;
+                      message: string;
+                    }[];
+                  } | null;
+                  committedAt: string | null;
+                  committedGroupIds: string[];
+                  /** Format: date-time */
+                  createdAt: string;
+                  /** Format: uuid */
+                  createdBy: string;
+                  fileName: string | null;
+                  /** Format: uuid */
+                  id: string;
+                  /** @enum {string} */
+                  kind: "csv" | "actual_budget";
                   /** Format: uuid */
                   ledgerId: string;
                   previewRows: {
@@ -8508,6 +9340,25 @@ export interface paths {
           content: {
             "application/json": {
               data: {
+                actualImport: {
+                  budgetName: string | null;
+                  summary: {
+                    accountCount: number;
+                    expenseCategoryCount: number;
+                    incomeSourceCount: number;
+                    skippedCount: number;
+                    splitCount: number;
+                    transactionCount: number;
+                    transferCount: number;
+                    warningCount: number;
+                  };
+                  targetCurrencyCode: string;
+                  warnings: {
+                    actualTransactionId?: string;
+                    code: string;
+                    message: string;
+                  }[];
+                } | null;
                 committedAt: string | null;
                 committedGroupIds: string[];
                 /** Format: date-time */
@@ -8517,6 +9368,8 @@ export interface paths {
                 fileName: string | null;
                 /** Format: uuid */
                 id: string;
+                /** @enum {string} */
+                kind: "csv" | "actual_budget";
                 /** Format: uuid */
                 ledgerId: string;
                 previewRows: {
@@ -8730,6 +9583,25 @@ export interface paths {
             "application/json": {
               data: {
                 importJob: {
+                  actualImport: {
+                    budgetName: string | null;
+                    summary: {
+                      accountCount: number;
+                      expenseCategoryCount: number;
+                      incomeSourceCount: number;
+                      skippedCount: number;
+                      splitCount: number;
+                      transactionCount: number;
+                      transferCount: number;
+                      warningCount: number;
+                    };
+                    targetCurrencyCode: string;
+                    warnings: {
+                      actualTransactionId?: string;
+                      code: string;
+                      message: string;
+                    }[];
+                  } | null;
                   committedAt: string | null;
                   committedGroupIds: string[];
                   /** Format: date-time */
@@ -8739,6 +9611,8 @@ export interface paths {
                   fileName: string | null;
                   /** Format: uuid */
                   id: string;
+                  /** @enum {string} */
+                  kind: "csv" | "actual_budget";
                   /** Format: uuid */
                   ledgerId: string;
                   previewRows: {
@@ -8961,6 +9835,25 @@ export interface paths {
             "application/json": {
               data: {
                 importJob: {
+                  actualImport: {
+                    budgetName: string | null;
+                    summary: {
+                      accountCount: number;
+                      expenseCategoryCount: number;
+                      incomeSourceCount: number;
+                      skippedCount: number;
+                      splitCount: number;
+                      transactionCount: number;
+                      transferCount: number;
+                      warningCount: number;
+                    };
+                    targetCurrencyCode: string;
+                    warnings: {
+                      actualTransactionId?: string;
+                      code: string;
+                      message: string;
+                    }[];
+                  } | null;
                   committedAt: string | null;
                   committedGroupIds: string[];
                   /** Format: date-time */
@@ -8970,6 +9863,8 @@ export interface paths {
                   fileName: string | null;
                   /** Format: uuid */
                   id: string;
+                  /** @enum {string} */
+                  kind: "csv" | "actual_budget";
                   /** Format: uuid */
                   ledgerId: string;
                   previewRows: {
@@ -9185,6 +10080,25 @@ export interface paths {
               data: {
                 archivedGroupIds: string[];
                 importJob: {
+                  actualImport: {
+                    budgetName: string | null;
+                    summary: {
+                      accountCount: number;
+                      expenseCategoryCount: number;
+                      incomeSourceCount: number;
+                      skippedCount: number;
+                      splitCount: number;
+                      transactionCount: number;
+                      transferCount: number;
+                      warningCount: number;
+                    };
+                    targetCurrencyCode: string;
+                    warnings: {
+                      actualTransactionId?: string;
+                      code: string;
+                      message: string;
+                    }[];
+                  } | null;
                   committedAt: string | null;
                   committedGroupIds: string[];
                   /** Format: date-time */
@@ -9194,6 +10108,8 @@ export interface paths {
                   fileName: string | null;
                   /** Format: uuid */
                   id: string;
+                  /** @enum {string} */
+                  kind: "csv" | "actual_budget";
                   /** Format: uuid */
                   ledgerId: string;
                   previewRows: {

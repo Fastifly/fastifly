@@ -55,6 +55,24 @@ export const sqliteSessions = sqliteTable(
   ],
 );
 
+export const sqliteApiKeys = sqliteTable(
+  "api_keys",
+  {
+    id: idText(),
+    userId: requiredIdText("user_id").references(() => sqliteUsers.id),
+    name: text("name").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestampText("created_at"),
+    lastUsedAt: optionalTimestampText("last_used_at"),
+    revokedAt: optionalTimestampText("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("api_keys_token_hash_unique").on(table.tokenHash),
+    index("api_keys_user_id_idx").on(table.userId),
+  ],
+);
+
 export const sqlitePasskeys = sqliteTable(
   "passkeys",
   {
@@ -740,9 +758,7 @@ export const sqliteRecurringOccurrences = sqliteTable(
       () => sqliteRecurringTemplates.id,
     ),
     scheduledFor: timestampText("scheduled_for"),
-    transactionGroupId: text("transaction_group_id").references(
-      () => sqliteTransactionGroups.id,
-    ),
+    transactionGroupId: text("transaction_group_id").references(() => sqliteTransactionGroups.id),
     status: text("status").$type<RecurringOccurrenceStatus>().notNull(),
     errorMessage: text("error_message"),
     createdAt: timestampText("created_at"),
@@ -975,6 +991,7 @@ export const sqliteBalanceRecalculationQueue = sqliteTable(
 export const sqliteSchema = {
   accountMeta: sqliteAccountMeta,
   accounts: sqliteAccounts,
+  apiKeys: sqliteApiKeys,
   auditLog: sqliteAuditLog,
   balanceRecalculationQueue: sqliteBalanceRecalculationQueue,
   budgetLimits: sqliteBudgetLimits,

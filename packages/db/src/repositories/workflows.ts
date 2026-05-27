@@ -1,10 +1,17 @@
-import { createUuidV7, type LedgerScope, parseSyncedId, type SyncedId } from "@fastifly/common";
+import {
+  type ActualImportPlan,
+  createUuidV7,
+  type LedgerScope,
+  parseSyncedId,
+  type SyncedId,
+} from "@fastifly/common";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import { pgImportJobs, pgRecurringTemplates, pgRules } from "../postgres/schema.js";
 import type {
   ImportJobStatus,
+  ImportKind,
   RecurringCadence,
   RecurringTemplateStatus,
   RuleActionType,
@@ -35,7 +42,9 @@ export type ImportJobRecord = {
   readonly csvText: string;
   readonly fileName: string | null;
   readonly id: SyncedId;
+  readonly kind: ImportKind;
   readonly ledgerId: SyncedId;
+  readonly plan: ActualImportPlan | null;
   readonly previewRows: readonly ImportPreviewRow[];
   readonly status: ImportJobStatus;
   readonly undoneAt: string | null;
@@ -109,6 +118,8 @@ export type CreateImportJobInput = LedgerScope & {
   readonly fileName: string | null;
   readonly previewRows: readonly ImportPreviewRow[];
   readonly createdBy: SyncedId;
+  readonly kind?: ImportKind;
+  readonly plan?: ActualImportPlan | null;
 };
 
 export type UpdateImportJobCommittedInput = LedgerScope & {
@@ -218,7 +229,9 @@ type SqliteImportJobRow = {
   readonly csv_text: string;
   readonly file_name: string | null;
   readonly id: string;
+  readonly kind: ImportKind | null;
   readonly ledger_id: string;
+  readonly plan_json: unknown;
   readonly preview_rows_json: unknown;
   readonly status: ImportJobStatus;
   readonly undone_at: string | null;
@@ -285,15 +298,17 @@ export function createSqliteWorkflowRepository(
               workspace_id,
               ledger_id,
               file_name,
+              kind,
               csv_text,
               preview_rows_json,
+              plan_json,
               status,
               committed_group_ids_json,
               created_by,
               created_at,
               updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
         )
         .run(
@@ -301,8 +316,10 @@ export function createSqliteWorkflowRepository(
           scope.workspaceId,
           scope.ledgerId,
           input.fileName,
+          input.kind ?? "csv",
           input.csvText,
           JSON.stringify(input.previewRows),
+          input.plan ? JSON.stringify(input.plan) : null,
           "preview_ready",
           JSON.stringify([]),
           input.createdBy,
@@ -758,8 +775,10 @@ export function createPostgresWorkflowRepository(
         workspaceId: scope.workspaceId,
         ledgerId: scope.ledgerId,
         fileName: input.fileName,
+        kind: input.kind ?? "csv",
         csvText: input.csvText,
         previewRowsJson: input.previewRows,
+        planJson: input.plan ?? null,
         status: "preview_ready",
         committedGroupIdsJson: [],
         createdBy: input.createdBy,
@@ -1082,10 +1101,12 @@ function toImportJobRecord(row: Record<string, unknown>): ImportJobRecord {
     ),
     createdAt: normalizeTimestamp(readRequiredValue(row, "created_at", "createdAt")),
     createdBy: parseSyncedId(readRequiredString(row, "created_by", "createdBy")),
-    csvText: readRequiredString(row, "csv_text", "csvText"),
+    csvText: readOptionalString(row, "csv_text", "csvText") ?? "",
     fileName: readOptionalString(row, "file_name", "fileName"),
     id: parseSyncedId(readRequiredString(row, "id")),
+    kind: readImportKind(readValue(row, "kind", "kind")),
     ledgerId: parseSyncedId(readRequiredString(row, "ledger_id", "ledgerId")),
+    plan: parseImportPlan(readValue(row, "plan_json", "planJson")),
     previewRows: parseImportPreviewRows(readValue(row, "preview_rows_json", "previewRowsJson")),
     status: readRequiredImportJobStatus(row, "status"),
     undoneAt: normalizeNullableTimestamp(readValue(row, "undone_at", "undoneAt")),
@@ -1162,6 +1183,21 @@ function parseSyncedIdArray(value: unknown): readonly SyncedId[] {
     return [];
   }
   return parsed.filter((item): item is string => typeof item === "string").map(parseSyncedId);
+}
+
+function readImportKind(value: unknown): ImportKind {
+  return value === "actual_budget" ? "actual_budget" : "csv";
+}
+
+function parseImportPlan(value: unknown): ActualImportPlan | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const parsed = parseJson(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  return parsed as ActualImportPlan;
 }
 
 function parseImportPreviewRows(value: unknown): readonly ImportPreviewRow[] {

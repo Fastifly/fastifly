@@ -31,7 +31,7 @@ import {
 import { simpleWebAuthnAdapter, type WebAuthnAdapter } from "./auth/webauthn.js";
 import { anonymousAuthContext, denyAllAbility } from "./context.js";
 import { registerErrorHandlers } from "./errors.js";
-import { registerAuthRoutes, resolveSessionUser } from "./routes/auth.js";
+import { registerAuthRoutes, resolveApiKeyUser, resolveSessionUser } from "./routes/auth.js";
 import { registerDeviceRoutes } from "./routes/devices.js";
 import { registerFinanceRoutes } from "./routes/finance.js";
 import { registerSyncRoutes } from "./routes/sync.js";
@@ -79,23 +79,43 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     request.authzAbility = denyAllAbility;
     request.workspaceContext = null;
 
-    if (options.identityRepository) {
-      const user = await resolveSessionUser(
-        options.identityRepository,
-        request.cookies[config.sessionCookieName],
-      );
+    if (!options.identityRepository) {
+      return;
+    }
 
-      if (user) {
+    const identityRepository = options.identityRepository;
+    const sessionUser = await resolveSessionUser(
+      identityRepository,
+      request.cookies[config.sessionCookieName],
+    );
+
+    if (sessionUser) {
+      request.authContext = {
+        kind: "user",
+        userId: sessionUser.id,
+      };
+    } else {
+      // Fall back to API-key authentication so customers can call the API with
+      // their own clients using a key generated from the dashboard.
+      const apiKeyAuth = await resolveApiKeyUser(identityRepository, request.headers.authorization);
+
+      if (apiKeyAuth) {
         request.authContext = {
+          apiKeyId: apiKeyAuth.apiKeyId,
           kind: "user",
-          userId: user.id,
+          userId: apiKeyAuth.user.id,
         };
-        request.workspaceContext =
-          await options.identityRepository.findDefaultWorkspaceContextForUser(user.id);
-        request.authzAbility = request.workspaceContext
-          ? defineWorkspaceAbility({ role: request.workspaceContext.activeWorkspace.role })
-          : denyAllAbility;
+        await identityRepository.touchApiKeyLastUsed(apiKeyAuth.apiKeyId);
       }
+    }
+
+    if (request.authContext.kind === "user") {
+      request.workspaceContext = await identityRepository.findDefaultWorkspaceContextForUser(
+        request.authContext.userId,
+      );
+      request.authzAbility = request.workspaceContext
+        ? defineWorkspaceAbility({ role: request.workspaceContext.activeWorkspace.role })
+        : denyAllAbility;
     }
   });
 
@@ -129,6 +149,20 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
     },
     getToken: (request) => request.headers["x-csrf-token"]?.toString(),
   });
+
+  // CSRF defends cookie/session writes from cross-site forgery; it is meaningless
+  // for API-key (bearer) auth, which a browser cannot be tricked into sending. Skip
+  // the check for API-key-authenticated requests so headless clients (e.g. the Dwell
+  // desktop widget) can POST without a cookie+token dance, while interactive
+  // session requests stay protected. Reassigned before routes capture the handler.
+  const enforceCsrf = app.csrfProtection.bind(app);
+  app.csrfProtection = (request, reply, done) => {
+    if (request.authContext.kind === "user" && request.authContext.apiKeyId) {
+      done();
+      return;
+    }
+    enforceCsrf(request, reply, done);
+  };
 
   await app.register(fastifyRateLimit, {
     global: false,
