@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createUuidV7 } from "@fastifly/common";
 import { migrate as migrateSqlite } from "drizzle-orm/better-sqlite3/migrator";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 
@@ -18,6 +19,12 @@ import {
   createPostgresClient,
   createPostgresDatabaseFromClient,
 } from "../postgres/client.js";
+import {
+  createPostgresJobRepository,
+  createSqliteJobRepository,
+  type JobRecord,
+  type JobRepository,
+} from "../repositories/jobs.js";
 import {
   createConfiguredSqliteClient,
   createSqliteDatabaseFromClient,
@@ -44,13 +51,23 @@ export type CliOutput = {
 };
 
 type ParsedCliArgs = {
-  readonly command: "backup" | "help" | "integrity" | "migrate";
-  readonly subcommand?: "create" | "env" | "report" | "restore" | "status" | "sums" | "up";
+  readonly command: "backup" | "help" | "integrity" | "jobs" | "migrate";
+  readonly subcommand?:
+    | "create"
+    | "env"
+    | "list"
+    | "report"
+    | "restore"
+    | "retry"
+    | "status"
+    | "sums"
+    | "up";
   readonly driver: DatabaseDialect | undefined;
   readonly databaseUrl: string | undefined;
   readonly json: boolean;
   readonly outputPath: string | undefined;
   readonly restorePath: string | undefined;
+  readonly jobId?: string;
   readonly yes: boolean;
 };
 
@@ -179,6 +196,27 @@ export async function runFastiflyCli(
       throw new Error(
         "Expected `fastifly integrity env`, `fastifly integrity report`, or `fastifly integrity sums`.",
       );
+    }
+
+    if (args.command === "jobs") {
+      if (args.subcommand === "list") {
+        const jobs = await withJobRepository(driver, databaseUrl, (repo) => repo.listRecent(50));
+        printJobList(jobs, args.json, output);
+        return 0;
+      }
+      if (args.subcommand === "retry") {
+        const jobId = requireJobId(args.jobId);
+        const job = await withJobRepository(driver, databaseUrl, (repo) =>
+          repo.retry(jobId, new Date()),
+        );
+        if (!job) {
+          output.stderr(`No failed job found with id ${jobId}.`);
+          return 1;
+        }
+        printJobList([job], args.json, output);
+        return 0;
+      }
+      throw new Error("Expected `fastifly jobs list` or `fastifly jobs retry <jobId>`.");
     }
 
     if (args.subcommand === "up") {
@@ -339,6 +377,26 @@ function parseCliArgs(argv: readonly string[], env: CliEnv): ParsedCliArgs {
       yes,
     };
   }
+  if (positional[0] === "jobs") {
+    if (positional[1] !== "list" && positional[1] !== "retry") {
+      throw new Error("Expected `fastifly jobs list` or `fastifly jobs retry <jobId>`.");
+    }
+    const retryJobId = positional[2];
+    if (positional[1] === "retry" && !retryJobId) {
+      throw new Error("Job retry requires a job id.");
+    }
+    return {
+      command: "jobs",
+      databaseUrl,
+      driver,
+      json,
+      outputPath: undefined,
+      restorePath: undefined,
+      subcommand: positional[1],
+      yes,
+      ...(positional[1] === "retry" && retryJobId ? { jobId: retryJobId } : {}),
+    };
+  }
   if (positional[0] !== "migrate") {
     throw new Error(`Unknown command: ${positional[0]}`);
   }
@@ -356,6 +414,54 @@ function parseCliArgs(argv: readonly string[], env: CliEnv): ParsedCliArgs {
     subcommand: positional[1],
     yes,
   };
+}
+
+async function withJobRepository<T>(
+  driver: DatabaseDialect,
+  databaseUrl: string,
+  fn: (repository: JobRepository) => Promise<T>,
+): Promise<T> {
+  if (driver === "sqlite") {
+    const client = createConfiguredSqliteClient({ source: databaseUrl });
+    try {
+      return await fn(createSqliteJobRepository(client, { createId: createUuidV7 }));
+    } finally {
+      client.close();
+    }
+  }
+  const client = createPostgresClient({ url: databaseUrl });
+  try {
+    return await fn(
+      createPostgresJobRepository(createPostgresDatabaseFromClient(client), {
+        createId: createUuidV7,
+      }),
+    );
+  } finally {
+    await closePostgresClient(client);
+  }
+}
+
+function requireJobId(jobId: string | undefined): string {
+  if (!jobId) {
+    throw new Error("Job retry requires a job id.");
+  }
+  return jobId;
+}
+
+function printJobList(jobs: readonly JobRecord[], json: boolean, output: CliOutput): void {
+  if (json) {
+    output.stdout(JSON.stringify({ jobs }, null, 2));
+    return;
+  }
+  if (jobs.length === 0) {
+    output.stdout("No jobs found.");
+    return;
+  }
+  for (const job of jobs) {
+    output.stdout(
+      `${job.id}  ${job.type}  ${job.status}  attempts=${job.attempts}/${job.maxAttempts}  availableAt=${job.availableAt}`,
+    );
+  }
 }
 
 function parseOptionalDatabaseDriver(value: string | undefined): DatabaseDialect | undefined {
@@ -1017,6 +1123,8 @@ function helpText(): string {
     "  fastifly integrity sums --driver sqlite --database-url ./data/fastifly.db",
     "  fastifly backup create --driver sqlite --database-url ./data/fastifly.db",
     "  fastifly backup restore ./data/fastifly.backup.db --yes --driver sqlite --database-url ./data/fastifly.db",
+    "  fastifly jobs list --driver sqlite --database-url ./data/fastifly.db",
+    "  fastifly jobs retry <jobId> --driver sqlite --database-url ./data/fastifly.db",
     "",
     "Environment:",
     "  DATABASE_DRIVER=sqlite|postgres",
