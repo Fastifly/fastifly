@@ -740,9 +740,7 @@ export const sqliteRecurringOccurrences = sqliteTable(
       () => sqliteRecurringTemplates.id,
     ),
     scheduledFor: timestampText("scheduled_for"),
-    transactionGroupId: text("transaction_group_id").references(
-      () => sqliteTransactionGroups.id,
-    ),
+    transactionGroupId: text("transaction_group_id").references(() => sqliteTransactionGroups.id),
     status: text("status").$type<RecurringOccurrenceStatus>().notNull(),
     errorMessage: text("error_message"),
     createdAt: timestampText("created_at"),

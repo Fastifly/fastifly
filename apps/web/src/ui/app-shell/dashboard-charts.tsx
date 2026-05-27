@@ -5,6 +5,7 @@ import {
   type TransactionGroupResponse,
 } from "@fastifly/common";
 import { Card, CardContent } from "@ui/card";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -15,7 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Separator } from "@/components/ui/separator";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { CategoryToken } from "../category-metadata";
@@ -25,7 +26,6 @@ import {
   type MonthlyCashflowPoint,
   type SpendingCategoryPoint,
 } from "./dashboard-chart-data";
-import { Separator } from "@/components/ui/separator";
 
 const MONTHLY_SERIES_WINDOW = 6;
 const CATEGORY_SERIES_LIMIT = 40;
@@ -53,7 +53,8 @@ export function DashboardCharts({
   );
   const latestMonthKey = monthlySeries.at(-1)?.monthKey ?? toMonthKey(now);
   const [selectedMonthKeyState, setSelectedMonthKeyState] = useState(latestMonthKey);
-  const [selectedCategoryMonthKeyState, setSelectedCategoryMonthKeyState] = useState(latestMonthKey);
+  const [selectedCategoryMonthKeyState, setSelectedCategoryMonthKeyState] =
+    useState(latestMonthKey);
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const handleTooltipMonthChange = useCallback((monthKey: string) => {
     setIsTooltipVisible(true);
@@ -85,7 +86,9 @@ export function DashboardCharts({
     if (monthlySeries.length === 0) {
       return 0;
     }
-    const index = monthlySeries.findIndex((point) => point.monthKey === selectedCategoryMonthKeyState);
+    const index = monthlySeries.findIndex(
+      (point) => point.monthKey === selectedCategoryMonthKeyState,
+    );
     return index >= 0 ? index : monthlySeries.length - 1;
   }, [monthlySeries, selectedCategoryMonthKeyState]);
   const selectedCategoryMonth = monthlySeries[selectedCategoryMonthIndex];
@@ -229,7 +232,9 @@ function NetWorthTrendChart({
       <CardContent className="space-y-2 px-3">
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium text-sm text-foreground">{title}</p>
-          <p className={`text-right font-semibold text-[13px] leading-tight ${currentNetWorthToneClass}`}>
+          <p
+            className={`text-right font-semibold text-[13px] leading-tight ${currentNetWorthToneClass}`}
+          >
             {formatMoneyMinor(currentNetWorthMinor, currencyCode)}
           </p>
         </div>
@@ -299,15 +304,14 @@ function NetWorthTrendChart({
                       if (!active) {
                         return null;
                       }
-                      const first =
-                        payload?.[0]?.payload as
-                          | {
-                              readonly changeMinorRaw: string;
-                              readonly monthKey: string;
-                              readonly monthLabel: string;
-                              readonly netWorthMinor: number;
-                            }
-                          | undefined;
+                      const first = payload?.[0]?.payload as
+                        | {
+                            readonly changeMinorRaw: string;
+                            readonly monthKey: string;
+                            readonly monthLabel: string;
+                            readonly netWorthMinor: number;
+                          }
+                        | undefined;
                       if (!first) {
                         return null;
                       }
@@ -349,7 +353,9 @@ function NetWorthTrendChart({
                       );
                     }}
                     cursor={{ fill: "transparent", stroke: "transparent", strokeWidth: 0 }}
-                    defaultIndex={isTooltipVisible ? selectedMonthIndex : undefined}
+                    {...(isTooltipVisible && selectedMonthIndex !== undefined
+                      ? { defaultIndex: selectedMonthIndex }
+                      : {})}
                   />
                   <Area
                     dataKey="netWorthMinor"
@@ -384,7 +390,10 @@ function NetWorthTrendChart({
             </div>
             <div className="sr-only">
               {chartData.map((point) => (
-                <span data-testid={testIds.dashboard.netWorthTrendChartMonth(point.monthKey)} key={point.monthKey} />
+                <span
+                  data-testid={testIds.dashboard.netWorthTrendChartMonth(point.monthKey)}
+                  key={point.monthKey}
+                />
               ))}
             </div>
           </>
@@ -504,18 +513,17 @@ function MonthlyIncomeVsSpendingChart({
                   if (!active) {
                     return null;
                   }
-                  const first =
-                    payload?.[0]?.payload as
-                      | {
-                          readonly expenseChangeMinorRaw: string;
-                          readonly expenseMinorRaw: string;
-                          readonly hasPrevious: boolean;
-                          readonly incomeChangeMinorRaw: string;
-                          readonly incomeMinorRaw: string;
-                          readonly savingsChangeMinorRaw: string;
-                          readonly savingsMinorRaw: string;
-                        }
-                      | undefined;
+                  const first = payload?.[0]?.payload as
+                    | {
+                        readonly expenseChangeMinorRaw: string;
+                        readonly expenseMinorRaw: string;
+                        readonly hasPrevious: boolean;
+                        readonly incomeChangeMinorRaw: string;
+                        readonly incomeMinorRaw: string;
+                        readonly savingsChangeMinorRaw: string;
+                        readonly savingsMinorRaw: string;
+                      }
+                    | undefined;
                   if (!first) {
                     return null;
                   }
@@ -565,7 +573,9 @@ function MonthlyIncomeVsSpendingChart({
                       <div className="grid grid-cols-[auto_auto_auto] gap-x-1.5 gap-y-0.5">
                         <p />
                         <p className="text-right text-[10px] text-muted-foreground/85">Amount</p>
-                        <p className="text-right text-[10px] text-muted-foreground/85">vs last mo.</p>
+                        <p className="text-right text-[10px] text-muted-foreground/85">
+                          vs last mo.
+                        </p>
                         <p className="text-muted-foreground">{en.shell.income}</p>
                         <p className="text-right font-medium text-emerald-600 dark:text-emerald-400">
                           {formatMoneyMinorCompact(BigInt(first.incomeMinorRaw), currencyCode)}
@@ -599,7 +609,9 @@ function MonthlyIncomeVsSpendingChart({
                   );
                 }}
                 cursor={{ fill: "transparent", stroke: "transparent", strokeWidth: 0 }}
-                defaultIndex={isTooltipVisible ? selectedMonthIndex : undefined}
+                {...(isTooltipVisible && selectedMonthIndex !== undefined
+                  ? { defaultIndex: selectedMonthIndex }
+                  : {})}
               />
               <Line
                 dataKey="incomeMinor"
@@ -665,7 +677,10 @@ function MonthlyIncomeVsSpendingChart({
         </div>
         <div className="sr-only">
           {chartData.map((point) => (
-            <span data-testid={testIds.dashboard.cashflowChartMonth(point.monthKey)} key={point.monthKey} />
+            <span
+              data-testid={testIds.dashboard.cashflowChartMonth(point.monthKey)}
+              key={point.monthKey}
+            />
           ))}
         </div>
       </CardContent>
@@ -786,6 +801,9 @@ function CategoryBreakdownSection({
   const [renderData, setRenderData] = useState(data);
   const [animatedHeight, setAnimatedHeight] = useState<number | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
+  const assignContentRef = useCallback((node: HTMLElement | null) => {
+    contentRef.current = node;
+  }, []);
   const resizeRafRef = useRef<number | null>(null);
   const hasMountedRef = useRef(false);
   const lastAppliedSignatureRef = useRef<string | null>(null);
@@ -862,11 +880,11 @@ function CategoryBreakdownSection({
         style={animatedHeight === null ? undefined : { height: `${animatedHeight}px` }}
       >
         {renderData.length === 0 ? (
-          <p className="text-sm text-muted-foreground" ref={contentRef}>
+          <p className="text-sm text-muted-foreground" ref={assignContentRef}>
             {emptyStateTemplate.replace("{month}", monthLabel)}
           </p>
         ) : (
-          <div className="space-y-1.5" ref={contentRef}>
+          <div className="space-y-1.5" ref={assignContentRef}>
             {renderData.map((item) => (
               <div
                 className="space-y-1"
@@ -927,19 +945,15 @@ function buildCategoryProgressData(
   parentCategoryName: string | null;
   share: number;
 }[] {
-  return categories.map((item, index) => ({
+  return categories.map((item, _index) => ({
     amountMinorRaw: item.amountMinor,
-    barColor:
-      item.categoryColor ?? getStableCategoryFallbackColor(item.categoryId),
+    barColor: item.categoryColor ?? getStableCategoryFallbackColor(item.categoryId),
     categoryColor: item.categoryColor,
     categoryIcon: item.categoryIcon,
     categoryId: item.categoryId,
     categoryName: item.categoryName,
     parentCategoryName: item.parentCategoryName,
-    share:
-      totalMinor > 0n
-        ? Number((item.amountMinor * 10000n) / totalMinor) / 100
-        : 0,
+    share: totalMinor > 0n ? Number((item.amountMinor * 10000n) / totalMinor) / 100 : 0,
   }));
 }
 
@@ -957,7 +971,10 @@ function getStableCategoryFallbackColor(categoryId: string): string {
   for (let index = 0; index < categoryId.length; index += 1) {
     hash = (hash * 31 + categoryId.charCodeAt(index)) >>> 0;
   }
-  return CATEGORY_PROGRESS_FALLBACK_COLORS[hash % CATEGORY_PROGRESS_FALLBACK_COLORS.length];
+  return (
+    CATEGORY_PROGRESS_FALLBACK_COLORS[hash % CATEGORY_PROGRESS_FALLBACK_COLORS.length] ??
+    CATEGORY_PROGRESS_FALLBACK_COLORS[0]
+  );
 }
 
 function toSafeChartNumber(value: bigint): number {
@@ -1002,7 +1019,8 @@ function getMonthKeyFromChartEvent(
   if (isTooltipActive !== true) {
     return null;
   }
-  const activeTooltipIndex = (eventState as { readonly activeTooltipIndex?: unknown }).activeTooltipIndex;
+  const activeTooltipIndex = (eventState as { readonly activeTooltipIndex?: unknown })
+    .activeTooltipIndex;
   if (typeof activeTooltipIndex === "number" && Number.isFinite(activeTooltipIndex)) {
     const point = data[activeTooltipIndex];
     if (point) {
@@ -1012,7 +1030,9 @@ function getMonthKeyFromChartEvent(
   const activeLabel = (eventState as { readonly activeLabel?: unknown }).activeLabel;
   if (typeof activeLabel === "string" || typeof activeLabel === "number") {
     const labelText = String(activeLabel);
-    const point = data.find((entry) => entry.monthLabel === labelText || entry.monthKey === labelText);
+    const point = data.find(
+      (entry) => entry.monthLabel === labelText || entry.monthKey === labelText,
+    );
     if (point) {
       return point.monthKey;
     }
@@ -1095,7 +1115,9 @@ function getCurrencySymbol(currencyCode: string): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  const symbol = symbolFormatter.formatToParts(0).find((part) => part.type === "currency")?.value ?? currencyCode;
+  const symbol =
+    symbolFormatter.formatToParts(0).find((part) => part.type === "currency")?.value ??
+    currencyCode;
   CURRENCY_SYMBOL_BY_CODE.set(currencyCode, symbol);
   return symbol;
 }

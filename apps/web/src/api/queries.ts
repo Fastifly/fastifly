@@ -22,13 +22,7 @@ type LedgerQueryInput =
 type TransactionListQueryInput = Partial<
   Pick<
     ListTransactionsQuery,
-    | "accountId"
-    | "categoryId"
-    | "fromOccurredAt"
-    | "limit"
-    | "status"
-    | "toOccurredAt"
-    | "type"
+    "accountId" | "categoryId" | "fromOccurredAt" | "limit" | "status" | "toOccurredAt" | "type"
   >
 >;
 

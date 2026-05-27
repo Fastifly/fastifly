@@ -70,11 +70,9 @@ export function DashboardPage({
   accountPreview,
   accountsLoading,
   cashAndBank,
-  income,
   ledgerContext,
   liabilities,
   reportingCurrencyCode,
-  spending,
   transactions,
   transactionCount,
   transactionsLoading,
@@ -499,8 +497,8 @@ function ChartCardShimmer({ className }: { readonly className?: string }) {
         </div>
         <div className="h-28 animate-pulse rounded-md border border-border bg-muted/30" />
         <div className="grid grid-cols-6 gap-2 px-2">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div className="h-3 animate-pulse rounded bg-muted/60" key={`chart-label-${index}`} />
+          {["a", "b", "c", "d", "e", "f"].map((slot) => (
+            <div className="h-3 animate-pulse rounded bg-muted/60" key={`chart-label-${slot}`} />
           ))}
         </div>
       </CardContent>
@@ -522,8 +520,8 @@ function CategoryCardShimmer({ className }: { readonly className?: string }) {
         </div>
         <div className="space-y-2.5">
           <div className="h-4 w-20 animate-pulse rounded bg-muted/60" />
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div className="space-y-1.5" key={`spending-item-${index}`}>
+          {["a", "b", "c", "d"].map((slot) => (
+            <div className="space-y-1.5" key={`spending-item-${slot}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="h-3 w-28 animate-pulse rounded bg-muted/60" />
                 <div className="h-3 w-16 animate-pulse rounded bg-muted/50" />

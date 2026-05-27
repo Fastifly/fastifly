@@ -15,7 +15,6 @@ import {
   createPostgresDeviceRepository,
   createPostgresIdentityRepository,
   createPostgresJobRepository,
-  createPostgresLedgerCurrencyReader,
   createPostgresLedgerMutationStore,
   createPostgresReportQueryService,
   createPostgresSyncRepository,
@@ -30,7 +29,6 @@ import {
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
   createSqliteJobRepository,
-  createSqliteLedgerCurrencyReader,
   createSqliteLedgerMutationStore,
   createSqliteReportQueryService,
   createSqliteSyncRepository,
@@ -51,7 +49,6 @@ import {
 import type { FastifyInstance } from "fastify";
 
 import { type BuildApiAppOptions, buildApiApp } from "./app.js";
-import { parseActualBudgetExport } from "./services/actual-import-parser.js";
 import { createFinanceWorkflowService } from "./services/finance-workflows.js";
 import { createWorkerRuntime, type WorkerDependencies, type WorkerLogger } from "./worker.js";
 
@@ -180,9 +177,6 @@ function createSqliteRuntimeDependencies(
       accountRepository,
       categoryRepository,
       financeMutationService,
-      parseActualBudgetExport,
-      resolveImportTargetCurrency:
-        createSqliteLedgerCurrencyReader(client).resolveImportTargetCurrency,
       transactionQueryService,
       workflowRepository,
     });
@@ -264,9 +258,6 @@ async function createPostgresRuntimeDependencies(
       accountRepository,
       categoryRepository,
       financeMutationService,
-      parseActualBudgetExport,
-      resolveImportTargetCurrency:
-        createPostgresLedgerCurrencyReader(db).resolveImportTargetCurrency,
       transactionQueryService,
       workflowRepository,
     });

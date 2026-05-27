@@ -39,7 +39,9 @@ function createFakeJobRepository(): JobRepository {
       }
       seq += 1;
       const id = `job_${seq}`;
-      const nowIso = new Date().toISOString();
+      // Use the same fixed clock the runtime is given (`now: () => T0`) so job
+      // claimability does not depend on the real wall clock.
+      const nowIso = T0.toISOString();
       const record: JobRecord = {
         attempts: 0,
         availableAt: input.availableAt ? input.availableAt.toISOString() : nowIso,
