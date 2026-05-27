@@ -542,11 +542,20 @@ Requirements:
 
 ## Job maintenance
 
+Available commands:
+
+```bash
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly jobs list
+DATABASE_DRIVER=sqlite DATABASE_URL=/path/to/fastifly.db fastifly jobs retry <jobId>
+```
+
+`jobs list` shows recent jobs (type, status, attempts, next-available time). `jobs retry` resets a
+terminal `failed` job back to `available`. Due-work scheduling is handled automatically by the
+worker process (`APP_ROLE=worker`); a manual scheduler tick CLI is deferred.
+
 Future commands:
 
 ```bash
-fastifly jobs list
-fastifly jobs retry <jobId>
 fastifly jobs cancel <jobId>
 fastifly jobs prune
 ```
