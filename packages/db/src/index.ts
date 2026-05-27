@@ -237,6 +237,16 @@ export {
   TransactionWriteError,
 } from "./repositories/transactions.js";
 export type {
+  DueRecurringTemplate,
+  RecordRecurringOccurrenceInput,
+  WorkerStore,
+  WorkerStoreOptions,
+} from "./repositories/worker-store.js";
+export {
+  createPostgresWorkerStore,
+  createSqliteWorkerStore,
+} from "./repositories/worker-store.js";
+export type {
   CreateImportJobInput,
   CreateRecurringTemplateInput,
   CreateRuleInput,
@@ -320,6 +330,8 @@ export type {
   SyncReplayServiceOptions,
 } from "./services/sync-replay.js";
 export { createSyncReplayService, SyncReplayError } from "./services/sync-replay.js";
+export type { SqliteBusyRetryOptions } from "./sqlite/busy-retry.js";
+export { isSqliteBusyError, withSqliteBusyRetry } from "./sqlite/busy-retry.js";
 export type {
   SqliteClient,
   SqliteClientConfig,
@@ -334,8 +346,6 @@ export {
   createSqliteDatabaseFromClient,
   readSqliteRuntimePragmas,
 } from "./sqlite/client.js";
-export type { SqliteBusyRetryOptions } from "./sqlite/busy-retry.js";
-export { isSqliteBusyError, withSqliteBusyRetry } from "./sqlite/busy-retry.js";
 export type { SqliteMoneyColumn, SqliteMoneyInput } from "./sqlite/money.js";
 export {
   bindSqliteMoneyMinor,
