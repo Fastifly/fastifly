@@ -21,8 +21,43 @@ Fastifly does not require Redis, BullMQ, Kafka, Elasticsearch, or any external q
 
 Ledger-affecting writes are serialized by `LedgerMutationRunner`.
 
-- PostgreSQL runtime uses a distributed advisory-lock write boundary.
-- SQLite runtime keeps the in-process write boundary and should run as single-writer mode.
+- PostgreSQL runtime uses a distributed advisory-lock write boundary (safe across processes).
+- SQLite runtime keeps an in-process write boundary plus `BEGIN IMMEDIATE` + `busy_timeout`, which
+  also serializes a separate worker process writing the same file on a single host.
+
+---
+
+## Background worker (`APP_ROLE`)
+
+The same image runs as one of three roles via `APP_ROLE`:
+
+```text
+APP_ROLE=api     HTTP server only
+APP_ROLE=worker  background worker only (job queue + scheduler) + minimal /health
+APP_ROLE=all     both in one process (default; simplest single-container self-host)
+```
+
+The worker drives DB-backed jobs: it auto-generates due recurring transactions through the normal
+ledger mutation pipeline (idempotent per template/occurrence), and periodically cleans up expired
+sessions and idempotency receipts. No Redis/BullMQ — jobs live in the `job_queue` table.
+
+The Compose files run a dedicated `fastifly-worker` service (`APP_ROLE=worker`) alongside the
+`fastifly` API service (`APP_ROLE=api`). For the simplest setup you can instead run a single
+service with `APP_ROLE=all` and drop the worker service.
+
+Worker tuning (all optional):
+
+```env
+WORKER_POLL_INTERVAL_MS=1000
+WORKER_SCHEDULER_INTERVAL_MS=60000
+WORKER_JOB_MAX_ATTEMPTS=5
+WORKER_STALE_LOCK_MS=60000
+SESSION_CLEANUP_INTERVAL_MS=3600000
+IDEMPOTENCY_RETENTION_MS=2592000000
+```
+
+For SQLite, run the API and worker on the same host so they share the database file safely. For
+heavier or multi-host deployments, use PostgreSQL.
 
 ---
 
