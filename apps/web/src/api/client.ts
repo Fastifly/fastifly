@@ -1,6 +1,8 @@
 import {
   type ApiError,
   ApiErrorSchema,
+  type ApiKeyListResponse,
+  ApiKeyListResponseSchema,
   ArchiveAccountResponseSchema,
   ArchiveCategoryResponseSchema,
   type AuthResponse,
@@ -8,8 +10,12 @@ import {
   CommitImportJobResponseSchema,
   type CreateAccountRequest,
   CreateAccountResponseSchema,
+  CreateActualImportResponseSchema,
+  type CreateApiKeyRequest,
   type CreateCategoryRequest,
   CreateCategoryResponseSchema,
+  type CreatedApiKeyResponse,
+  CreatedApiKeyResponseSchema,
   CreateImportCsvResponseSchema,
   CreateRecurringTemplateResponseSchema,
   CreateRuleResponseSchema,
@@ -91,11 +97,20 @@ export type ApiClient = {
       readonly importJobId: string;
     },
   ) => Promise<ImportJobResponse>;
+  readonly createApiKey: (input: CreateApiKeyRequest) => Promise<CreatedApiKeyResponse["data"]>;
+  readonly listApiKeys: () => Promise<ApiKeyListResponse>;
+  readonly revokeApiKey: (input: { readonly apiKeyId: string }) => Promise<void>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
   readonly createCategory: (input: LedgerPathInput & CreateCategoryRequest) => Promise<void>;
   readonly updateCategory: (
     input: LedgerPathInput & { readonly categoryId: string } & UpdateCategoryRequest,
   ) => Promise<void>;
+  readonly createActualImport: (
+    input: LedgerPathInput & {
+      readonly fileBase64: string;
+      readonly fileName?: string | null;
+    },
+  ) => Promise<ImportJobResponse>;
   readonly createImportCsv: (
     input: LedgerPathInput & {
       readonly csvText: string;
@@ -347,6 +362,42 @@ export const apiClient: ApiClient = {
       return response.data.importJob;
     });
   },
+  async createApiKey(input) {
+    return await withCsrf(async (csrfToken) => {
+      const response = CreatedApiKeyResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/me/api-keys", {
+            body: { name: input.name },
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+          }),
+        ),
+      );
+      return response.data;
+    });
+  },
+  async listApiKeys() {
+    return ApiKeyListResponseSchema.parse(
+      await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/api-keys")),
+    );
+  },
+  async revokeApiKey(input) {
+    await withCsrf(async (csrfToken) => {
+      await unwrapOpenApiEmptyResponse(
+        await openApiClient.DELETE("/api/v1/me/api-keys/{apiKeyId}", {
+          headers: {
+            "x-csrf-token": csrfToken,
+          },
+          params: {
+            path: {
+              apiKeyId: input.apiKeyId,
+            },
+          },
+        }),
+      );
+    });
+  },
   async createAccount(input) {
     const { ledgerId, workspaceId, ...body } = input;
     await withCsrf(async (csrfToken) => {
@@ -428,6 +479,34 @@ export const apiClient: ApiClient = {
           ),
         ),
       );
+    });
+  },
+  async createActualImport(input) {
+    const { fileBase64, fileName, ledgerId, workspaceId } = input;
+    return await withCsrf(async (csrfToken) => {
+      const response = CreateActualImportResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/imports/actual-budget",
+            {
+              body: {
+                fileBase64,
+                ...(fileName !== undefined ? { fileName } : {}),
+              },
+              headers: {
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+      return response.data.importJob;
     });
   },
   async createImportCsv(input) {

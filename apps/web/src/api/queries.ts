@@ -22,13 +22,7 @@ type LedgerQueryInput =
 type TransactionListQueryInput = Partial<
   Pick<
     ListTransactionsQuery,
-    | "accountId"
-    | "categoryId"
-    | "fromOccurredAt"
-    | "limit"
-    | "status"
-    | "toOccurredAt"
-    | "type"
+    "accountId" | "categoryId" | "fromOccurredAt" | "limit" | "status" | "toOccurredAt" | "type"
   >
 >;
 
@@ -48,6 +42,16 @@ export function useMeContextQuery(enabled = true) {
     queryFn: apiClient.getMeContext,
     queryKey: ["me", "context"],
     retry: false,
+  });
+}
+
+export const apiKeysQueryKey = ["me", "api-keys"] as const;
+
+export function useApiKeysQuery(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: apiClient.listApiKeys,
+    queryKey: apiKeysQueryKey,
   });
 }
 

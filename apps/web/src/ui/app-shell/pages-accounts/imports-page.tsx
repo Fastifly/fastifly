@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent } from "@ui/card";
-import { Check, RotateCcw, Upload } from "lucide-react";
+import { Check, FileUp, RotateCcw, Upload } from "lucide-react";
+import { useRef } from "react";
 import { toast } from "sonner";
 import { apiClient } from "../../../api/client";
 import { useImportJobsQuery } from "../../../api/queries";
@@ -16,6 +17,40 @@ import type { ImportsPageProps } from "./types";
 export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
   const queryClient = useQueryClient();
   const importJobsQuery = useImportJobsQuery(ledgerContext);
+  const actualFileInputRef = useRef<HTMLInputElement>(null);
+  const invalidateImportQueries = async () => {
+    if (!ledgerContext) {
+      return;
+    }
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["finance", "imports", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["finance", "transactions", ledgerContext.workspaceId, ledgerContext.ledgerId],
+      }),
+    ]);
+  };
+  const actualImportMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+      const fileBase64 = await fileToBase64(file);
+      return await apiClient.createActualImport({
+        fileBase64,
+        fileName: file.name,
+        ...ledgerContext,
+      });
+    },
+    onSuccess: async () => {
+      toast.success(en.imports.actualReady);
+      await invalidateImportQueries();
+    },
+    onError: () => {
+      toast.error(en.imports.actualFailed);
+    },
+  });
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!ledgerContext) {
@@ -106,7 +141,38 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
     <section className="mt-2 space-y-4" data-testid={testIds.imports.page}>
       <GlassSection title={en.shell.importsTitle} description={en.shell.importsBody}>
         <div className="flex flex-col gap-3">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <input
+              accept=".zip,.blob,application/zip,application/octet-stream"
+              className="hidden"
+              data-testid={testIds.imports.actualFileInput}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) {
+                  actualImportMutation.mutate(file);
+                }
+              }}
+              ref={actualFileInputRef}
+              type="file"
+            />
+            <BlockedActionGate
+              blocked={actualImportMutation.isPending}
+              reason={en.actionGate.inProgress}
+            >
+              <Button
+                data-testid={testIds.imports.actualUploadButton}
+                onClick={() => actualFileInputRef.current?.click()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <FileUp aria-hidden="true" />
+                {actualImportMutation.isPending
+                  ? en.imports.importingActual
+                  : en.imports.importActual}
+              </Button>
+            </BlockedActionGate>
             <BlockedActionGate blocked={createMutation.isPending} reason={en.actionGate.inProgress}>
               <Button
                 data-testid={testIds.imports.uploadButton}
@@ -204,4 +270,21 @@ export function ImportsPage({ accounts, ledgerContext }: ImportsPageProps) {
       </GlassSection>
     </section>
   );
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read file."));
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Could not read file."));
+        return;
+      }
+      const commaIndex = result.indexOf(",");
+      resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+    };
+    reader.readAsDataURL(file);
+  });
 }
