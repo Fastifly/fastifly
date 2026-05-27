@@ -6,6 +6,23 @@ const EnvBooleanSchema = z
 
 export const ApiConfigSchema = z
   .strictObject({
+    appRole: z.enum(["api", "worker", "all"]).default("all"),
+    workerPollIntervalMs: z.coerce.number().int().min(50).max(60_000).default(1000),
+    workerSchedulerIntervalMs: z.coerce.number().int().min(1000).max(3_600_000).default(60_000),
+    workerJobMaxAttempts: z.coerce.number().int().min(1).max(50).default(5),
+    workerStaleLockMs: z.coerce.number().int().min(1000).max(3_600_000).default(60_000),
+    sessionCleanupIntervalMs: z.coerce
+      .number()
+      .int()
+      .min(60_000)
+      .max(86_400_000)
+      .default(3_600_000),
+    idempotencyRetentionMs: z.coerce
+      .number()
+      .int()
+      .min(3_600_000)
+      .max(31_536_000_000)
+      .default(2_592_000_000),
     autoMigrate: EnvBooleanSchema.default(false),
     cookieSecure: EnvBooleanSchema.optional(),
     databaseDriver: z.enum(["sqlite", "postgres"]).optional(),
@@ -39,6 +56,12 @@ export const ApiConfigSchema = z
       .min(100)
       .max(120_000)
       .default(15_000),
+    // Shared bearer secret for the lightweight widget-sync bridge (the Dwell
+    // desktop client). When unset the bridge routes are not registered at all.
+    bridgeApiToken: z.string().min(16).optional(),
+    // Where the bridge persists its per-collection JSON documents. Defaults to a
+    // `bridge` directory beside the database file (see resolveBridgeStorageDir).
+    bridgeStorageDir: z.string().min(1).optional(),
   })
   .superRefine((config, ctx) => {
     if (config.nodeEnv === "production" && !config.cookieSecret) {
@@ -68,6 +91,13 @@ export type ApiConfig = z.infer<typeof ApiConfigSchema>;
 
 export function parseApiConfig(env: Record<string, string | undefined>): ApiConfig {
   return ApiConfigSchema.parse({
+    appRole: env.APP_ROLE,
+    workerPollIntervalMs: env.WORKER_POLL_INTERVAL_MS,
+    workerSchedulerIntervalMs: env.WORKER_SCHEDULER_INTERVAL_MS,
+    workerJobMaxAttempts: env.WORKER_JOB_MAX_ATTEMPTS,
+    workerStaleLockMs: env.WORKER_STALE_LOCK_MS,
+    sessionCleanupIntervalMs: env.SESSION_CLEANUP_INTERVAL_MS,
+    idempotencyRetentionMs: env.IDEMPOTENCY_RETENTION_MS,
     autoMigrate: env.AUTO_MIGRATE,
     cookieSecure: env.COOKIE_SECURE,
     databaseDriver: env.DATABASE_DRIVER,
@@ -91,6 +121,8 @@ export function parseApiConfig(env: Record<string, string | undefined>): ApiConf
     webAuthnOrigin: env.WEBAUTHN_ORIGIN,
     webAuthnChallengeTtlMinutes: env.WEBAUTHN_CHALLENGE_TTL_MINUTES,
     postgresLedgerLockAcquireTimeoutMs: env.POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS,
+    bridgeApiToken: env.FASTIFLY_BRIDGE_TOKEN,
+    bridgeStorageDir: env.FASTIFLY_BRIDGE_DATA_DIR,
   });
 }
 

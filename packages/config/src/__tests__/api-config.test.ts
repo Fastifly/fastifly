@@ -90,6 +90,38 @@ describe("API config contract", () => {
     ).toThrow();
   });
 
+  it("defaults the application role to all and exposes worker settings", () => {
+    expect(parseApiConfig({})).toMatchObject({
+      appRole: "all",
+      workerPollIntervalMs: 1000,
+      workerSchedulerIntervalMs: 60_000,
+      workerJobMaxAttempts: 5,
+      workerStaleLockMs: 60_000,
+    });
+  });
+
+  it("parses an explicit worker role and coerces worker intervals", () => {
+    expect(
+      parseApiConfig({
+        APP_ROLE: "worker",
+        WORKER_POLL_INTERVAL_MS: "250",
+        WORKER_SCHEDULER_INTERVAL_MS: "5000",
+        WORKER_JOB_MAX_ATTEMPTS: "3",
+        WORKER_STALE_LOCK_MS: "30000",
+      }),
+    ).toMatchObject({
+      appRole: "worker",
+      workerPollIntervalMs: 250,
+      workerSchedulerIntervalMs: 5000,
+      workerJobMaxAttempts: 3,
+      workerStaleLockMs: 30_000,
+    });
+  });
+
+  it("rejects an unknown application role", () => {
+    expect(() => parseApiConfig({ APP_ROLE: "scheduler" })).toThrow();
+  });
+
   it("keeps test config creation explicit and valid", () => {
     expect(makeTestApiConfig({ openApiBaseUrl: "http://127.0.0.1:3000" })).toMatchObject({
       logLevel: "silent",
