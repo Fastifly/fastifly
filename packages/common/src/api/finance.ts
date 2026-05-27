@@ -281,13 +281,41 @@ export const ImportPreviewRowSchema = z.strictObject({
 
 export const ImportJobStatusSchema = z.enum(["preview_ready", "committed", "undone", "failed"]);
 
+export const ImportKindSchema = z.enum(["csv", "actual_budget"]);
+
+export const ActualImportWarningSchema = z.strictObject({
+  actualTransactionId: z.string().optional(),
+  code: z.string(),
+  message: z.string(),
+});
+
+export const ActualImportSummarySchema = z.strictObject({
+  accountCount: z.int().min(0),
+  expenseCategoryCount: z.int().min(0),
+  incomeSourceCount: z.int().min(0),
+  skippedCount: z.int().min(0),
+  splitCount: z.int().min(0),
+  transactionCount: z.int().min(0),
+  transferCount: z.int().min(0),
+  warningCount: z.int().min(0),
+});
+
+export const ActualImportDetailsSchema = z.strictObject({
+  budgetName: z.string().nullable(),
+  summary: ActualImportSummarySchema,
+  targetCurrencyCode: CurrencyCodeSchema,
+  warnings: z.array(ActualImportWarningSchema),
+});
+
 export const ImportJobResponseSchema = z.strictObject({
+  actualImport: ActualImportDetailsSchema.nullable(),
   committedAt: NullableIsoDateTimeSchema,
   committedGroupIds: z.array(SyncedIdSchema),
   createdAt: IsoDateTimeSchema,
   createdBy: SyncedIdSchema,
   fileName: z.string().nullable(),
   id: SyncedIdSchema,
+  kind: ImportKindSchema,
   ledgerId: SyncedIdSchema,
   previewRows: z.array(ImportPreviewRowSchema),
   status: ImportJobStatusSchema,
@@ -312,6 +340,17 @@ export const ListImportJobsResponseSchema = z.strictObject({
 });
 
 export const GetImportJobResponseSchema = z.strictObject({
+  data: z.strictObject({
+    importJob: ImportJobResponseSchema,
+  }),
+});
+
+export const CreateActualImportRequestSchema = z.strictObject({
+  fileBase64: z.string().min(1),
+  fileName: z.string().trim().min(1).max(255).nullable().optional(),
+});
+
+export const CreateActualImportResponseSchema = z.strictObject({
   data: z.strictObject({
     importJob: ImportJobResponseSchema,
   }),

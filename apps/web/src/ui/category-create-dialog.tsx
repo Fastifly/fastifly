@@ -34,10 +34,7 @@ import { useCategoriesQuery } from "../api/queries";
 import { en } from "../i18n/en";
 import { testIds } from "../testing/testid-registry";
 import { BlockedActionGate } from "./blocked-action-gate";
-import {
-  CATEGORY_ICON_OPTIONS,
-  CategoryToken,
-} from "./category-metadata";
+import { CATEGORY_ICON_OPTIONS, CategoryToken } from "./category-metadata";
 
 const NO_PARENT_VALUE = "__no-parent__";
 const DEFAULT_COLOR = "#4F46E5";

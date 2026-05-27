@@ -1,6 +1,8 @@
 import {
   CommitImportJobRequestSchema,
   CommitImportJobResponseSchema,
+  CreateActualImportRequestSchema,
+  CreateActualImportResponseSchema,
   CreateImportCsvRequestSchema,
   CreateImportCsvResponseSchema,
   GetImportJobResponseSchema,
@@ -51,6 +53,46 @@ export function registerFinanceImportWorkflowRoutes(
       const importJob = await workflowService.createImportJobFromCsv({
         actorUserId,
         csvText: body.csvText,
+        fileName: body.fileName ?? null,
+        scope: {
+          ledgerId: parseSyncedId(params.ledgerId),
+          workspaceId: parseSyncedId(params.workspaceId),
+        },
+      });
+      return reply.status(201).send({
+        data: {
+          importJob: toImportJobResponse(importJob),
+        },
+      });
+    },
+  );
+
+  app.post(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/actual-budget",
+    {
+      // Actual Budget exports are base64-encoded ZIP archives; allow a larger
+      // body than the default 1 MB while keeping the upload bounded.
+      bodyLimit: 32 * 1024 * 1024,
+      onRequest: app.csrfProtection,
+      schema: {
+        body: CreateActualImportRequestSchema,
+        params: LedgerParamsSchema,
+        response: {
+          201: CreateActualImportResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actorUserId = requireAuthenticatedUser(request);
+      const params = LedgerParamsSchema.parse(request.params);
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "import", "Import");
+      const body = CreateActualImportRequestSchema.parse(request.body);
+
+      const importJob = await workflowService.createImportJobFromActualBudget({
+        actorUserId,
+        fileBase64: body.fileBase64,
         fileName: body.fileName ?? null,
         scope: {
           ledgerId: parseSyncedId(params.ledgerId),

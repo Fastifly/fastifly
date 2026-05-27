@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
+import { ApiKeysPanel } from "../api-keys-panel";
 import { BlockedActionGate } from "../blocked-action-gate";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
 import { GlassSection, MetricTile } from "./shared-components";
@@ -288,6 +289,8 @@ export function SettingsPage({
             </div>
           </div>
         </GlassSection>
+
+        <ApiKeysPanel />
 
         <GlassSection
           title={en.settings.automationTitle}
@@ -584,11 +587,16 @@ export function DashboardAside({
               <div className="space-y-2 p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background/70">
-                    <WalletCards aria-hidden="true" className="size-3.5 text-emerald-600 dark:text-emerald-300" />
+                    <WalletCards
+                      aria-hidden="true"
+                      className="size-3.5 text-emerald-600 dark:text-emerald-300"
+                    />
                   </span>
                   <span className="font-medium">{en.shell.cashAndBank}</span>
                 </div>
-                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">{cashAndBank}</p>
+                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">
+                  {cashAndBank}
+                </p>
               </div>
             </Card>
             <Card
@@ -599,11 +607,16 @@ export function DashboardAside({
               <div className="space-y-2 p-3">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background/70">
-                    <RefreshCcw aria-hidden="true" className="size-3.5 text-rose-600 dark:text-rose-300" />
+                    <RefreshCcw
+                      aria-hidden="true"
+                      className="size-3.5 text-rose-600 dark:text-rose-300"
+                    />
                   </span>
                   <span className="font-medium">{en.shell.liabilities}</span>
                 </div>
-                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">{liabilities}</p>
+                <p className="font-semibold text-[1.15rem] leading-tight text-foreground">
+                  {liabilities}
+                </p>
               </div>
             </Card>
           </div>

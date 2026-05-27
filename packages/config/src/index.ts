@@ -56,12 +56,6 @@ export const ApiConfigSchema = z
       .min(100)
       .max(120_000)
       .default(15_000),
-    // Shared bearer secret for the lightweight widget-sync bridge (the Dwell
-    // desktop client). When unset the bridge routes are not registered at all.
-    bridgeApiToken: z.string().min(16).optional(),
-    // Where the bridge persists its per-collection JSON documents. Defaults to a
-    // `bridge` directory beside the database file (see resolveBridgeStorageDir).
-    bridgeStorageDir: z.string().min(1).optional(),
   })
   .superRefine((config, ctx) => {
     if (config.nodeEnv === "production" && !config.cookieSecret) {
@@ -121,8 +115,6 @@ export function parseApiConfig(env: Record<string, string | undefined>): ApiConf
     webAuthnOrigin: env.WEBAUTHN_ORIGIN,
     webAuthnChallengeTtlMinutes: env.WEBAUTHN_CHALLENGE_TTL_MINUTES,
     postgresLedgerLockAcquireTimeoutMs: env.POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS,
-    bridgeApiToken: env.FASTIFLY_BRIDGE_TOKEN,
-    bridgeStorageDir: env.FASTIFLY_BRIDGE_DATA_DIR,
   });
 }
 
