@@ -95,9 +95,11 @@ describe("SQLite cross-connection write serialization", () => {
       api.exec("COMMIT");
       worker.prepare("UPDATE counter SET value = value + 1 WHERE id = 1").run();
 
-      const value = (api.prepare("SELECT value FROM counter WHERE id = 1").get() as {
-        readonly value: number;
-      }).value;
+      const value = (
+        api.prepare("SELECT value FROM counter WHERE id = 1").get() as {
+          readonly value: number;
+        }
+      ).value;
       expect(value).toBe(2);
     } finally {
       api.close();

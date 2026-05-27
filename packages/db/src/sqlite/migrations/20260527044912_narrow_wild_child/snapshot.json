@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "9a815143-a7cf-4e7a-af6e-4907033b776e",
-  "prevIds": [
-    "30d70d33-722c-4e81-8c26-94c85b38e618"
-  ],
+  "prevIds": ["30d70d33-722c-4e81-8c26-94c85b38e618"],
   "ddl": [
     {
       "name": "account_meta",
@@ -3785,13 +3783,9 @@
       "table": "workspaces"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3800,13 +3794,9 @@
       "table": "account_meta"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3815,13 +3805,9 @@
       "table": "account_meta"
     },
     {
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3830,13 +3816,9 @@
       "table": "account_meta"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3845,13 +3827,9 @@
       "table": "accounts"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3860,13 +3838,9 @@
       "table": "accounts"
     },
     {
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3875,13 +3849,9 @@
       "table": "accounts"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3890,13 +3860,9 @@
       "table": "audit_log"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3905,13 +3871,9 @@
       "table": "audit_log"
     },
     {
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3920,13 +3882,9 @@
       "table": "audit_log"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3935,13 +3893,9 @@
       "table": "balance_recalculation_queue"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3950,13 +3904,9 @@
       "table": "balance_recalculation_queue"
     },
     {
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3965,13 +3915,9 @@
       "table": "balance_recalculation_queue"
     },
     {
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3980,13 +3926,9 @@
       "table": "balance_recalculation_queue"
     },
     {
-      "columns": [
-        "budget_id"
-      ],
+      "columns": ["budget_id"],
       "tableTo": "budgets",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -3995,13 +3937,9 @@
       "table": "budget_limits"
     },
     {
-      "columns": [
-        "category_id"
-      ],
+      "columns": ["category_id"],
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4010,13 +3948,9 @@
       "table": "budget_limits"
     },
     {
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4025,13 +3959,9 @@
       "table": "budget_limits"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4040,13 +3970,9 @@
       "table": "budgets"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4055,13 +3981,9 @@
       "table": "budgets"
     },
     {
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4070,13 +3992,9 @@
       "table": "budgets"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4085,13 +4003,9 @@
       "table": "categories"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4100,13 +4014,9 @@
       "table": "categories"
     },
     {
-      "columns": [
-        "parent_id"
-      ],
+      "columns": ["parent_id"],
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4115,13 +4025,9 @@
       "table": "categories"
     },
     {
-      "columns": [
-        "counterparty_account_id"
-      ],
+      "columns": ["counterparty_account_id"],
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4130,13 +4036,9 @@
       "table": "categories"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4145,13 +4047,9 @@
       "table": "devices"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4160,13 +4058,9 @@
       "table": "exchange_rates"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4175,13 +4069,9 @@
       "table": "exchange_rates"
     },
     {
-      "columns": [
-        "base_currency_code"
-      ],
+      "columns": ["base_currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4190,13 +4080,9 @@
       "table": "exchange_rates"
     },
     {
-      "columns": [
-        "quote_currency_code"
-      ],
+      "columns": ["quote_currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4205,13 +4091,9 @@
       "table": "exchange_rates"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4220,13 +4102,9 @@
       "table": "idempotency_receipts"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4235,13 +4113,9 @@
       "table": "idempotency_receipts"
     },
     {
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4250,13 +4124,9 @@
       "table": "idempotency_receipts"
     },
     {
-      "columns": [
-        "device_id"
-      ],
+      "columns": ["device_id"],
       "tableTo": "devices",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4265,13 +4135,9 @@
       "table": "idempotency_receipts"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4280,13 +4146,9 @@
       "table": "import_jobs"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4295,13 +4157,9 @@
       "table": "import_jobs"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4310,13 +4168,9 @@
       "table": "import_jobs"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4325,13 +4179,9 @@
       "table": "journal_meta"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4340,13 +4190,9 @@
       "table": "journal_meta"
     },
     {
-      "columns": [
-        "journal_id"
-      ],
+      "columns": ["journal_id"],
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4355,13 +4201,9 @@
       "table": "journal_meta"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4370,13 +4212,9 @@
       "table": "ledgers"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4385,13 +4223,9 @@
       "table": "passkey_challenges"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4400,13 +4234,9 @@
       "table": "passkeys"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4415,13 +4245,9 @@
       "table": "payee_aliases"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4430,13 +4256,9 @@
       "table": "payee_aliases"
     },
     {
-      "columns": [
-        "payee_id"
-      ],
+      "columns": ["payee_id"],
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4445,13 +4267,9 @@
       "table": "payee_aliases"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4460,13 +4278,9 @@
       "table": "payee_mappings"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4475,13 +4289,9 @@
       "table": "payee_mappings"
     },
     {
-      "columns": [
-        "from_payee_id"
-      ],
+      "columns": ["from_payee_id"],
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4490,13 +4300,9 @@
       "table": "payee_mappings"
     },
     {
-      "columns": [
-        "to_payee_id"
-      ],
+      "columns": ["to_payee_id"],
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4505,13 +4311,9 @@
       "table": "payee_mappings"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4520,13 +4322,9 @@
       "table": "payee_mappings"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4535,13 +4333,9 @@
       "table": "payees"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4550,13 +4344,9 @@
       "table": "payees"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4565,13 +4355,9 @@
       "table": "recovery_codes"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4580,13 +4366,9 @@
       "table": "recurring_occurrences"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4595,13 +4377,9 @@
       "table": "recurring_occurrences"
     },
     {
-      "columns": [
-        "recurring_template_id"
-      ],
+      "columns": ["recurring_template_id"],
       "tableTo": "recurring_templates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4610,13 +4388,9 @@
       "table": "recurring_occurrences"
     },
     {
-      "columns": [
-        "transaction_group_id"
-      ],
+      "columns": ["transaction_group_id"],
       "tableTo": "transaction_groups",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4625,13 +4399,9 @@
       "table": "recurring_occurrences"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4640,13 +4410,9 @@
       "table": "recurring_templates"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4655,13 +4421,9 @@
       "table": "recurring_templates"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4670,13 +4432,9 @@
       "table": "recurring_templates"
     },
     {
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4685,13 +4443,9 @@
       "table": "recurring_templates"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4700,13 +4454,9 @@
       "table": "rules"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4715,13 +4465,9 @@
       "table": "rules"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4730,13 +4476,9 @@
       "table": "rules"
     },
     {
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4745,13 +4487,9 @@
       "table": "rules"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4760,13 +4498,9 @@
       "table": "sessions"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4775,13 +4509,9 @@
       "table": "sync_conflicts"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4790,13 +4520,9 @@
       "table": "sync_conflicts"
     },
     {
-      "columns": [
-        "incoming_operation_id"
-      ],
+      "columns": ["incoming_operation_id"],
       "tableTo": "sync_operations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4805,13 +4531,9 @@
       "table": "sync_conflicts"
     },
     {
-      "columns": [
-        "resolution_operation_id"
-      ],
+      "columns": ["resolution_operation_id"],
       "tableTo": "sync_operations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4820,13 +4542,9 @@
       "table": "sync_conflicts"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4835,13 +4553,9 @@
       "table": "sync_operations"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4850,13 +4564,9 @@
       "table": "sync_operations"
     },
     {
-      "columns": [
-        "device_id"
-      ],
+      "columns": ["device_id"],
       "tableTo": "devices",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4865,13 +4575,9 @@
       "table": "sync_operations"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4880,13 +4586,9 @@
       "table": "sync_operations"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4895,13 +4597,9 @@
       "table": "tags"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4910,13 +4608,9 @@
       "table": "tags"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4925,13 +4619,9 @@
       "table": "transaction_groups"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4940,13 +4630,9 @@
       "table": "transaction_groups"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4955,13 +4641,9 @@
       "table": "transaction_groups"
     },
     {
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4970,13 +4652,9 @@
       "table": "transaction_groups"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -4985,13 +4663,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5000,13 +4674,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "group_id"
-      ],
+      "columns": ["group_id"],
       "tableTo": "transaction_groups",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5015,13 +4685,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "payee_id"
-      ],
+      "columns": ["payee_id"],
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5030,13 +4696,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5045,13 +4707,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5060,13 +4718,9 @@
       "table": "transaction_journals"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5075,13 +4729,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5090,13 +4740,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "journal_id"
-      ],
+      "columns": ["journal_id"],
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5105,13 +4751,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5120,13 +4762,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5135,13 +4773,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "foreign_currency_code"
-      ],
+      "columns": ["foreign_currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5150,13 +4784,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "reporting_currency_code"
-      ],
+      "columns": ["reporting_currency_code"],
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5165,13 +4795,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "category_id"
-      ],
+      "columns": ["category_id"],
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5180,13 +4806,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "budget_id"
-      ],
+      "columns": ["budget_id"],
       "tableTo": "budgets",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5195,13 +4817,9 @@
       "table": "transaction_postings"
     },
     {
-      "columns": [
-        "transaction_journal_id"
-      ],
+      "columns": ["transaction_journal_id"],
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5210,13 +4828,9 @@
       "table": "transaction_tags"
     },
     {
-      "columns": [
-        "tag_id"
-      ],
+      "columns": ["tag_id"],
       "tableTo": "tags",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5225,13 +4839,9 @@
       "table": "transaction_tags"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5240,13 +4850,9 @@
       "table": "workspace_invitations"
     },
     {
-      "columns": [
-        "invited_by_user_id"
-      ],
+      "columns": ["invited_by_user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5255,13 +4861,9 @@
       "table": "workspace_invitations"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5270,13 +4872,9 @@
       "table": "workspace_ledger_revisions"
     },
     {
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5285,13 +4883,9 @@
       "table": "workspace_ledger_revisions"
     },
     {
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5300,13 +4894,9 @@
       "table": "workspace_members"
     },
     {
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5315,13 +4905,9 @@
       "table": "workspace_members"
     },
     {
-      "columns": [
-        "owner_user_id"
-      ],
+      "columns": ["owner_user_id"],
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "nameExplicit": false,
@@ -5330,315 +4916,245 @@
       "table": "workspaces"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_meta_pk",
       "table": "account_meta",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "accounts_pk",
       "table": "accounts",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_log_pk",
       "table": "audit_log",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "balance_recalculation_queue_pk",
       "table": "balance_recalculation_queue",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "budget_limits_pk",
       "table": "budget_limits",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "budgets_pk",
       "table": "budgets",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "categories_pk",
       "table": "categories",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "code"
-      ],
+      "columns": ["code"],
       "nameExplicit": false,
       "name": "currencies_pk",
       "table": "currencies",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "devices_pk",
       "table": "devices",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "exchange_rates_pk",
       "table": "exchange_rates",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "idempotency_receipts_pk",
       "table": "idempotency_receipts",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "import_jobs_pk",
       "table": "import_jobs",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_queue_pk",
       "table": "job_queue",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "journal_meta_pk",
       "table": "journal_meta",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "ledgers_pk",
       "table": "ledgers",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "passkey_challenges_pk",
       "table": "passkey_challenges",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "passkeys_pk",
       "table": "passkeys",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payee_aliases_pk",
       "table": "payee_aliases",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payee_mappings_pk",
       "table": "payee_mappings",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payees_pk",
       "table": "payees",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recovery_codes_pk",
       "table": "recovery_codes",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recurring_occurrences_pk",
       "table": "recurring_occurrences",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recurring_templates_pk",
       "table": "recurring_templates",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rules_pk",
       "table": "rules",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sessions_pk",
       "table": "sessions",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sync_conflicts_pk",
       "table": "sync_conflicts",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sync_operations_pk",
       "table": "sync_operations",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "tags_pk",
       "table": "tags",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_groups_pk",
       "table": "transaction_groups",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_journals_pk",
       "table": "transaction_journals",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_postings_pk",
       "table": "transaction_postings",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pk",
       "table": "users",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspace_invitations_pk",
       "table": "workspace_invitations",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspace_members_pk",
       "table": "workspace_members",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspaces_pk",
       "table": "workspaces",

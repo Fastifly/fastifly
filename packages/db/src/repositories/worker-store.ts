@@ -180,10 +180,7 @@ export function createPostgresWorkerStore(
     },
 
     async deleteExpiredSessions(now) {
-      const rows = await db
-        .delete(pgSessions)
-        .where(lt(pgSessions.expiresAt, now))
-        .returning();
+      const rows = await db.delete(pgSessions).where(lt(pgSessions.expiresAt, now)).returning();
       return rows.length;
     },
 
