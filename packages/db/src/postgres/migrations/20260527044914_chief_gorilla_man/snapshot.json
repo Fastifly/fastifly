@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "eb1e7908-b2dd-4574-8c4f-a476d64c7e55",
-  "prevIds": [
-    "24c0b154-98dd-4034-8296-770a8d35f2be"
-  ],
+  "prevIds": ["24c0b154-98dd-4034-8296-770a8d35f2be"],
   "ddl": [
     {
       "isRlsEnabled": false,
@@ -7322,14 +7320,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_meta_workspace_id_workspaces_id_fkey",
@@ -7339,14 +7333,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_meta_ledger_id_ledgers_id_fkey",
@@ -7356,14 +7346,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_meta_account_id_accounts_id_fkey",
@@ -7373,14 +7359,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_workspace_id_workspaces_id_fkey",
@@ -7390,14 +7372,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_ledger_id_ledgers_id_fkey",
@@ -7407,14 +7385,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_currency_code_currencies_code_fkey",
@@ -7424,14 +7398,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_log_workspace_id_workspaces_id_fkey",
@@ -7441,14 +7411,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_log_ledger_id_ledgers_id_fkey",
@@ -7458,14 +7424,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_log_actor_user_id_users_id_fkey",
@@ -7475,14 +7437,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "balance_recalculation_queue_workspace_id_workspaces_id_fkey",
@@ -7492,14 +7450,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "balance_recalculation_queue_ledger_id_ledgers_id_fkey",
@@ -7509,14 +7463,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "balance_recalculation_queue_account_id_accounts_id_fkey",
@@ -7526,14 +7476,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "balance_recalculation_queue_currency_code_currencies_code_fkey",
@@ -7543,14 +7489,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "budget_id"
-      ],
+      "columns": ["budget_id"],
       "schemaTo": "public",
       "tableTo": "budgets",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budget_limits_budget_id_budgets_id_fkey",
@@ -7560,14 +7502,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "category_id"
-      ],
+      "columns": ["category_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budget_limits_category_id_categories_id_fkey",
@@ -7577,14 +7515,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budget_limits_currency_code_currencies_code_fkey",
@@ -7594,14 +7528,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budgets_workspace_id_workspaces_id_fkey",
@@ -7611,14 +7541,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budgets_ledger_id_ledgers_id_fkey",
@@ -7628,14 +7554,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "budgets_currency_code_currencies_code_fkey",
@@ -7645,14 +7567,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_workspace_id_workspaces_id_fkey",
@@ -7662,14 +7580,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_ledger_id_ledgers_id_fkey",
@@ -7679,14 +7593,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "parent_id"
-      ],
+      "columns": ["parent_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_parent_id_categories_id_fkey",
@@ -7696,14 +7606,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "counterparty_account_id"
-      ],
+      "columns": ["counterparty_account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_counterparty_account_id_accounts_id_fkey",
@@ -7713,14 +7619,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "devices_user_id_users_id_fkey",
@@ -7730,14 +7632,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "exchange_rates_workspace_id_workspaces_id_fkey",
@@ -7747,14 +7645,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "exchange_rates_ledger_id_ledgers_id_fkey",
@@ -7764,14 +7658,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "base_currency_code"
-      ],
+      "columns": ["base_currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "exchange_rates_base_currency_code_currencies_code_fkey",
@@ -7781,14 +7671,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "quote_currency_code"
-      ],
+      "columns": ["quote_currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "exchange_rates_quote_currency_code_currencies_code_fkey",
@@ -7798,14 +7684,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "idempotency_receipts_workspace_id_workspaces_id_fkey",
@@ -7815,14 +7697,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "idempotency_receipts_ledger_id_ledgers_id_fkey",
@@ -7832,14 +7710,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "idempotency_receipts_actor_user_id_users_id_fkey",
@@ -7849,14 +7723,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "device_id"
-      ],
+      "columns": ["device_id"],
       "schemaTo": "public",
       "tableTo": "devices",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "idempotency_receipts_device_id_devices_id_fkey",
@@ -7866,14 +7736,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "import_jobs_workspace_id_workspaces_id_fkey",
@@ -7883,14 +7749,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "import_jobs_ledger_id_ledgers_id_fkey",
@@ -7900,14 +7762,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "import_jobs_created_by_users_id_fkey",
@@ -7917,14 +7775,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "journal_meta_workspace_id_workspaces_id_fkey",
@@ -7934,14 +7788,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "journal_meta_ledger_id_ledgers_id_fkey",
@@ -7951,14 +7801,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "journal_id"
-      ],
+      "columns": ["journal_id"],
       "schemaTo": "public",
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "journal_meta_journal_id_transaction_journals_id_fkey",
@@ -7968,14 +7814,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_workspace_id_workspaces_id_fkey",
@@ -7985,14 +7827,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "passkey_challenges_user_id_users_id_fkey",
@@ -8002,14 +7840,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "passkeys_user_id_users_id_fkey",
@@ -8019,14 +7853,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_aliases_workspace_id_workspaces_id_fkey",
@@ -8036,14 +7866,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_aliases_ledger_id_ledgers_id_fkey",
@@ -8053,14 +7879,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "payee_id"
-      ],
+      "columns": ["payee_id"],
       "schemaTo": "public",
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_aliases_payee_id_payees_id_fkey",
@@ -8070,14 +7892,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_mappings_workspace_id_workspaces_id_fkey",
@@ -8087,14 +7905,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_mappings_ledger_id_ledgers_id_fkey",
@@ -8104,14 +7918,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "from_payee_id"
-      ],
+      "columns": ["from_payee_id"],
       "schemaTo": "public",
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_mappings_from_payee_id_payees_id_fkey",
@@ -8121,14 +7931,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "to_payee_id"
-      ],
+      "columns": ["to_payee_id"],
       "schemaTo": "public",
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_mappings_to_payee_id_payees_id_fkey",
@@ -8138,14 +7944,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payee_mappings_created_by_users_id_fkey",
@@ -8155,14 +7957,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payees_workspace_id_workspaces_id_fkey",
@@ -8172,14 +7970,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "payees_ledger_id_ledgers_id_fkey",
@@ -8189,14 +7983,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recovery_codes_user_id_users_id_fkey",
@@ -8206,14 +7996,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_occurrences_workspace_id_workspaces_id_fkey",
@@ -8223,14 +8009,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_occurrences_ledger_id_ledgers_id_fkey",
@@ -8240,14 +8022,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "recurring_template_id"
-      ],
+      "columns": ["recurring_template_id"],
       "schemaTo": "public",
       "tableTo": "recurring_templates",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_occurrences_13nNZJVX23jx_fkey",
@@ -8257,14 +8035,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "transaction_group_id"
-      ],
+      "columns": ["transaction_group_id"],
       "schemaTo": "public",
       "tableTo": "transaction_groups",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_occurrences_m3x0eSDpJ371_fkey",
@@ -8274,14 +8048,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_templates_workspace_id_workspaces_id_fkey",
@@ -8291,14 +8061,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_templates_ledger_id_ledgers_id_fkey",
@@ -8308,14 +8074,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_templates_created_by_users_id_fkey",
@@ -8325,14 +8087,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "recurring_templates_updated_by_users_id_fkey",
@@ -8342,14 +8100,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rules_workspace_id_workspaces_id_fkey",
@@ -8359,14 +8113,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rules_ledger_id_ledgers_id_fkey",
@@ -8376,14 +8126,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rules_created_by_users_id_fkey",
@@ -8393,14 +8139,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rules_updated_by_users_id_fkey",
@@ -8410,14 +8152,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sessions_user_id_users_id_fkey",
@@ -8427,14 +8165,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_conflicts_workspace_id_workspaces_id_fkey",
@@ -8444,14 +8178,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_conflicts_ledger_id_ledgers_id_fkey",
@@ -8461,14 +8191,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "incoming_operation_id"
-      ],
+      "columns": ["incoming_operation_id"],
       "schemaTo": "public",
       "tableTo": "sync_operations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_conflicts_incoming_operation_id_sync_operations_id_fkey",
@@ -8478,14 +8204,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "resolution_operation_id"
-      ],
+      "columns": ["resolution_operation_id"],
       "schemaTo": "public",
       "tableTo": "sync_operations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_conflicts_resolution_operation_id_sync_operations_id_fkey",
@@ -8495,14 +8217,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_operations_workspace_id_workspaces_id_fkey",
@@ -8512,14 +8230,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_operations_ledger_id_ledgers_id_fkey",
@@ -8529,14 +8243,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "device_id"
-      ],
+      "columns": ["device_id"],
       "schemaTo": "public",
       "tableTo": "devices",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_operations_device_id_devices_id_fkey",
@@ -8546,14 +8256,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "sync_operations_created_by_users_id_fkey",
@@ -8563,14 +8269,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "tags_workspace_id_workspaces_id_fkey",
@@ -8580,14 +8282,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "tags_ledger_id_ledgers_id_fkey",
@@ -8597,14 +8295,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_groups_workspace_id_workspaces_id_fkey",
@@ -8614,14 +8308,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_groups_ledger_id_ledgers_id_fkey",
@@ -8631,14 +8321,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_groups_created_by_users_id_fkey",
@@ -8648,14 +8334,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_groups_updated_by_users_id_fkey",
@@ -8665,14 +8347,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_workspace_id_workspaces_id_fkey",
@@ -8682,14 +8360,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_ledger_id_ledgers_id_fkey",
@@ -8699,14 +8373,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "group_id"
-      ],
+      "columns": ["group_id"],
       "schemaTo": "public",
       "tableTo": "transaction_groups",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_group_id_transaction_groups_id_fkey",
@@ -8716,14 +8386,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "payee_id"
-      ],
+      "columns": ["payee_id"],
       "schemaTo": "public",
       "tableTo": "payees",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_payee_id_payees_id_fkey",
@@ -8733,14 +8399,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_created_by_users_id_fkey",
@@ -8750,14 +8412,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by"
-      ],
+      "columns": ["updated_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_journals_updated_by_users_id_fkey",
@@ -8767,14 +8425,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_workspace_id_workspaces_id_fkey",
@@ -8784,14 +8438,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_ledger_id_ledgers_id_fkey",
@@ -8801,14 +8451,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "journal_id"
-      ],
+      "columns": ["journal_id"],
       "schemaTo": "public",
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_journal_id_transaction_journals_id_fkey",
@@ -8818,14 +8464,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "account_id"
-      ],
+      "columns": ["account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_account_id_accounts_id_fkey",
@@ -8835,14 +8477,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "currency_code"
-      ],
+      "columns": ["currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_currency_code_currencies_code_fkey",
@@ -8852,14 +8490,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "foreign_currency_code"
-      ],
+      "columns": ["foreign_currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_foreign_currency_code_currencies_code_fkey",
@@ -8869,14 +8503,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "reporting_currency_code"
-      ],
+      "columns": ["reporting_currency_code"],
       "schemaTo": "public",
       "tableTo": "currencies",
-      "columnsTo": [
-        "code"
-      ],
+      "columnsTo": ["code"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_YYIJoyS500mz_fkey",
@@ -8886,14 +8516,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "category_id"
-      ],
+      "columns": ["category_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_category_id_categories_id_fkey",
@@ -8903,14 +8529,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "budget_id"
-      ],
+      "columns": ["budget_id"],
       "schemaTo": "public",
       "tableTo": "budgets",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_postings_budget_id_budgets_id_fkey",
@@ -8920,14 +8542,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "transaction_journal_id"
-      ],
+      "columns": ["transaction_journal_id"],
       "schemaTo": "public",
       "tableTo": "transaction_journals",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_tags_H5y56bW0R8AH_fkey",
@@ -8937,14 +8555,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "tag_id"
-      ],
+      "columns": ["tag_id"],
       "schemaTo": "public",
       "tableTo": "tags",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transaction_tags_tag_id_tags_id_fkey",
@@ -8954,14 +8568,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_invitations_workspace_id_workspaces_id_fkey",
@@ -8971,14 +8581,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "invited_by_user_id"
-      ],
+      "columns": ["invited_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_invitations_invited_by_user_id_users_id_fkey",
@@ -8988,14 +8594,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_ledger_revisions_workspace_id_workspaces_id_fkey",
@@ -9005,14 +8607,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "ledger_id"
-      ],
+      "columns": ["ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_ledger_revisions_ledger_id_ledgers_id_fkey",
@@ -9022,14 +8620,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "workspace_id"
-      ],
+      "columns": ["workspace_id"],
       "schemaTo": "public",
       "tableTo": "workspaces",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_members_workspace_id_workspaces_id_fkey",
@@ -9039,14 +8633,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspace_members_user_id_users_id_fkey",
@@ -9056,14 +8646,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "owner_user_id"
-      ],
+      "columns": ["owner_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "workspaces_owner_user_id_users_id_fkey",
@@ -9072,9 +8658,7 @@
       "table": "workspaces"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_meta_pkey",
       "schema": "public",
@@ -9082,9 +8666,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "accounts_pkey",
       "schema": "public",
@@ -9092,9 +8674,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_log_pkey",
       "schema": "public",
@@ -9102,9 +8682,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "balance_recalculation_queue_pkey",
       "schema": "public",
@@ -9112,9 +8690,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "budget_limits_pkey",
       "schema": "public",
@@ -9122,9 +8698,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "budgets_pkey",
       "schema": "public",
@@ -9132,9 +8706,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "categories_pkey",
       "schema": "public",
@@ -9142,9 +8714,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "code"
-      ],
+      "columns": ["code"],
       "nameExplicit": false,
       "name": "currencies_pkey",
       "schema": "public",
@@ -9152,9 +8722,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "devices_pkey",
       "schema": "public",
@@ -9162,9 +8730,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "exchange_rates_pkey",
       "schema": "public",
@@ -9172,9 +8738,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "idempotency_receipts_pkey",
       "schema": "public",
@@ -9182,9 +8746,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "import_jobs_pkey",
       "schema": "public",
@@ -9192,9 +8754,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_queue_pkey",
       "schema": "public",
@@ -9202,9 +8762,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "journal_meta_pkey",
       "schema": "public",
@@ -9212,9 +8770,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "ledgers_pkey",
       "schema": "public",
@@ -9222,9 +8778,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "passkey_challenges_pkey",
       "schema": "public",
@@ -9232,9 +8786,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "passkeys_pkey",
       "schema": "public",
@@ -9242,9 +8794,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payee_aliases_pkey",
       "schema": "public",
@@ -9252,9 +8802,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payee_mappings_pkey",
       "schema": "public",
@@ -9262,9 +8810,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "payees_pkey",
       "schema": "public",
@@ -9272,9 +8818,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recovery_codes_pkey",
       "schema": "public",
@@ -9282,9 +8826,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recurring_occurrences_pkey",
       "schema": "public",
@@ -9292,9 +8834,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "recurring_templates_pkey",
       "schema": "public",
@@ -9302,9 +8842,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rules_pkey",
       "schema": "public",
@@ -9312,9 +8850,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sessions_pkey",
       "schema": "public",
@@ -9322,9 +8858,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sync_conflicts_pkey",
       "schema": "public",
@@ -9332,9 +8866,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "sync_operations_pkey",
       "schema": "public",
@@ -9342,9 +8874,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "tags_pkey",
       "schema": "public",
@@ -9352,9 +8882,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_groups_pkey",
       "schema": "public",
@@ -9362,9 +8890,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_journals_pkey",
       "schema": "public",
@@ -9372,9 +8898,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transaction_postings_pkey",
       "schema": "public",
@@ -9382,9 +8906,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "public",
@@ -9392,9 +8914,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspace_invitations_pkey",
       "schema": "public",
@@ -9402,9 +8922,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspace_members_pkey",
       "schema": "public",
@@ -9412,9 +8930,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspaces_pkey",
       "schema": "public",
