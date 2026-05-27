@@ -14,12 +14,14 @@ import {
   createPostgresDatabaseFromClient,
   createPostgresDeviceRepository,
   createPostgresIdentityRepository,
+  createPostgresJobRepository,
   createPostgresLedgerCurrencyReader,
   createPostgresLedgerMutationStore,
   createPostgresReportQueryService,
   createPostgresSyncRepository,
   createPostgresTransactionQueryService,
   createPostgresTransactionWriteRepository,
+  createPostgresWorkerStore,
   createPostgresWorkflowRepository,
   createSqliteAccountRepository,
   createSqliteBudgetQueryService,
@@ -27,12 +29,14 @@ import {
   createSqliteDatabaseFromClient,
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
+  createSqliteJobRepository,
   createSqliteLedgerCurrencyReader,
   createSqliteLedgerMutationStore,
   createSqliteReportQueryService,
   createSqliteSyncRepository,
   createSqliteTransactionQueryService,
   createSqliteTransactionWriteRepository,
+  createSqliteWorkerStore,
   createSqliteWorkflowRepository,
   createSyncQueryService,
   createSyncReplayService,
@@ -49,9 +53,11 @@ import type { FastifyInstance } from "fastify";
 import { type BuildApiAppOptions, buildApiApp } from "./app.js";
 import { parseActualBudgetExport } from "./services/actual-import-parser.js";
 import { createFinanceWorkflowService } from "./services/finance-workflows.js";
+import { createWorkerRuntime, type WorkerDependencies, type WorkerLogger } from "./worker.js";
 
 type RuntimeDependencyBundle = {
   readonly appOptions: BuildApiAppOptions;
+  readonly worker: WorkerDependencies;
   readonly close: () => Promise<void>;
 };
 type RuntimeAuthorization = LedgerMutationRunnerOptions<unknown>["authorize"];
@@ -98,6 +104,31 @@ export async function buildProductionApiApp(config: ApiConfig): Promise<FastifyI
   return app;
 }
 
+export type WorkerProcess = {
+  readonly close: () => Promise<void>;
+};
+
+export async function startWorkerRuntime(
+  config: ApiConfig,
+  logger?: WorkerLogger,
+): Promise<WorkerProcess> {
+  const runtime = await createRuntimeDependencies(config);
+  const worker = createWorkerRuntime({
+    config,
+    deps: runtime.worker,
+    sqliteBusyRetry: config.databaseDriver === "sqlite",
+    ...(logger ? { logger } : {}),
+  });
+  worker.start();
+
+  return {
+    close: async () => {
+      await worker.stop();
+      await runtime.close();
+    },
+  };
+}
+
 export async function createRuntimeDependencies(
   config: ApiConfig,
 ): Promise<RuntimeDependencyBundle> {
@@ -112,11 +143,14 @@ export async function createRuntimeDependencies(
   }
 
   return config.databaseDriver === "sqlite"
-    ? createSqliteRuntimeDependencies(config.databaseUrl)
+    ? createSqliteRuntimeDependencies(config.databaseUrl, config)
     : await createPostgresRuntimeDependencies(config.databaseUrl, config);
 }
 
-function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependencyBundle {
+function createSqliteRuntimeDependencies(
+  databaseUrl: string,
+  config: ApiConfig,
+): RuntimeDependencyBundle {
   const client = createConfiguredSqliteClient({ source: databaseUrl });
 
   try {
@@ -152,6 +186,11 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
       transactionQueryService,
       workflowRepository,
     });
+    const jobRepository = createSqliteJobRepository(client, {
+      createId,
+      defaultMaxAttempts: config.workerJobMaxAttempts,
+    });
+    const workerStore = createSqliteWorkerStore(client, { createId });
 
     return {
       appOptions: {
@@ -171,6 +210,7 @@ function createSqliteRuntimeDependencies(databaseUrl: string): RuntimeDependency
         transactionQueryService,
         workflowService,
       },
+      worker: { jobRepository, workerStore, workflowService },
       close: async () => {
         client.close();
       },
@@ -230,6 +270,11 @@ async function createPostgresRuntimeDependencies(
       transactionQueryService,
       workflowRepository,
     });
+    const jobRepository = createPostgresJobRepository(db, {
+      createId,
+      defaultMaxAttempts: config.workerJobMaxAttempts,
+    });
+    const workerStore = createPostgresWorkerStore(db, { createId });
 
     return {
       appOptions: {
@@ -249,6 +294,7 @@ async function createPostgresRuntimeDependencies(
         transactionQueryService,
         workflowService,
       },
+      worker: { jobRepository, workerStore, workflowService },
       close: async () => {
         await closePostgresClient(client);
       },
