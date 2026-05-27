@@ -67,6 +67,24 @@ export const pgSessions = pgTable(
   ],
 );
 
+export const pgApiKeys = pgTable(
+  "api_keys",
+  {
+    id: idText(),
+    userId: requiredIdText("user_id").references(() => pgUsers.id),
+    name: text("name").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestampTz("created_at"),
+    lastUsedAt: optionalTimestampTz("last_used_at"),
+    revokedAt: optionalTimestampTz("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("api_keys_token_hash_unique").on(table.tokenHash),
+    index("api_keys_user_id_idx").on(table.userId),
+  ],
+);
+
 export const pgPasskeys = pgTable(
   "passkeys",
   {
@@ -964,6 +982,7 @@ export const pgBalanceRecalculationQueue = pgTable(
 export const pgSchema = {
   accountMeta: pgAccountMeta,
   accounts: pgAccounts,
+  apiKeys: pgApiKeys,
   auditLog: pgAuditLog,
   balanceRecalculationQueue: pgBalanceRecalculationQueue,
   budgetLimits: pgBudgetLimits,

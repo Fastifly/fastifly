@@ -13,6 +13,7 @@ import {
   createSqliteDatabaseFromClient,
   createSqliteDeviceRepository,
   createSqliteIdentityRepository,
+  createSqliteLedgerCurrencyReader,
   createSqliteLedgerMutationStore,
   createSqliteReportQueryService,
   createSqliteSyncRepository,
@@ -31,6 +32,7 @@ import { runMigrations } from "../../../../../packages/db/src/migrations/mainten
 import { buildApiApp } from "../../../src/app.js";
 import type { WebAuthnAdapter } from "../../../src/auth/webauthn.js";
 import { createRuntimeAuthorization } from "../../../src/runtime.js";
+import { parseActualBudgetExport } from "../../../src/services/actual-import-parser.js";
 import { createFinanceWorkflowService } from "../../../src/services/finance-workflows.js";
 import { injectWithCsrf } from "./csrf.js";
 
@@ -98,6 +100,9 @@ export async function createSqliteE2eSystem(
       accountRepository,
       categoryRepository,
       financeMutationService,
+      parseActualBudgetExport,
+      resolveImportTargetCurrency:
+        createSqliteLedgerCurrencyReader(sqliteClient).resolveImportTargetCurrency,
       transactionQueryService,
       workflowRepository: createSqliteWorkflowRepository(sqliteClient, { createId }),
     }),

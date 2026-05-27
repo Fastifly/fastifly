@@ -43,7 +43,8 @@
     "db:seed:e2e": "tilt trigger db-seed-e2e --port 10360",
     "db:seed:direct:essential": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:essential",
     "db:seed:direct:demo": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:demo",
-    "db:seed:direct:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e"
+    "db:seed:direct:e2e": "pnpm --filter @fastifly/db build && pnpm --filter @fastifly/db db:seed:e2e",
+    "vps:update": "bash scripts/update-vps.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",

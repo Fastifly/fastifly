@@ -8,12 +8,12 @@ import {
   getTransactionMinorTotals,
   getTransactionOccurredAt,
   getTransactionSignedMinor,
-  sumTransactionsByJournalTypeForMonthMinor,
   sumTransactionJournalTypeMinor,
+  sumTransactionsByJournalTypeForMonthMinor,
   sumTransactionsByJournalTypeMinor,
+  toAbsoluteAmountMinor,
   toUtcMonthKey,
   toUtcMonthKeyFromIso,
-  toAbsoluteAmountMinor,
 } from "../transactions.js";
 
 describe("transaction domain helpers", () => {

@@ -225,14 +225,34 @@ export function toRecurringTemplatePayloadInput(
   };
 }
 
+const MAX_REPORTED_IMPORT_WARNINGS = 100;
+
 export function toImportJobResponse(importJob: ImportJobRecord): z.infer<typeof importJobResponse> {
+  const plan = importJob.plan;
   return {
+    actualImport: plan
+      ? {
+          budgetName: plan.budgetName,
+          summary: { ...plan.summary },
+          targetCurrencyCode: plan.targetCurrencyCode,
+          warnings: plan.warnings.slice(0, MAX_REPORTED_IMPORT_WARNINGS).map((warning) =>
+            warning.actualTransactionId !== undefined
+              ? {
+                  actualTransactionId: warning.actualTransactionId,
+                  code: warning.code,
+                  message: warning.message,
+                }
+              : { code: warning.code, message: warning.message },
+          ),
+        }
+      : null,
     committedAt: importJob.committedAt,
     committedGroupIds: [...importJob.committedGroupIds],
     createdAt: importJob.createdAt,
     createdBy: importJob.createdBy,
     fileName: importJob.fileName,
     id: importJob.id,
+    kind: importJob.kind,
     ledgerId: importJob.ledgerId,
     previewRows: importJob.previewRows.map((row) => ({
       amountMinor: row.amountMinor,
