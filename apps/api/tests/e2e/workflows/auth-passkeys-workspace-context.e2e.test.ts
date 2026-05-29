@@ -102,7 +102,7 @@ describe("e2e/api/workflow/auth-passkeys-workspace-context", () => {
 
       const startRegistration = await requestWithCsrf(app, ownerCookie, {
         method: "POST",
-        payload: {},
+        payload: { currentPassword: "password123" },
         url: "/api/v1/auth/passkeys/registration/start",
       });
       expect(startRegistration.statusCode).toBe(200);
