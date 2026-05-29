@@ -46,12 +46,21 @@ export function useMeContextQuery(enabled = true) {
 }
 
 export const apiKeysQueryKey = ["me", "api-keys"] as const;
+export const passkeysQueryKey = ["me", "passkeys"] as const;
 
 export function useApiKeysQuery(enabled = true) {
   return useQuery({
     enabled,
     queryFn: apiClient.listApiKeys,
     queryKey: apiKeysQueryKey,
+  });
+}
+
+export function usePasskeysQuery(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: apiClient.listPasskeys,
+    queryKey: passkeysQueryKey,
   });
 }
 

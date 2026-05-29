@@ -34,6 +34,48 @@ describe("web shared contract smoke", () => {
         username: webSharedContractSmoke.defaultDemoLogin.username,
       }),
     ).toThrow();
+    expect(
+      webSharedContractSmoke.changePasswordRequestSchema.parse({
+        currentPassword: "old-password",
+        newPassword: "new-password",
+      }),
+    ).toEqual({
+      currentPassword: "old-password",
+      newPassword: "new-password",
+    });
+    expect(() =>
+      webSharedContractSmoke.changePasswordRequestSchema.parse({
+        currentPassword: "same-password",
+        newPassword: "same-password",
+      }),
+    ).toThrow();
+    expect(
+      webSharedContractSmoke.startPasskeyRegistrationRequestSchema.parse({
+        currentPassword: "old-password",
+      }),
+    ).toEqual({
+      currentPassword: "old-password",
+    });
+    expect(
+      webSharedContractSmoke.finishPasskeyRegistrationRequestSchema.parse({
+        name: "Laptop",
+        response: { id: "credential-id" },
+      }),
+    ).toEqual({
+      name: "Laptop",
+      response: { id: "credential-id" },
+    });
+    expect(webSharedContractSmoke.startPasskeyLoginRequestSchema.parse({})).toEqual({});
+    expect(
+      webSharedContractSmoke.finishPasskeyLoginRequestSchema.parse({
+        response: { id: "credential-id" },
+      }),
+    ).toEqual({
+      response: { id: "credential-id" },
+    });
+    expect(webSharedContractSmoke.renamePasskeyRequestSchema.parse({ name: "Phone" })).toEqual({
+      name: "Phone",
+    });
 
     expect(
       webSharedContractSmoke.moneySchema.parse({

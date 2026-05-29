@@ -14,6 +14,8 @@ import {
   toNavigationTestIdSlug,
 } from "./utils";
 
+const routerLinkActiveProps = { className: "" };
+
 export function MobileNavLink({
   item,
   onClick,
@@ -28,7 +30,7 @@ export function MobileNavLink({
       data-testid={testIds.navigation.mobileNav(toNavigationTestIdSlug(item.slug))}
       variant="ghost"
     >
-      <Link to={item.to} onClick={onClick}>
+      <Link activeProps={routerLinkActiveProps} to={item.to} onClick={onClick}>
         <item.icon aria-hidden="true" />
         <span>{item.mobileLabel}</span>
       </Link>
@@ -47,7 +49,11 @@ export function DesktopNavigation({ currentSlug }: { readonly currentSlug: strin
           key={item.slug}
           variant={item.slug === currentSlug ? "secondary" : "ghost"}
         >
-          <Link aria-current={item.slug === currentSlug ? "page" : undefined} to={item.to}>
+          <Link
+            activeProps={routerLinkActiveProps}
+            aria-current={item.slug === currentSlug ? "page" : undefined}
+            to={item.to}
+          >
             <item.icon aria-hidden="true" />
             <span>{item.label}</span>
           </Link>
@@ -198,7 +204,7 @@ export function MobileMoreDrawer({
               data-testid={testIds.navigation.moreNav(toNavigationTestIdSlug(item.slug))}
               variant="secondary"
             >
-              <Link to={item.to} onClick={onClose}>
+              <Link activeProps={routerLinkActiveProps} to={item.to} onClick={onClose}>
                 <item.icon aria-hidden="true" />
                 <span className="truncate">{item.label}</span>
               </Link>

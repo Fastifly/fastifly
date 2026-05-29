@@ -1,10 +1,16 @@
 import {
   AuthCredentialsSchema,
+  ChangePasswordRequestSchema,
   CursorPaginationQuerySchema,
   DEFAULT_DEMO_LOGIN,
+  FinishPasskeyLoginRequestSchema,
+  FinishPasskeyRegistrationRequestSchema,
   LoginCredentialsSchema,
   MoneyAmountSchema,
   RegisterCredentialsSchema,
+  RenamePasskeyRequestSchema,
+  StartPasskeyLoginRequestSchema,
+  StartPasskeyRegistrationRequestSchema,
 } from "@fastifly/common";
 import { getAuthRedirect } from "./auth/flow";
 import { shouldShowSessionExpiredDialog } from "./auth/session-events";
@@ -20,11 +26,17 @@ export const webPackageName = "@fastifly/web";
 
 export const webSharedContractSmoke = {
   authCredentialsSchema: AuthCredentialsSchema,
+  changePasswordRequestSchema: ChangePasswordRequestSchema,
   defaultDemoLogin: DEFAULT_DEMO_LOGIN,
+  finishPasskeyLoginRequestSchema: FinishPasskeyLoginRequestSchema,
+  finishPasskeyRegistrationRequestSchema: FinishPasskeyRegistrationRequestSchema,
   loginCredentialsSchema: LoginCredentialsSchema,
   moneySchema: MoneyAmountSchema,
   paginationQuerySchema: CursorPaginationQuerySchema,
+  renamePasskeyRequestSchema: RenamePasskeyRequestSchema,
   registerCredentialsSchema: RegisterCredentialsSchema,
+  startPasskeyLoginRequestSchema: StartPasskeyLoginRequestSchema,
+  startPasskeyRegistrationRequestSchema: StartPasskeyRegistrationRequestSchema,
 };
 
 export const webPwaSafetySmoke = {

@@ -159,6 +159,7 @@ export type {
   RevokeWorkspaceInvitationInput,
   SessionRecord,
   UpdatePasskeyAfterLoginInput,
+  UpdateUserPasswordHashInput,
   UpdateWorkspaceMemberRoleInput,
   UserRecord,
   UserWorkspaceContextRecord,

@@ -111,6 +111,12 @@ SERVE_WEB_STATIC=true
 WEB_STATIC_ROOT=/app/web-dist
 ```
 
+Split-origin web deployments must also set:
+
+```env
+WEBAUTHN_ORIGINS=https://app.fastifly.example.com
+```
+
 Database variables:
 
 ```env

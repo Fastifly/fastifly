@@ -1,5 +1,6 @@
 import {
   AuthResponseSchema,
+  ChangePasswordRequestSchema,
   CsrfTokenResponseSchema,
   LoginCredentialsSchema,
   MeContextResponseSchema,
@@ -9,6 +10,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod/v4";
 import { hashPassword, verifyPasswordHash } from "../../auth/passwords.js";
 import { generateSessionToken, hashSessionToken } from "../../auth/sessions.js";
+import { requireAuthenticatedUser } from "../../policies.js";
 import { ErrorResponseSchemas } from "../../schemas.js";
 import { AUTH_RATE_LIMIT, type RegisterAuthRoutesOptions } from "./contracts.js";
 import {
@@ -166,6 +168,47 @@ export async function registerAuthIdentityRoutes(
       }
 
       clearSessionCookie(reply, config);
+      return reply.status(204).send();
+    },
+  );
+
+  app.post(
+    "/api/v1/me/password",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: ChangePasswordRequestSchema,
+        response: {
+          204: z.null(),
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
+      const input = ChangePasswordRequestSchema.parse(request.body);
+      const user = await identityRepository.findUserById(userId);
+
+      if (!user || user.disabledAt) {
+        throw makeHttpError(401, "Authentication is required.");
+      }
+
+      const passwordMatches = await verifyPasswordHash({
+        password: input.currentPassword,
+        passwordHash: user.passwordHash,
+      });
+
+      if (!passwordMatches) {
+        throw makeHttpError(401, "Current password is incorrect.");
+      }
+
+      await identityRepository.updateUserPasswordHash({
+        passwordHash: await hashPassword(input.newPassword),
+        userId,
+      });
+      await identityRepository.revokeSessionsForUser(userId);
+      clearSessionCookie(reply, config);
+
       return reply.status(204).send();
     },
   );

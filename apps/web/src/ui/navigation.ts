@@ -11,6 +11,7 @@ import {
   Repeat,
   Settings,
   Tags,
+  UserRound,
 } from "lucide-react";
 import { en } from "../i18n/en";
 
@@ -94,6 +95,13 @@ export const navigationItems = [
     mobileLabel: en.nav.sync,
     slug: "sync",
     to: "/sync",
+  },
+  {
+    icon: UserRound,
+    label: en.nav.profile,
+    mobileLabel: en.nav.profileShort,
+    slug: "profile",
+    to: "/profile",
   },
   {
     icon: Settings,

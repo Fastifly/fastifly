@@ -259,6 +259,7 @@ accounts
 budgets
 reports
 imports
+profile
 settings
 member sharing
 PWA offline/update prompts
@@ -816,6 +817,7 @@ Runtime configuration:
 VITE_FASTIFLY_API_BASE_URL
 VITE_FASTIFLY_SHOW_DEMO_LOGIN
 FASTIFLY_API_PROXY_TARGET
+WEBAUTHN_ORIGINS
 ```
 
 Rules:
@@ -830,6 +832,8 @@ Rules:
 - non-empty value must not end with a slash after normalization
 - local Vite development should prefer same-origin API calls through the Vite
   proxy, using `FASTIFLY_API_PROXY_TARGET` to point at the API server
+- passkey registration in split Vite/API development must include the Vite web
+  origins in `WEBAUTHN_ORIGINS`
 - never hardcode localhost API URLs in components
 - authenticated requests use `credentials: include`
 - request and response contracts come from `packages/common`
@@ -840,6 +844,8 @@ Auth forms must use the shared auth credential schema. Login and registration ca
 GET /api/v1/auth/csrf
 POST /api/v1/auth/login
 POST /api/v1/auth/register
+POST /api/v1/auth/passkeys/login/start
+POST /api/v1/auth/passkeys/login/finish
 GET /api/v1/me/context
 ```
 
@@ -850,6 +856,16 @@ token only when the server returns a CSRF-specific forbidden error.
 The login screen may display seeded demo credentials for local development, but
 the demo username/password must come from `packages/common`, not duplicated
 inside React components, DB seeds, or tests.
+
+The profile page owns user security controls:
+
+- account summary for the current user, workspace, ledger, and role
+- password change through `POST /api/v1/me/password`
+- passkey registration, rename, and removal
+- API key management
+
+Password changes must clear local query state and navigate to `/login` because
+the API revokes every active session after changing the password.
 
 `VITE_FASTIFLY_SHOW_DEMO_LOGIN` controls whether production builds display the
 demo credential card:

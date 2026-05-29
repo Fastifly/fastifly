@@ -26,7 +26,6 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
-import { ApiKeysPanel } from "../api-keys-panel";
 import { BlockedActionGate } from "../blocked-action-gate";
 import { RuntimeStatusChips, SystemStatusRow } from "./navigation-components";
 import { GlassSection, MetricTile } from "./shared-components";
@@ -289,8 +288,6 @@ export function SettingsPage({
             </div>
           </div>
         </GlassSection>
-
-        <ApiKeysPanel />
 
         <GlassSection
           title={en.settings.automationTitle}
