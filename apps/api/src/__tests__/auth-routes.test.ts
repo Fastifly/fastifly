@@ -29,6 +29,7 @@ import type {
   RevokeWorkspaceInvitationInput,
   SessionRecord,
   UpdatePasskeyAfterLoginInput,
+  UpdateUserPasswordHashInput,
   UpdateWorkspaceMemberRoleInput,
   UserRecord,
   UserWorkspaceContextRecord,
@@ -41,7 +42,7 @@ import { normalizeInviteeIdentifier } from "@fastifly/db";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApiApp } from "../app.js";
-import type { WebAuthnAdapter } from "../auth/webauthn.js";
+import { type WebAuthnAdapter, WebAuthnVerificationError } from "../auth/webauthn.js";
 import { injectWithCsrf } from "./helpers/csrf.js";
 
 const apps: Awaited<ReturnType<typeof buildApiApp>>[] = [];
@@ -95,6 +96,22 @@ class FakeIdentityRepository implements IdentityRepository {
     };
     this.users.set(user.id, user);
     return user;
+  }
+
+  async updateUserPasswordHash(input: UpdateUserPasswordHashInput): Promise<UserRecord | null> {
+    const user = this.users.get(input.userId);
+
+    if (!user) {
+      return null;
+    }
+
+    const updatedUser: UserRecord = {
+      ...user,
+      passwordHash: input.passwordHash,
+      updatedAt: "2026-05-09T00:00:00.000Z",
+    };
+    this.users.set(input.userId, updatedUser);
+    return updatedUser;
   }
 
   async findUserByNormalizedUsername(username: string): Promise<UserRecord | null> {
@@ -154,6 +171,24 @@ class FakeIdentityRepository implements IdentityRepository {
     };
     this.sessions.set(sessionId, revokedSession);
     return revokedSession;
+  }
+
+  async revokeSessionsForUser(userId: SyncedId): Promise<number> {
+    let revoked = 0;
+
+    for (const session of this.sessions.values()) {
+      if (session.userId !== userId || session.revokedAt !== null) {
+        continue;
+      }
+
+      this.sessions.set(session.id, {
+        ...session,
+        revokedAt: "2026-05-09T00:00:00.000Z",
+      });
+      revoked += 1;
+    }
+
+    return revoked;
   }
 
   async bootstrapDefaultWorkspace(
@@ -712,12 +747,15 @@ const fakeWebAuthnAdapter: WebAuthnAdapter = {
   },
 };
 
-async function makeApp(identityRepository = new FakeIdentityRepository()) {
+async function makeApp(
+  identityRepository = new FakeIdentityRepository(),
+  webAuthnAdapter: WebAuthnAdapter = fakeWebAuthnAdapter,
+) {
   const app = await buildApiApp({
     config: { logLevel: "silent", nodeEnv: "test" },
     identityRepository,
     readiness: { migrations: "ok" },
-    webAuthnAdapter: fakeWebAuthnAdapter,
+    webAuthnAdapter,
   });
   apps.push(app);
   return { app, identityRepository };
@@ -901,6 +939,83 @@ describe("auth routes", () => {
     });
   });
 
+  it("changes password, revokes active sessions, and requires the new password", async () => {
+    const { app, identityRepository } = await makeApp();
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const sessionCookie = getCookiePair(register);
+
+    const wrongCurrentPassword = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: {
+        currentPassword: "wrong horse battery staple",
+        newPassword: "new correct horse battery staple",
+      },
+      url: "/api/v1/me/password",
+    });
+    expect(wrongCurrentPassword.statusCode).toBe(401);
+
+    const samePassword = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: {
+        currentPassword: "correct horse battery staple",
+        newPassword: "correct horse battery staple",
+      },
+      url: "/api/v1/me/password",
+    });
+    expect(samePassword.statusCode).toBe(400);
+
+    const changed = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: {
+        currentPassword: "correct horse battery staple",
+        newPassword: "new correct horse battery staple",
+      },
+      url: "/api/v1/me/password",
+    });
+    expect(changed.statusCode).toBe(204);
+    expect(String(changed.headers["set-cookie"])).toContain("fastifly_session=");
+    expect(
+      Array.from(identityRepository.sessions.values()).every((session) => session.revokedAt),
+    ).toBe(true);
+
+    const oldSessionMe = await app.inject({
+      headers: { cookie: sessionCookie },
+      method: "GET",
+      url: "/api/v1/me/context",
+    });
+    expect(oldSessionMe.statusCode).toBe(401);
+
+    const oldPasswordLogin = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/login",
+    });
+    expect(oldPasswordLogin.statusCode).toBe(401);
+
+    const newPasswordLogin = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "new correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/login",
+    });
+    expect(newPasswordLogin.statusCode).toBe(200);
+  });
+
   it("rate-limits repeated password login failures before hashing can be abused", async () => {
     const { app } = await makeApp();
     await injectWithCsrf(app, {
@@ -956,10 +1071,23 @@ describe("auth routes", () => {
     const startRegistration = await injectWithCsrf(app, {
       headers: { cookie: sessionCookie },
       method: "POST",
+      payload: {
+        currentPassword: "wrong horse battery staple",
+      },
       url: "/api/v1/auth/passkeys/registration/start",
     });
-    expect(startRegistration.statusCode).toBe(200);
-    expect(startRegistration.json()).toMatchObject({
+    expect(startRegistration.statusCode).toBe(401);
+
+    const authorizedStartRegistration = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: {
+        currentPassword: "correct horse battery staple",
+      },
+      url: "/api/v1/auth/passkeys/registration/start",
+    });
+    expect(authorizedStartRegistration.statusCode).toBe(200);
+    expect(authorizedStartRegistration.json()).toMatchObject({
       data: {
         options: {
           challenge: "registration-challenge",
@@ -967,11 +1095,12 @@ describe("auth routes", () => {
       },
     });
 
-    const registrationChallengeCookie = getCookiePair(startRegistration);
+    const registrationChallengeCookie = getCookiePair(authorizedStartRegistration);
     const finishRegistration = await injectWithCsrf(app, {
       headers: { cookie: `${sessionCookie}; ${registrationChallengeCookie}` },
       method: "POST",
       payload: {
+        name: "Laptop",
         response: {
           id: "test-passkey-credential",
         },
@@ -984,7 +1113,7 @@ describe("auth routes", () => {
     }>().data.passkey;
     expect(passkey).toMatchObject({
       credentialId: "test-passkey-credential",
-      name: "Passkey",
+      name: "Laptop",
     });
     expect(Array.from(identityRepository.passkeyChallenges.values())[0]?.consumedAt).not.toBeNull();
 
@@ -1065,6 +1194,162 @@ describe("auth routes", () => {
     });
     expect(remove.statusCode).toBe(204);
     expect(identityRepository.passkeys.size).toBe(0);
+  });
+
+  it("maps passkey registration verification failures to a bad request", async () => {
+    const failingWebAuthnAdapter: WebAuthnAdapter = {
+      ...fakeWebAuthnAdapter,
+      async verifyRegistrationResponse() {
+        throw new WebAuthnVerificationError(
+          "Registration verification failed.",
+          new Error("origin mismatch"),
+        );
+      },
+    };
+    const { app } = await makeApp(new FakeIdentityRepository(), failingWebAuthnAdapter);
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const sessionCookie = getCookiePair(register);
+    const startRegistration = await injectWithCsrf(app, {
+      headers: { cookie: sessionCookie },
+      method: "POST",
+      payload: {
+        currentPassword: "correct horse battery staple",
+      },
+      url: "/api/v1/auth/passkeys/registration/start",
+    });
+
+    const finishRegistration = await injectWithCsrf(app, {
+      headers: { cookie: `${sessionCookie}; ${getCookiePair(startRegistration)}` },
+      method: "POST",
+      payload: {
+        response: {
+          id: "test-passkey-credential",
+        },
+      },
+      url: "/api/v1/auth/passkeys/registration/finish",
+    });
+
+    expect(finishRegistration.statusCode).toBe(400);
+    expect(finishRegistration.json()).toMatchObject({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Passkey registration failed.",
+      },
+    });
+  });
+
+  it("rejects duplicate passkey credentials with a conflict response", async () => {
+    const { app } = await makeApp();
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const sessionCookie = getCookiePair(register);
+
+    for (const name of ["Laptop", "Backup"]) {
+      const startRegistration = await injectWithCsrf(app, {
+        headers: { cookie: sessionCookie },
+        method: "POST",
+        payload: {
+          currentPassword: "correct horse battery staple",
+        },
+        url: "/api/v1/auth/passkeys/registration/start",
+      });
+      const finishRegistration = await injectWithCsrf(app, {
+        headers: { cookie: `${sessionCookie}; ${getCookiePair(startRegistration)}` },
+        method: "POST",
+        payload: {
+          name,
+          response: {
+            id: "duplicate-passkey-credential",
+          },
+        },
+        url: "/api/v1/auth/passkeys/registration/finish",
+      });
+
+      if (name === "Laptop") {
+        expect(finishRegistration.statusCode).toBe(201);
+      } else {
+        expect(finishRegistration.statusCode).toBe(409);
+        expect(finishRegistration.json()).toMatchObject({
+          error: {
+            code: "CONFLICT",
+            message: "This passkey is already registered.",
+          },
+        });
+      }
+    }
+  });
+
+  it("maps passkey login verification failures to an authentication failure", async () => {
+    const failingWebAuthnAdapter: WebAuthnAdapter = {
+      ...fakeWebAuthnAdapter,
+      async verifyAuthenticationResponse() {
+        throw new WebAuthnVerificationError(
+          "Authentication verification failed.",
+          new Error("counter mismatch"),
+        );
+      },
+    };
+    const identityRepository = new FakeIdentityRepository();
+    const { app } = await makeApp(identityRepository, failingWebAuthnAdapter);
+    await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const user = Array.from(identityRepository.users.values())[0];
+
+    if (!user) {
+      throw new Error("Expected registration to create a user");
+    }
+
+    await identityRepository.createPasskey({
+      counter: 1,
+      credentialId: "test-passkey-credential",
+      name: "Laptop",
+      publicKey: "public-key",
+      transportsJson: ["internal"],
+      userId: user.id,
+    });
+
+    const startLogin = await injectWithCsrf(app, {
+      method: "POST",
+      payload: { username: "owner" },
+      url: "/api/v1/auth/passkeys/login/start",
+    });
+    const finishLogin = await injectWithCsrf(app, {
+      headers: { cookie: getCookiePair(startLogin) },
+      method: "POST",
+      payload: {
+        response: {
+          id: "test-passkey-credential",
+        },
+      },
+      url: "/api/v1/auth/passkeys/login/finish",
+    });
+
+    expect(finishLogin.statusCode).toBe(401);
+    expect(finishLogin.json()).toMatchObject({
+      error: {
+        code: "UNAUTHENTICATED",
+        message: "Passkey login failed.",
+      },
+    });
   });
 
   it("generates, lists, authenticates with, and revokes an API key", async () => {

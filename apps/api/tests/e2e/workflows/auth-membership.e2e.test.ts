@@ -20,7 +20,7 @@ describe("e2e/api/workflow/auth-membership", () => {
 
       const passkeyStart = await requestWithCsrf(app, owner.cookie, {
         method: "POST",
-        payload: { name: "Owner passkey" },
+        payload: { currentPassword: "password123" },
         url: "/api/v1/auth/passkeys/registration/start",
       });
       expect(passkeyStart.statusCode).toBe(200);

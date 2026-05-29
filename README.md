@@ -396,6 +396,7 @@ APP_PORT=3400
 APP_URL=http://localhost:3400
 FASTIFLY_API_PROXY_TARGET=http://localhost:3400
 VITE_FASTIFLY_API_BASE_URL=
+WEBAUTHN_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 DATABASE_DRIVER=sqlite
 DATABASE_URL=./data/fastifly.dev.db
@@ -415,6 +416,7 @@ APP_PORT=3400
 APP_URL=http://localhost:3400
 FASTIFLY_API_PROXY_TARGET=http://localhost:3400
 VITE_FASTIFLY_API_BASE_URL=
+WEBAUTHN_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 DATABASE_DRIVER=postgres
 DATABASE_URL=postgres://fastifly:fastifly@localhost:55432/fastifly?sslmode=disable

@@ -322,12 +322,10 @@ export function AppShell({ children }: PropsWithChildren) {
       >
         <div className="shrink-0">
           <TopBar
-            accountsCount={userHeldAccounts.length}
             currentNavigationItem={currentNavigationItem}
             isOnline={isOnline}
             onToggleTheme={() => setTheme(cycleTheme(theme))}
             theme={theme}
-            transactionsCount={transactions.length}
           />
           <DesktopNavigation currentSlug={currentNavigationItem.slug} />
           {children}
@@ -367,6 +365,7 @@ export function AppShell({ children }: PropsWithChildren) {
             transactionsLoading={transactionsQuery.isPending}
             theme={theme}
             transferCount={transferCount}
+            user={meContext.data.data.user}
             workspaceId={meContext.data.data.activeWorkspace.id}
             workspaceName={meContext.data.data.activeWorkspace.name}
             workspaceRole={meContext.data.data.activeWorkspace.role}

@@ -195,6 +195,33 @@ describe("identity repository", () => {
           ),
         ).resolves.toBeNull();
 
+        await expect(
+          repo.updateUserPasswordHash({
+            passwordHash: "$argon2id$updated",
+            userId: user.id,
+          }),
+        ).resolves.toMatchObject({
+          id: user.id,
+          passwordHash: "$argon2id$updated",
+          updatedAt: "2026-05-09T00:00:00.000Z",
+        });
+
+        await repo.createSession({
+          expiresAt: new Date("2026-05-10T00:00:00.000Z"),
+          tokenHash: "session-one",
+          userId: user.id,
+        });
+        await repo.createSession({
+          expiresAt: new Date("2026-05-10T00:00:00.000Z"),
+          tokenHash: "session-two",
+          userId: user.id,
+        });
+        await expect(repo.revokeSessionsForUser(user.id)).resolves.toBe(2);
+        await expect(
+          repo.findActiveSessionByTokenHash("session-one", new Date("2026-05-09T12:00:00.000Z")),
+        ).resolves.toBeNull();
+        await expect(repo.revokeSessionsForUser(user.id)).resolves.toBe(0);
+
         const recoveryCodes = await repo.replaceRecoveryCodes({
           codeHashes: ["hash-one", "hash-two"],
           userId: user.id,

@@ -8,6 +8,7 @@ type NavigationSlug =
   | "categories"
   | "dashboard"
   | "imports"
+  | "profile"
   | "recurring"
   | "reports"
   | "rules"
@@ -32,8 +33,6 @@ export const testIds = {
     breadcrumbsMobile: "breadcrumbs-mobile",
     topBarStatus: "top-bar-status",
     topBarInternetStatus: "top-bar-internet-status",
-    topBarAccountsStatus: "top-bar-accounts-status",
-    topBarTransactionsStatus: "top-bar-transactions-status",
     themeToggleButton: "theme-toggle-button",
     authGate: "auth-gate-screen",
     authGateMessage: "auth-gate-message",
@@ -51,6 +50,7 @@ export const testIds = {
     reportsRoute: "route-reports",
     syncRoute: "route-sync",
     settingsRoute: "route-settings",
+    profileRoute: "route-profile",
     loginRoute: "route-login",
   },
   icon: {
@@ -82,6 +82,7 @@ export const testIds = {
     errorMessage: "auth-error-message",
     submitButton: "auth-submit-button",
     modeSwitchButton: "auth-mode-switch-button",
+    passkeyLoginButton: "auth-passkey-login-button",
     demoLoginCard: "demo-login-card",
     demoLoginTitle: "demo-login-title",
     demoUsernameValue: "demo-username-value",
@@ -420,6 +421,30 @@ export const testIds = {
     openConflicts: (surface: StatusSurface) => `runtime-status-${surface}-open-conflicts`,
     server: (surface: StatusSurface) => `runtime-status-${surface}-server`,
     savingChanges: (surface: StatusSurface) => `runtime-status-${surface}-saving-changes`,
+  },
+  profile: {
+    page: "profile-page",
+    summaryCard: "profile-summary-card",
+    passkeysCard: "profile-passkeys-card",
+    passkeysList: "profile-passkeys-list",
+    passkeysEmpty: "profile-passkeys-empty",
+    passkeyRow: (id: string) => `profile-passkey-row-${id}`,
+    addPasskeyButton: "profile-add-passkey-button",
+    addPasskeyDialog: "profile-add-passkey-dialog",
+    addPasskeyForm: "profile-add-passkey-form",
+    addPasskeyNameInput: "profile-add-passkey-name-input",
+    addPasskeyPasswordInput: "profile-add-passkey-password-input",
+    addPasskeySubmitButton: "profile-add-passkey-submit-button",
+    renamePasskeyButton: (id: string) => `profile-rename-passkey-${id}`,
+    renamePasskeyDialog: "profile-rename-passkey-dialog",
+    renamePasskeyNameInput: "profile-rename-passkey-name-input",
+    renamePasskeySubmitButton: "profile-rename-passkey-submit-button",
+    removePasskeyButton: (id: string) => `profile-remove-passkey-${id}`,
+    passwordForm: "profile-password-form",
+    currentPasswordInput: "profile-current-password-input",
+    newPasswordInput: "profile-new-password-input",
+    confirmPasswordInput: "profile-confirm-password-input",
+    passwordSubmitButton: "profile-password-submit-button",
   },
   transactionCreate: {
     panel: "transaction-create-panel",

@@ -1,15 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import {
-  CheckCircle2,
-  ChevronRight,
-  Landmark,
-  Laptop,
-  Moon,
-  ReceiptText,
-  Sun,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, ChevronRight, Laptop, Moon, Sun, XCircle } from "lucide-react";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { FastiflyIcon } from "../fastifly-icon";
@@ -18,19 +9,15 @@ import { StatusCapsule } from "./primitives";
 import { formatThemeLabel, type Theme } from "./utils";
 
 export function TopBar({
-  accountsCount,
   currentNavigationItem,
   isOnline,
   onToggleTheme,
   theme,
-  transactionsCount,
 }: {
-  readonly accountsCount: number;
   readonly currentNavigationItem: NavigationItem;
   readonly isOnline: boolean;
   readonly onToggleTheme: () => void;
   readonly theme: Theme;
-  readonly transactionsCount: number;
 }) {
   const isDashboard = currentNavigationItem.slug === "dashboard";
   const currentLabel = isDashboard ? en.nav.dashboardShort : currentNavigationItem.label;
@@ -114,18 +101,6 @@ export function TopBar({
           label={isOnline ? en.status.browserOnline : en.status.browserOffline}
           testId={testIds.shell.topBarInternetStatus}
           tone={isOnline ? "success" : "danger"}
-        />
-        <StatusCapsule
-          icon={Landmark}
-          label={`${en.shell.accounts}: ${accountsCount}`}
-          testId={testIds.shell.topBarAccountsStatus}
-          tone="neutral"
-        />
-        <StatusCapsule
-          icon={ReceiptText}
-          label={`${en.shell.transactions}: ${transactionsCount}`}
-          testId={testIds.shell.topBarTransactionsStatus}
-          tone="neutral"
         />
       </div>
       <div className="flex shrink-0 items-center gap-2">

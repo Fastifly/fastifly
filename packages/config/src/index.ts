@@ -4,6 +4,15 @@ const EnvBooleanSchema = z
   .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
   .transform((value) => value === true || value === "true" || value === "1");
 
+function parseStringList(value: string | undefined): readonly string[] | undefined {
+  const entries = value
+    ?.split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  return entries && entries.length > 0 ? entries : undefined;
+}
+
 export const ApiConfigSchema = z
   .strictObject({
     appRole: z.enum(["api", "worker", "all"]).default("all"),
@@ -49,6 +58,7 @@ export const ApiConfigSchema = z
     webAuthnRpName: z.string().min(1).default("Fastifly"),
     webAuthnRpId: z.string().min(1).optional(),
     webAuthnOrigin: z.url().optional(),
+    webAuthnOrigins: z.array(z.url()).optional(),
     webAuthnChallengeTtlMinutes: z.coerce.number().int().min(1).max(30).default(5),
     postgresLedgerLockAcquireTimeoutMs: z.coerce
       .number()
@@ -113,6 +123,7 @@ export function parseApiConfig(env: Record<string, string | undefined>): ApiConf
     webAuthnRpName: env.WEBAUTHN_RP_NAME,
     webAuthnRpId: env.WEBAUTHN_RP_ID,
     webAuthnOrigin: env.WEBAUTHN_ORIGIN,
+    webAuthnOrigins: parseStringList(env.WEBAUTHN_ORIGINS),
     webAuthnChallengeTtlMinutes: env.WEBAUTHN_CHALLENGE_TTL_MINUTES,
     postgresLedgerLockAcquireTimeoutMs: env.POSTGRES_LEDGER_LOCK_ACQUIRE_TIMEOUT_MS,
   });

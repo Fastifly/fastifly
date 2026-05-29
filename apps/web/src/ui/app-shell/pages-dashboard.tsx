@@ -1,6 +1,7 @@
 import type {
   AccountWithBalanceResponse,
   CategoryResponse,
+  MeContextResponse,
   TransactionGroupResponse,
 } from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
@@ -51,6 +52,7 @@ import {
   RulesPage,
 } from "./pages-accounts";
 import { DashboardAside, ReportsPage, SettingsPage, SyncPage } from "./pages-finance";
+import { ProfilePage } from "./pages-profile";
 import { TransactionsPanel } from "./transaction-components";
 import {
   hasActiveTransactionFilters,
@@ -302,6 +304,7 @@ export function PageBody({
   transactionsLoading,
   theme,
   transferCount,
+  user,
   workspaceId,
   workspaceName,
   workspaceRole,
@@ -351,6 +354,7 @@ export function PageBody({
   readonly onLogout: () => void;
   readonly onThemeChange: (theme: Theme) => void;
   readonly transferCount: number;
+  readonly user: MeContextResponse["data"]["user"];
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
@@ -421,6 +425,16 @@ export function PageBody({
         pendingOutboxCount={pendingOutboxCount}
         theme={theme}
         workspaceId={workspaceId}
+        workspaceName={workspaceName}
+        workspaceRole={workspaceRole}
+      />
+    );
+  }
+  if (pageSlug === "profile") {
+    return (
+      <ProfilePage
+        ledgerName={ledgerName}
+        user={user}
         workspaceName={workspaceName}
         workspaceRole={workspaceRole}
       />

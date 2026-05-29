@@ -2,7 +2,9 @@ import { AuthResponseSchema } from "@fastifly/common";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod/v4";
+import { verifyPasswordHash } from "../../auth/passwords.js";
 import { generateSessionToken, hashSessionToken } from "../../auth/sessions.js";
+import { WebAuthnVerificationError } from "../../auth/webauthn.js";
 import { requireAuthenticatedUser } from "../../policies.js";
 import { ErrorResponseSchemas } from "../../schemas.js";
 import { AUTH_RATE_LIMIT, type RegisterAuthRoutesOptions } from "./contracts.js";
@@ -10,15 +12,17 @@ import {
   clearChallengeCookie,
   createPasskeyChallengeExpiry,
   createSessionExpiry,
+  FinishPasskeyLoginRequestSchema,
+  FinishPasskeyRegistrationRequestSchema,
   makeHttpError,
-  PasskeyFinishBodySchema,
   PasskeyListResponseSchema,
-  PasskeyLoginStartBodySchema,
   PasskeyOptionsResponseSchema,
   PasskeyParamsSchema,
   PasskeyResponseSchema,
   parseCookieSyncedId,
-  RenamePasskeyBodySchema,
+  RenamePasskeyRequestSchema,
+  StartPasskeyLoginRequestSchema,
+  StartPasskeyRegistrationRequestSchema,
   setChallengeCookie,
   setSessionCookie,
   toAuthUser,
@@ -36,6 +40,7 @@ export async function registerAuthPasskeyRoutes(
     {
       onRequest: app.csrfProtection,
       schema: {
+        body: StartPasskeyRegistrationRequestSchema,
         response: {
           200: PasskeyOptionsResponseSchema,
           ...ErrorResponseSchemas,
@@ -45,9 +50,19 @@ export async function registerAuthPasskeyRoutes(
     async (request, reply) => {
       const userId = requireAuthenticatedUser(request);
       const user = await identityRepository.findUserById(userId);
+      const input = StartPasskeyRegistrationRequestSchema.parse(request.body);
 
       if (!user || user.disabledAt) {
         throw makeHttpError(401, "Authentication is required.");
+      }
+
+      const passwordMatches = await verifyPasswordHash({
+        password: input.currentPassword,
+        passwordHash: user.passwordHash,
+      });
+
+      if (!passwordMatches) {
+        throw makeHttpError(401, "Current password is incorrect.");
       }
 
       const existingPasskeys = await identityRepository.listPasskeysByUserId(user.id);
@@ -55,6 +70,7 @@ export async function registerAuthPasskeyRoutes(
         config,
         displayName: user.displayName,
         existingPasskeys,
+        requestOrigin: readRequestOrigin(request.headers.origin),
         userId: user.id,
         username: user.username,
       });
@@ -82,7 +98,7 @@ export async function registerAuthPasskeyRoutes(
     {
       onRequest: app.csrfProtection,
       schema: {
-        body: PasskeyFinishBodySchema,
+        body: FinishPasskeyRegistrationRequestSchema,
         response: {
           201: PasskeyResponseSchema,
           ...ErrorResponseSchemas,
@@ -108,25 +124,44 @@ export async function registerAuthPasskeyRoutes(
         throw makeHttpError(400, "Passkey registration challenge is invalid.");
       }
 
-      const body = PasskeyFinishBodySchema.parse(request.body);
-      const verifiedCredential = await webAuthnAdapter.verifyRegistrationResponse({
-        config,
-        expectedChallenge: challenge.challenge,
-        response: body.response as unknown as RegistrationResponseJSON,
-      });
+      const body = FinishPasskeyRegistrationRequestSchema.parse(request.body);
+      const verifiedCredential = await verifyRegistrationResponseOrFail(async () =>
+        webAuthnAdapter.verifyRegistrationResponse({
+          config,
+          expectedChallenge: challenge.challenge,
+          response: body.response as unknown as RegistrationResponseJSON,
+        }),
+      );
 
       if (!verifiedCredential) {
         throw makeHttpError(400, "Passkey registration failed.");
       }
 
-      const passkey = await identityRepository.createPasskey({
-        counter: verifiedCredential.counter,
-        credentialId: verifiedCredential.credentialId,
-        name: "Passkey",
-        publicKey: verifiedCredential.publicKey,
-        transportsJson: verifiedCredential.transportsJson,
-        userId,
-      });
+      const existingPasskey = await identityRepository.findPasskeyByCredentialId(
+        verifiedCredential.credentialId,
+      );
+
+      if (existingPasskey) {
+        throw makeHttpError(409, "This passkey is already registered.");
+      }
+
+      let passkey: Awaited<ReturnType<typeof identityRepository.createPasskey>>;
+      try {
+        passkey = await identityRepository.createPasskey({
+          counter: verifiedCredential.counter,
+          credentialId: verifiedCredential.credentialId,
+          name: body.name?.trim() || "Passkey",
+          publicKey: verifiedCredential.publicKey,
+          transportsJson: verifiedCredential.transportsJson,
+          userId,
+        });
+      } catch (error) {
+        if (await identityRepository.findPasskeyByCredentialId(verifiedCredential.credentialId)) {
+          throw makeHttpError(409, "This passkey is already registered.");
+        }
+
+        throw error;
+      }
       await identityRepository.consumePasskeyChallenge(challenge.id);
       clearChallengeCookie(reply, config.passkeyRegistrationChallengeCookieName);
 
@@ -142,7 +177,7 @@ export async function registerAuthPasskeyRoutes(
       },
       onRequest: app.csrfProtection,
       schema: {
-        body: PasskeyLoginStartBodySchema,
+        body: StartPasskeyLoginRequestSchema,
         response: {
           200: PasskeyOptionsResponseSchema,
           ...ErrorResponseSchemas,
@@ -150,13 +185,15 @@ export async function registerAuthPasskeyRoutes(
       },
     },
     async (request, reply) => {
-      const input = PasskeyLoginStartBodySchema.parse(request.body ?? {});
+      const input = StartPasskeyLoginRequestSchema.parse(request.body ?? {});
       const user = input.username
         ? await identityRepository.findUserByNormalizedUsername(input.username)
         : null;
       const passkeys = user ? await identityRepository.listPasskeysByUserId(user.id) : undefined;
       const passkeyOptions = await webAuthnAdapter.generateAuthenticationOptions(
-        passkeys ? { config, passkeys } : { config },
+        passkeys
+          ? { config, passkeys, requestOrigin: readRequestOrigin(request.headers.origin) }
+          : { config, requestOrigin: readRequestOrigin(request.headers.origin) },
       );
       const expiresAt = createPasskeyChallengeExpiry(config);
       const challenge = await identityRepository.createPasskeyChallenge({
@@ -185,7 +222,7 @@ export async function registerAuthPasskeyRoutes(
       },
       onRequest: app.csrfProtection,
       schema: {
-        body: PasskeyFinishBodySchema,
+        body: FinishPasskeyLoginRequestSchema,
         response: {
           200: AuthResponseSchema,
           ...ErrorResponseSchemas,
@@ -210,7 +247,7 @@ export async function registerAuthPasskeyRoutes(
         throw makeHttpError(400, "Passkey login challenge is invalid.");
       }
 
-      const body = PasskeyFinishBodySchema.parse(request.body);
+      const body = FinishPasskeyLoginRequestSchema.parse(request.body);
       const passkey = await identityRepository.findPasskeyByCredentialId(
         String(body.response.id ?? ""),
       );
@@ -219,12 +256,14 @@ export async function registerAuthPasskeyRoutes(
         throw makeHttpError(401, "Passkey login failed.");
       }
 
-      const verifiedCredential = await webAuthnAdapter.verifyAuthenticationResponse({
-        config,
-        expectedChallenge: challenge.challenge,
-        passkey,
-        response: body.response as unknown as AuthenticationResponseJSON,
-      });
+      const verifiedCredential = await verifyAuthenticationResponseOrFail(async () =>
+        webAuthnAdapter.verifyAuthenticationResponse({
+          config,
+          expectedChallenge: challenge.challenge,
+          passkey,
+          response: body.response as unknown as AuthenticationResponseJSON,
+        }),
+      );
 
       if (!verifiedCredential) {
         throw makeHttpError(401, "Passkey login failed.");
@@ -279,7 +318,7 @@ export async function registerAuthPasskeyRoutes(
     {
       onRequest: app.csrfProtection,
       schema: {
-        body: RenamePasskeyBodySchema,
+        body: RenamePasskeyRequestSchema,
         params: PasskeyParamsSchema,
         response: {
           200: PasskeyResponseSchema,
@@ -290,7 +329,7 @@ export async function registerAuthPasskeyRoutes(
     async (request) => {
       const userId = requireAuthenticatedUser(request);
       const params = PasskeyParamsSchema.parse(request.params);
-      const input = RenamePasskeyBodySchema.parse(request.body);
+      const input = RenamePasskeyRequestSchema.parse(request.body);
       const passkey = await identityRepository.renamePasskey({
         id: params.passkeyId,
         name: input.name,
@@ -343,4 +382,32 @@ export async function registerAuthPasskeyRoutes(
       return reply.status(204).send();
     },
   );
+}
+
+function readRequestOrigin(origin: string | undefined): string | undefined {
+  return origin && origin.trim().length > 0 ? origin : undefined;
+}
+
+async function verifyRegistrationResponseOrFail<T>(verify: () => Promise<T>): Promise<T> {
+  try {
+    return await verify();
+  } catch (error) {
+    if (error instanceof WebAuthnVerificationError) {
+      throw makeHttpError(400, "Passkey registration failed.");
+    }
+
+    throw error;
+  }
+}
+
+async function verifyAuthenticationResponseOrFail<T>(verify: () => Promise<T>): Promise<T> {
+  try {
+    return await verify();
+  } catch (error) {
+    if (error instanceof WebAuthnVerificationError) {
+      throw makeHttpError(401, "Passkey login failed.");
+    }
+
+    throw error;
+  }
 }

@@ -1349,6 +1349,193 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/me/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            currentPassword: string;
+            newPassword: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/me/context": {
     parameters: {
       query?: never;
@@ -1569,7 +1756,13 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody: {
+        content: {
+          "application/json": {
+            currentPassword: string;
+          };
+        };
+      };
       responses: {
         /** @description Default Response */
         200: {
@@ -1758,6 +1951,7 @@ export interface paths {
       requestBody: {
         content: {
           "application/json": {
+            name?: string;
             response: {
               [key: string]: unknown;
             };
@@ -1774,12 +1968,12 @@ export interface paths {
             "application/json": {
               data: {
                 passkey: {
+                  createdAt: string;
+                  credentialId: string;
                   /** Format: uuid */
                   id: string;
-                  credentialId: string;
-                  name: string;
-                  createdAt: string;
                   lastUsedAt: string | null;
+                  name: string;
                 };
               };
             };
@@ -2356,12 +2550,12 @@ export interface paths {
             "application/json": {
               data: {
                 passkeys: {
+                  createdAt: string;
+                  credentialId: string;
                   /** Format: uuid */
                   id: string;
-                  credentialId: string;
-                  name: string;
-                  createdAt: string;
                   lastUsedAt: string | null;
+                  name: string;
                 }[];
               };
             };
@@ -2729,12 +2923,12 @@ export interface paths {
             "application/json": {
               data: {
                 passkey: {
+                  createdAt: string;
+                  credentialId: string;
                   /** Format: uuid */
                   id: string;
-                  credentialId: string;
-                  name: string;
-                  createdAt: string;
                   lastUsedAt: string | null;
+                  name: string;
                 };
               };
             };

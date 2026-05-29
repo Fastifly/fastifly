@@ -7,6 +7,8 @@ import {
   ArchiveCategoryResponseSchema,
   type AuthResponse,
   AuthResponseSchema,
+  type ChangePasswordRequest,
+  ChangePasswordRequestSchema,
   CommitImportJobResponseSchema,
   type CreateAccountRequest,
   CreateAccountResponseSchema,
@@ -22,6 +24,10 @@ import {
   type CreateTransactionRequest,
   CreateTransactionResponseSchema,
   CsrfTokenResponseSchema,
+  type FinishPasskeyLoginRequest,
+  FinishPasskeyLoginRequestSchema,
+  type FinishPasskeyRegistrationRequest,
+  FinishPasskeyRegistrationRequestSchema,
   GenerateRecurringTemplateResponseSchema,
   GetImportJobResponseSchema,
   GetRecurringTemplateResponseSchema,
@@ -45,11 +51,21 @@ import {
   MeContextResponseSchema,
   type NetWorthTrendResponse,
   NetWorthTrendResponseSchema,
+  type Passkey,
+  PasskeyListResponseSchema,
+  PasskeyOptionsResponseSchema,
+  PasskeyResponseSchema,
   type RecurringTemplateResponse,
   type RegisterCredentials,
+  type RenamePasskeyRequest,
+  RenamePasskeyRequestSchema,
   RuleApplyResponseSchema,
   type RuleResponse,
   RuleTestResponseSchema,
+  type StartPasskeyLoginRequest,
+  StartPasskeyLoginRequestSchema,
+  type StartPasskeyRegistrationRequest,
+  StartPasskeyRegistrationRequestSchema,
   type SyncConflictsResponse,
   SyncConflictsResponseSchema,
   type SyncStatusResponse,
@@ -83,6 +99,7 @@ export type ApiClient = {
   readonly archiveRule: (
     input: LedgerPathInput & { readonly ruleId: string },
   ) => Promise<RuleResponse>;
+  readonly changePassword: (input: ChangePasswordRequest) => Promise<void>;
   readonly applyRule: (
     input: LedgerPathInput & { readonly limit?: number; readonly ruleId: string },
   ) => Promise<{
@@ -158,12 +175,15 @@ export type ApiClient = {
   readonly getRule: (input: LedgerPathInput & { readonly ruleId: string }) => Promise<RuleResponse>;
   readonly getSyncConflicts: (input: LedgerPathInput) => Promise<SyncConflictsResponse>;
   readonly getSyncStatus: (input: LedgerPathInput) => Promise<SyncStatusResponse>;
+  readonly finishPasskeyRegistration: (input: FinishPasskeyRegistrationRequest) => Promise<Passkey>;
+  readonly finishPasskeyLogin: (input: FinishPasskeyLoginRequest) => Promise<AuthResponse>;
   readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
   readonly listBudgets: (
     input: LedgerPathInput & Partial<Pick<ListBudgetsQuery, "asOfDate" | "cursor" | "limit">>,
   ) => Promise<ListBudgetsResponse>;
   readonly listCategories: (input: LedgerPathInput) => Promise<ListCategoriesResponse>;
   readonly listImportJobs: (input: LedgerPathInput) => Promise<readonly ImportJobResponse[]>;
+  readonly listPasskeys: () => Promise<readonly Passkey[]>;
   readonly listRecurringTemplates: (
     input: LedgerPathInput,
   ) => Promise<readonly RecurringTemplateResponse[]>;
@@ -186,7 +206,13 @@ export type ApiClient = {
   ) => Promise<ListTransactionsResponse>;
   readonly login: (input: LoginCredentials) => Promise<AuthResponse>;
   readonly logout: () => Promise<void>;
+  readonly removePasskey: (input: { readonly passkeyId: string }) => Promise<void>;
+  readonly renamePasskey: (
+    input: { readonly passkeyId: string } & RenamePasskeyRequest,
+  ) => Promise<Passkey>;
   readonly register: (input: RegisterCredentials) => Promise<AuthResponse>;
+  readonly startPasskeyRegistration: (input: StartPasskeyRegistrationRequest) => Promise<unknown>;
+  readonly startPasskeyLogin: (input?: StartPasskeyLoginRequest) => Promise<unknown>;
   readonly testRule: (
     input: LedgerPathInput & { readonly limit?: number; readonly ruleId: string },
   ) => Promise<readonly ListTransactionsResponse["data"][number][]>;
@@ -333,6 +359,18 @@ export const apiClient: ApiClient = {
       return response.data.rule;
     });
   },
+  async changePassword(input) {
+    const body = ChangePasswordRequestSchema.parse(input);
+    await withCsrf(async (csrfToken) => {
+      await unwrapOpenApiEmptyResponse(
+        await openApiClient.POST("/api/v1/me/password", {
+          body,
+          headers: { "x-csrf-token": csrfToken },
+        }),
+      );
+      csrfTokenPromise = null;
+    });
+  },
   async commitImportJob(input) {
     const { applyRules, importJobId, ledgerId, workspaceId } = input;
     return await withCsrf(async (csrfToken) => {
@@ -392,6 +430,105 @@ export const apiClient: ApiClient = {
           params: {
             path: {
               apiKeyId: input.apiKeyId,
+            },
+          },
+        }),
+      );
+    });
+  },
+  async listPasskeys() {
+    const response = PasskeyListResponseSchema.parse(
+      await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/passkeys")),
+    );
+    return response.data.passkeys;
+  },
+  async startPasskeyRegistration(input) {
+    const body = StartPasskeyRegistrationRequestSchema.parse(input);
+    const response = PasskeyOptionsResponseSchema.parse(
+      await withCsrf(async (csrfToken) =>
+        unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/passkeys/registration/start", {
+            body,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
+      ),
+    );
+    return response.data.options;
+  },
+  async finishPasskeyRegistration(input) {
+    const body = FinishPasskeyRegistrationRequestSchema.parse(input);
+    const requestBody =
+      body.name === undefined
+        ? { response: body.response }
+        : { name: body.name, response: body.response };
+    const response = PasskeyResponseSchema.parse(
+      await withCsrf(async (csrfToken) =>
+        unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/passkeys/registration/finish", {
+            body: requestBody,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
+      ),
+    );
+    return response.data.passkey;
+  },
+  async startPasskeyLogin(input = {}) {
+    const parsedBody = StartPasskeyLoginRequestSchema.parse(input);
+    const body = parsedBody.username === undefined ? {} : { username: parsedBody.username };
+    const response = PasskeyOptionsResponseSchema.parse(
+      await withCsrf(async (csrfToken) =>
+        unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/passkeys/login/start", {
+            body,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
+      ),
+    );
+    return response.data.options;
+  },
+  async finishPasskeyLogin(input) {
+    const body = FinishPasskeyLoginRequestSchema.parse(input);
+    return AuthResponseSchema.parse(
+      await withCsrf(async (csrfToken) =>
+        unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/auth/passkeys/login/finish", {
+            body,
+            headers: { "x-csrf-token": csrfToken },
+          }),
+        ),
+      ),
+    );
+  },
+  async renamePasskey(input) {
+    const body = RenamePasskeyRequestSchema.parse({ name: input.name });
+    const response = PasskeyResponseSchema.parse(
+      await withCsrf(async (csrfToken) =>
+        unwrapOpenApiResponse(
+          await openApiClient.PATCH("/api/v1/me/passkeys/{passkeyId}", {
+            body,
+            headers: { "x-csrf-token": csrfToken },
+            params: {
+              path: {
+                passkeyId: input.passkeyId,
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    return response.data.passkey;
+  },
+  async removePasskey(input) {
+    await withCsrf(async (csrfToken) => {
+      await unwrapOpenApiEmptyResponse(
+        await openApiClient.DELETE("/api/v1/me/passkeys/{passkeyId}", {
+          headers: { "x-csrf-token": csrfToken },
+          params: {
+            path: {
+              passkeyId: input.passkeyId,
             },
           },
         }),

@@ -90,6 +90,22 @@ describe("API config contract", () => {
     ).toThrow();
   });
 
+  it("parses comma-separated WebAuthn origins for split web and API hosting", () => {
+    expect(
+      parseApiConfig({
+        WEBAUTHN_ORIGINS: "http://localhost:5173, http://127.0.0.1:5173",
+      }),
+    ).toMatchObject({
+      webAuthnOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    });
+
+    expect(() =>
+      parseApiConfig({
+        WEBAUTHN_ORIGINS: "http://localhost:5173,not-a-url",
+      }),
+    ).toThrow();
+  });
+
   it("defaults the application role to all and exposes worker settings", () => {
     expect(parseApiConfig({})).toMatchObject({
       appRole: "all",

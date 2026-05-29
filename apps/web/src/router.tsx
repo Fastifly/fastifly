@@ -108,6 +108,12 @@ const settingsRoute = createRoute({
   ),
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/profile",
+  component: lazyRouteComponent(() => import("./ui/routes/profile-route"), "ProfileRouteComponent"),
+});
+
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
@@ -126,6 +132,7 @@ const routeTree = rootRoute.addChildren([
     recurringRoute,
     reportsRoute,
     syncRoute,
+    profileRoute,
     settingsRoute,
   ]),
   loginRoute,

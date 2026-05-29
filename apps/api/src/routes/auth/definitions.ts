@@ -1,4 +1,17 @@
-import { type AuthUserSchema, parseSyncedId, type SyncedId } from "@fastifly/common";
+import {
+  type AuthUserSchema,
+  FinishPasskeyLoginRequestSchema,
+  FinishPasskeyRegistrationRequestSchema,
+  PasskeyListResponseSchema,
+  PasskeyOptionsResponseSchema,
+  PasskeyResponseSchema,
+  PasskeySchema,
+  parseSyncedId,
+  RenamePasskeyRequestSchema,
+  StartPasskeyLoginRequestSchema,
+  StartPasskeyRegistrationRequestSchema,
+  type SyncedId,
+} from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
 import type { ApiKeyRecord, IdentityRepository, UserRecord } from "@fastifly/db";
 import type { FastifyReply } from "fastify";
@@ -6,67 +19,9 @@ import { z } from "zod/v4";
 import { hashApiKeyToken, parseApiKeyFromAuthorizationHeader } from "../../auth/api-keys.js";
 import { DEFAULT_RECOVERY_CODE_COUNT, hashSessionToken } from "../../auth/sessions.js";
 
-export const PasskeyOptionsResponseSchema = z
-  .object({
-    data: z
-      .object({
-        options: z.unknown(),
-      })
-      .strict(),
-  })
-  .strict();
-
-export const PasskeySchema = z
-  .object({
-    id: z.uuidv7(),
-    credentialId: z.string().min(1),
-    name: z.string().min(1),
-    createdAt: z.string().min(1),
-    lastUsedAt: z.string().nullable(),
-  })
-  .strict();
-
-export const PasskeyResponseSchema = z
-  .object({
-    data: z
-      .object({
-        passkey: PasskeySchema,
-      })
-      .strict(),
-  })
-  .strict();
-
-export const PasskeyListResponseSchema = z
-  .object({
-    data: z
-      .object({
-        passkeys: z.array(PasskeySchema),
-      })
-      .strict(),
-  })
-  .strict();
-
-export const PasskeyFinishBodySchema = z
-  .object({
-    response: z.record(z.string(), z.unknown()),
-  })
-  .strict();
-
-export const PasskeyLoginStartBodySchema = z
-  .object({
-    username: z.string().trim().min(1).max(100).optional(),
-  })
-  .strict();
-
 export const PasskeyParamsSchema = z
   .object({
     passkeyId: z.uuidv7(),
-  })
-  .strict();
-
-export const RenamePasskeyBodySchema = z
-  .object({
-    name: z.string().trim().min(1).max(100),
   })
   .strict();
 
@@ -241,6 +196,18 @@ export const WorkspaceMemberListResponseSchema = z
       .strict(),
   })
   .strict();
+
+export {
+  FinishPasskeyLoginRequestSchema,
+  FinishPasskeyRegistrationRequestSchema,
+  PasskeyListResponseSchema,
+  PasskeyOptionsResponseSchema,
+  PasskeyResponseSchema,
+  PasskeySchema,
+  RenamePasskeyRequestSchema,
+  StartPasskeyLoginRequestSchema,
+  StartPasskeyRegistrationRequestSchema,
+};
 
 export function toAuthUser(user: UserRecord): z.infer<typeof AuthUserSchema> {
   return {

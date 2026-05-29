@@ -37,6 +37,7 @@ runtime_env = {
     'DATABASE_DRIVER': database_driver,
     'DATABASE_URL': database_url,
     'FASTIFLY_DEV_POSTGRES_PORT': postgres_port,
+    'WEBAUTHN_ORIGINS': '%s,http://127.0.0.1:%s' % (web_url, web_port),
 }
 
 runtime_package_deps = [

@@ -610,7 +610,8 @@ Response:
   "data": {
     "user": {
       "id": "user_123",
-      "username": "priyanshu"
+      "username": "priyanshu",
+      "displayName": "Priyanshu"
     },
     "activeWorkspace": {
       "id": "ws_123",
@@ -626,6 +627,37 @@ Response:
 }
 ```
 
+### Change password
+
+```text
+POST /api/v1/me/password
+```
+
+Required header:
+
+```text
+x-csrf-token: <token from GET /api/v1/auth/csrf>
+```
+
+Request:
+
+```json
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-strong-password"
+}
+```
+
+Response: `204 No Content`.
+
+Rules:
+
+- current password must verify before the password hash changes
+- new password must satisfy the shared password policy
+- new password must differ from the current password
+- all active user sessions are revoked, including the current session
+- the current session cookie is cleared so the user signs in again
+
 ---
 
 ## Passkey endpoints
@@ -638,11 +670,35 @@ POST /api/v1/auth/passkeys/registration/start
 
 Unsafe passkey routes require `x-csrf-token`.
 
+Request:
+
+```json
+{
+  "currentPassword": "account-password"
+}
+```
+
+Rule: passkey registration requires a freshly verified current password before a
+challenge is issued.
+
 ### Finish registration
 
 ```text
 POST /api/v1/auth/passkeys/registration/finish
 ```
+
+Request:
+
+```json
+{
+  "name": "Laptop fingerprint",
+  "response": {}
+}
+```
+
+`name` is optional. The server uses a default passkey name when omitted.
+Failed WebAuthn verification returns `400 BAD_REQUEST` with `Passkey registration failed.`
+Duplicate credentials return `409 CONFLICT` with `This passkey is already registered.`
 
 ### Start login
 
@@ -650,11 +706,29 @@ POST /api/v1/auth/passkeys/registration/finish
 POST /api/v1/auth/passkeys/login/start
 ```
 
+Request may be `{}` for discoverable credentials or include:
+
+```json
+{
+  "username": "priyanshu"
+}
+```
+
 ### Finish login
 
 ```text
 POST /api/v1/auth/passkeys/login/finish
 ```
+
+Request:
+
+```json
+{
+  "response": {}
+}
+```
+
+Failed WebAuthn verification returns `401 UNAUTHENTICATED` with `Passkey login failed.`
 
 ### List passkeys
 

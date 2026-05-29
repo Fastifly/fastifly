@@ -183,6 +183,11 @@ export type CreateUserInput = {
   readonly passwordHash: string;
 };
 
+export type UpdateUserPasswordHashInput = {
+  readonly userId: SyncedId;
+  readonly passwordHash: string;
+};
+
 export type CreateSessionInput = {
   readonly userId: SyncedId;
   readonly tokenHash: string;
@@ -313,6 +318,9 @@ export type UserWorkspaceContextRecord = {
 
 export type IdentityRepository = {
   readonly createUser: (input: CreateUserInput) => Promise<UserRecord>;
+  readonly updateUserPasswordHash: (
+    input: UpdateUserPasswordHashInput,
+  ) => Promise<UserRecord | null>;
   readonly findUserByNormalizedUsername: (username: string) => Promise<UserRecord | null>;
   readonly findUserById: (id: SyncedId) => Promise<UserRecord | null>;
   readonly findWorkspaceById: (id: SyncedId) => Promise<WorkspaceRecord | null>;
@@ -322,6 +330,7 @@ export type IdentityRepository = {
     now?: Date,
   ) => Promise<SessionRecord | null>;
   readonly revokeSession: (sessionId: SyncedId) => Promise<SessionRecord | null>;
+  readonly revokeSessionsForUser: (userId: SyncedId) => Promise<number>;
   readonly bootstrapDefaultWorkspace: (
     input: BootstrapDefaultWorkspaceInput,
   ) => Promise<BootstrapDefaultWorkspaceResult>;
@@ -630,6 +639,19 @@ export function createSqliteIdentityRepository(
       return toUserRecord(user);
     },
 
+    async updateUserPasswordHash(input) {
+      const rows = await db
+        .update(sqliteUsers)
+        .set({
+          passwordHash: input.passwordHash,
+          updatedAt: makeTimestamp(resolved.clock),
+        })
+        .where(eq(sqliteUsers.id, input.userId))
+        .returning();
+
+      return rows[0] ? toUserRecord(rows[0]) : null;
+    },
+
     async findUserByNormalizedUsername(username) {
       const normalizedUsername = normalizeUsername(username);
       const rows = await db
@@ -703,6 +725,16 @@ export function createSqliteIdentityRepository(
         .returning();
 
       return rows[0] ? toSessionRecord(rows[0]) : null;
+    },
+
+    async revokeSessionsForUser(userId) {
+      const rows = await db
+        .update(sqliteSessions)
+        .set({ revokedAt: makeTimestamp(resolved.clock) })
+        .where(and(eq(sqliteSessions.userId, userId), isNull(sqliteSessions.revokedAt)))
+        .returning();
+
+      return rows.length;
     },
 
     async bootstrapDefaultWorkspace(input) {
@@ -1380,6 +1412,19 @@ export function createPostgresIdentityRepository(
       return toUserRecord(user);
     },
 
+    async updateUserPasswordHash(input) {
+      const rows = await db
+        .update(pgUsers)
+        .set({
+          passwordHash: input.passwordHash,
+          updatedAt: resolved.clock.now(),
+        })
+        .where(eq(pgUsers.id, input.userId))
+        .returning();
+
+      return rows[0] ? toUserRecord(rows[0]) : null;
+    },
+
     async findUserByNormalizedUsername(username) {
       const normalizedUsername = normalizeUsername(username);
       const rows = await db
@@ -1449,6 +1494,16 @@ export function createPostgresIdentityRepository(
         .returning();
 
       return rows[0] ? toSessionRecord(rows[0]) : null;
+    },
+
+    async revokeSessionsForUser(userId) {
+      const rows = await db
+        .update(pgSessions)
+        .set({ revokedAt: resolved.clock.now() })
+        .where(and(eq(pgSessions.userId, userId), isNull(pgSessions.revokedAt)))
+        .returning();
+
+      return rows.length;
     },
 
     async bootstrapDefaultWorkspace(input) {

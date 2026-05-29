@@ -3,10 +3,14 @@ import {
   LoginCredentialsSchema,
   RegisterCredentialsSchema,
 } from "@fastifly/common";
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import { ArrowRightLeft, ShieldCheck } from "lucide-react";
+import { ArrowRightLeft, Fingerprint, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { apiClient, FastiflyApiError } from "../api/client";
@@ -46,6 +50,33 @@ export function AuthPage() {
     },
     onError: (error) => {
       toast.error(getAuthErrorMessage(error));
+    },
+  });
+  const passkeyMutation = useMutation({
+    mutationFn: async () => {
+      const { browserSupportsWebAuthn, startAuthentication } = await import(
+        "@simplewebauthn/browser"
+      );
+      if (!browserSupportsWebAuthn()) {
+        throw new Error(en.auth.passkeyNotAvailable);
+      }
+
+      const optionsJSON =
+        (await apiClient.startPasskeyLogin()) as PublicKeyCredentialRequestOptionsJSON;
+      const credential: AuthenticationResponseJSON = await startAuthentication({ optionsJSON });
+      return await apiClient.finishPasskeyLogin({
+        response: credential as unknown as Record<string, unknown>,
+      });
+    },
+    onError: (error) => {
+      toast.error(getPasskeyAuthErrorMessage(error));
+    },
+    onSuccess: async () => {
+      await queryClient.fetchQuery({
+        queryFn: apiClient.getMeContext,
+        queryKey: ["me", "context"],
+      });
+      await navigate({ replace: true, to: "/" });
     },
   });
   const title = mode === "login" ? en.auth.loginTitle : en.auth.registerTitle;
@@ -89,6 +120,24 @@ export function AuthPage() {
           {modeSwitchLabel}
         </Button>
 
+        {mode === "login" ? (
+          <Button
+            className="mt-3 w-full"
+            data-testid={testIds.auth.passkeyLoginButton}
+            disabled={mutation.isPending || passkeyMutation.isPending}
+            onClick={() => passkeyMutation.mutate()}
+            type="button"
+            variant="outline"
+          >
+            {passkeyMutation.isPending ? (
+              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            ) : (
+              <Fingerprint aria-hidden="true" />
+            )}
+            {passkeyMutation.isPending ? en.auth.loading : en.auth.signInWithPasskey}
+          </Button>
+        ) : null}
+
         {mode === "login" && SHOW_DEMO_LOGIN ? (
           <DemoLoginCard onUseDemoLogin={fillDemoLogin} />
         ) : null}
@@ -105,4 +154,12 @@ function getAuthErrorMessage(error: unknown): string {
     return error.message;
   }
   return en.auth.unexpectedError;
+}
+
+function getPasskeyAuthErrorMessage(error: unknown): string {
+  if (error instanceof Error && (error.name === "AbortError" || error.name === "NotAllowedError")) {
+    return en.auth.passkeyNotAvailable;
+  }
+
+  return getAuthErrorMessage(error);
 }
