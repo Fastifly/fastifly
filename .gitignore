@@ -12,4 +12,5 @@ coverage
 .env.*
 !.env.example
 data
+.run
 .playwright-mcp
