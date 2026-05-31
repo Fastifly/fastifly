@@ -215,9 +215,14 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
       }),
       accountColumnHelper.accessor("typeLabel", {
         cell: ({ row }) => (
-          <div className="min-w-0">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <p className="truncate font-medium">{row.original.typeLabel}</p>
-            <p className="text-muted-foreground text-xs">{row.original.kindLabel}</p>
+            <Badge
+              className={cn("justify-self-end", getAccountKindBadgeClassName(row.original.account))}
+              variant="outline"
+            >
+              {row.original.kindLabel}
+            </Badge>
           </div>
         ),
         header: en.accounts.columns.type,
@@ -305,10 +310,10 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
 
   return (
     <section
-      className="mt-2 space-y-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] xl:pb-0"
+      className="mt-2 flex flex-col gap-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] xl:pb-0"
       data-testid={testIds.accounts.page}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="order-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between md:order-none">
         <div className="min-w-0">
           <h1 className="font-semibold text-2xl tracking-normal">{en.accounts.pageTitle}</h1>
           <p className="mt-1 max-w-3xl text-muted-foreground text-sm">
@@ -330,9 +335,9 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
         />
       </div>
 
-      <AccountsSummary overview={overview} />
+      <AccountsSummary className="order-3 md:order-none" overview={overview} />
 
-      <Card className="overflow-hidden border border-border bg-card text-card-foreground shadow-sm">
+      <Card className="order-2 overflow-hidden border border-border bg-card text-card-foreground shadow-sm md:order-none">
         <CardHeader>
           <CardTitle>{en.accounts.register}</CardTitle>
           <CardDescription>{en.accounts.registerBody}</CardDescription>
@@ -413,7 +418,7 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
         onSubmit={updateAccount}
       />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
+      <div className="order-4 grid gap-3 md:order-none xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
         <CurrencyBreakdownCard overview={overview} />
         <AccountMixCard overview={overview} />
       </div>
@@ -421,13 +426,19 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
   );
 }
 
-function AccountsSummary({ overview }: { readonly overview: AccountsOverview }) {
+function AccountsSummary({
+  className,
+  overview,
+}: {
+  readonly className?: string;
+  readonly overview: AccountsOverview;
+}) {
   const summary = overview.primaryCurrencySummary;
   const currencyCode = summary?.currencyCode ?? DEFAULT_REPORTING_CURRENCY;
 
   return (
     <div
-      className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4"
+      className={cn("grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4", className)}
       data-testid={testIds.accounts.summary}
     >
       <AccountMetricCard
@@ -717,23 +728,19 @@ function AccountMobileRow({
 }) {
   return (
     <div className="space-y-3 p-4">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{row.name}</p>
-          <p className="mt-1 truncate text-muted-foreground text-xs">
-            {row.typeLabel} / {row.currencyCode}
-          </p>
-        </div>
-        <div className="min-w-[7rem] text-right">
-          <p
-            className="break-words font-semibold text-sm leading-tight"
-            data-testid={testIds.accounts.rowBalance(row.account.id)}
-          >
-            {row.balanceLabel}
-          </p>
-          <div className="mt-1 flex justify-end">
-            <AccountStatusBadge account={row.account} />
-          </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+        <p className="min-w-0 truncate font-semibold leading-5">{row.name}</p>
+        <p
+          className="whitespace-nowrap text-right font-semibold text-sm leading-5"
+          data-testid={testIds.accounts.rowBalance(row.account.id)}
+        >
+          {row.balanceLabel}
+        </p>
+        <p className="min-w-0 truncate text-muted-foreground text-xs leading-4">
+          {row.typeLabel} / {row.currencyCode}
+        </p>
+        <div className="flex justify-end">
+          <AccountStatusBadge account={row.account} />
         </div>
       </div>
       <AccountRowActions
@@ -1001,6 +1008,14 @@ function getMetricToneClassName(tone: "danger" | "info" | "neutral" | "success")
   }
 
   return "text-foreground";
+}
+
+function getAccountKindBadgeClassName(account: AccountWithBalanceResponse): string {
+  if (account.kind === "asset") {
+    return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200";
+  }
+
+  return "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200";
 }
 
 function getAccountHeaderClassName(columnId: string): string {
