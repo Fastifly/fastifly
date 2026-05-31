@@ -2,7 +2,9 @@ import {
   type AccountSubtype,
   type AccountWithBalanceResponse,
   formatMoneyMinor,
+  type UpdateAccountRequest,
 } from "@fastifly/common";
+import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   type Column,
@@ -16,22 +18,41 @@ import {
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog";
+import { Field, FieldLabel, FieldError as ShadcnFieldError } from "@ui/field";
+import { Input } from "@ui/input";
 import { Skeleton } from "@ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@ui/table";
 import {
   ArrowUpDown,
+  Check,
   CreditCard,
   Landmark,
   type LucideIcon,
+  Pencil,
   PiggyBank,
   PlusCircle,
   ReceiptText,
+  RotateCcw,
   WalletCards,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { apiClient } from "../../../api/client";
+import {
+  type AccountEditFormValues,
+  buildUpdateAccountRequest,
+  makeAccountEditFormDefaults,
+} from "../../../finance/account-form";
 import {
   type AccountsOverview,
   deriveAccountsOverview,
@@ -40,6 +61,7 @@ import {
 import { en } from "../../../i18n/en";
 import { testIds } from "../../../testing/testid-registry";
 import { AccountCreateDialog } from "../../account-create-panel";
+import { BlockedActionGate } from "../../blocked-action-gate";
 import { AccountArchiveAction } from "../shared-components";
 import { formatAccountArchiveSuccess, getAccountArchiveError } from "../utils";
 import type { AccountsPageProps } from "./types";
@@ -71,10 +93,25 @@ const DEFAULT_REPORTING_CURRENCY = "INR";
 export function AccountsPage({ accounts, accountsLoading, ledgerContext }: AccountsPageProps) {
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([{ desc: true, id: "balance" }]);
+  const [editingAccount, setEditingAccount] = useState<AccountWithBalanceResponse | null>(null);
   const overview = useMemo(() => deriveAccountsOverview(accounts), [accounts]);
-  const rows = useMemo(
-    () => overview.activeAccounts.map(toAccountTableRow),
-    [overview.activeAccounts],
+  const rows = useMemo(() => overview.userAccounts.map(toAccountTableRow), [overview.userAccounts]);
+  const invalidateAccountQueries = useCallback(
+    async () =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "finance",
+            "transactions",
+            ledgerContext?.workspaceId,
+            ledgerContext?.ledgerId,
+          ],
+        }),
+      ]),
+    [ledgerContext?.ledgerId, ledgerContext?.workspaceId, queryClient],
   );
   const archiveMutation = useMutation({
     mutationFn: async (account: AccountWithBalanceResponse) => {
@@ -90,19 +127,35 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
     },
     onSuccess: async (_data, account) => {
       toast.success(formatAccountArchiveSuccess(account.name));
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["finance", "accounts", ledgerContext?.workspaceId, ledgerContext?.ledgerId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: [
-            "finance",
-            "transactions",
-            ledgerContext?.workspaceId,
-            ledgerContext?.ledgerId,
-          ],
-        }),
-      ]);
+      await invalidateAccountQueries();
+    },
+  });
+  const updateMutation = useMutation({
+    mutationFn: async (input: {
+      readonly account: AccountWithBalanceResponse;
+      readonly request: UpdateAccountRequest;
+    }) => {
+      if (!ledgerContext) {
+        throw new Error(en.accounts.ledgerRequired);
+      }
+
+      await apiClient.updateAccount({
+        ...input.request,
+        accountId: input.account.id,
+        ledgerId: ledgerContext.ledgerId,
+        workspaceId: ledgerContext.workspaceId,
+      });
+
+      return input;
+    },
+    onSuccess: async ({ account, request }) => {
+      setEditingAccount(null);
+      toast.success(
+        request.isActive === true
+          ? en.accounts.restoreSuccess.replace("{name}", account.name)
+          : en.accounts.updateSuccess,
+      );
+      await invalidateAccountQueries();
     },
   });
 
@@ -116,7 +169,41 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
     },
     [archiveMutation],
   );
+  const updateAccount = useCallback(
+    async (account: AccountWithBalanceResponse, values: AccountEditFormValues) => {
+      try {
+        await updateMutation.mutateAsync({
+          account,
+          request: buildUpdateAccountRequest(values),
+        });
+      } catch (error) {
+        toast.error(getAccountWriteError(error, en.accounts.updateFailed));
+      }
+    },
+    [updateMutation],
+  );
+  const restoreAccount = useCallback(
+    async (account: AccountWithBalanceResponse) => {
+      try {
+        await updateMutation.mutateAsync({
+          account,
+          request: { isActive: true },
+        });
+      } catch (error) {
+        toast.error(getAccountWriteError(error, en.accounts.restoreFailed));
+      }
+    },
+    [updateMutation],
+  );
   const archivingAccountId = archiveMutation.variables?.id;
+  const updatingAccountId =
+    updateMutation.isPending && updateMutation.variables?.request.name !== undefined
+      ? updateMutation.variables.account.id
+      : null;
+  const restoringAccountId =
+    updateMutation.isPending && updateMutation.variables?.request.isActive === true
+      ? updateMutation.variables.account.id
+      : null;
   const columns = useMemo(
     () => [
       accountColumnHelper.accessor("name", {
@@ -183,7 +270,11 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
             isArchiving={
               archiveMutation.isPending && archivingAccountId === row.original.account.id
             }
+            isRestoring={restoringAccountId === row.original.account.id}
+            isUpdating={updatingAccountId === row.original.account.id}
             onArchive={archiveAccount}
+            onEdit={setEditingAccount}
+            onRestore={restoreAccount}
             testIdsEnabled={true}
           />
         ),
@@ -191,7 +282,14 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
         id: "actions",
       }),
     ],
-    [archiveAccount, archiveMutation.isPending, archivingAccountId],
+    [
+      archiveAccount,
+      archiveMutation.isPending,
+      archivingAccountId,
+      restoreAccount,
+      restoringAccountId,
+      updatingAccountId,
+    ],
   );
   const table = useReactTable({
     columns,
@@ -286,8 +384,12 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
                     isArchiving={
                       archiveMutation.isPending && archivingAccountId === row.original.account.id
                     }
+                    isRestoring={restoringAccountId === row.original.account.id}
+                    isUpdating={updatingAccountId === row.original.account.id}
                     key={row.id}
                     onArchive={archiveAccount}
+                    onEdit={setEditingAccount}
+                    onRestore={restoreAccount}
                     row={row.original}
                   />
                 ))}
@@ -298,6 +400,17 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
           )}
         </CardContent>
       </Card>
+
+      <AccountEditDialog
+        account={editingAccount}
+        isPending={updateMutation.isPending && updateMutation.variables?.request.name !== undefined}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingAccount(null);
+          }
+        }}
+        onSubmit={updateAccount}
+      />
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.48fr)]">
         <CurrencyBreakdownCard overview={overview} />
@@ -504,14 +617,24 @@ function AccountNameCell({ row }: { readonly row: AccountTableRow }) {
 function AccountRowActions({
   account,
   isArchiving,
+  isRestoring,
+  isUpdating,
   onArchive,
+  onEdit,
+  onRestore,
   testIdsEnabled,
 }: {
   readonly account: AccountWithBalanceResponse;
   readonly isArchiving: boolean;
+  readonly isRestoring: boolean;
+  readonly isUpdating: boolean;
   readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
+  readonly onEdit: (account: AccountWithBalanceResponse) => void;
+  readonly onRestore: (account: AccountWithBalanceResponse) => Promise<void>;
   readonly testIdsEnabled: boolean;
 }) {
+  const active = isActiveAccount(account);
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <Button
@@ -525,7 +648,18 @@ function AccountRowActions({
           {en.accounts.viewTransactions}
         </a>
       </Button>
-      {isActiveAccount(account) ? (
+      <Button
+        data-testid={testIdsEnabled ? testIds.accounts.edit.button(account.id) : undefined}
+        disabled={isUpdating || isRestoring || isArchiving}
+        onClick={() => onEdit(account)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <Pencil aria-hidden="true" />
+        {isUpdating ? en.accounts.updating : en.accounts.edit}
+      </Button>
+      {active ? (
         <AccountArchiveAction
           account={account}
           disabled={isArchiving}
@@ -533,7 +667,19 @@ function AccountRowActions({
           testIdsEnabled={testIdsEnabled}
         />
       ) : (
-        <AccountStatusBadge account={account} />
+        <Button
+          data-testid={testIdsEnabled ? testIds.accounts.restore.button(account.id) : undefined}
+          disabled={isRestoring || isUpdating || isArchiving}
+          onClick={() => {
+            void onRestore(account);
+          }}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <RotateCcw aria-hidden="true" />
+          {isRestoring ? en.accounts.restoring : en.accounts.restore}
+        </Button>
       )}
     </div>
   );
@@ -541,11 +687,19 @@ function AccountRowActions({
 
 function AccountMobileRow({
   isArchiving,
+  isRestoring,
+  isUpdating,
   onArchive,
+  onEdit,
+  onRestore,
   row,
 }: {
   readonly isArchiving: boolean;
+  readonly isRestoring: boolean;
+  readonly isUpdating: boolean;
   readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
+  readonly onEdit: (account: AccountWithBalanceResponse) => void;
+  readonly onRestore: (account: AccountWithBalanceResponse) => Promise<void>;
   readonly row: AccountTableRow;
 }) {
   return (
@@ -572,11 +726,158 @@ function AccountMobileRow({
       <AccountRowActions
         account={row.account}
         isArchiving={isArchiving}
+        isRestoring={isRestoring}
+        isUpdating={isUpdating}
         onArchive={onArchive}
+        onEdit={onEdit}
+        onRestore={onRestore}
         testIdsEnabled={false}
       />
     </div>
   );
+}
+
+function AccountEditDialog({
+  account,
+  isPending,
+  onOpenChange,
+  onSubmit,
+}: {
+  readonly account: AccountWithBalanceResponse | null;
+  readonly isPending: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onSubmit: (
+    account: AccountWithBalanceResponse,
+    values: AccountEditFormValues,
+  ) => Promise<void>;
+}) {
+  const form = useForm({
+    defaultValues: makeAccountEditFormDefaults({ name: account?.name ?? "" }),
+    onSubmit: async ({ value }) => {
+      if (!account) {
+        return;
+      }
+
+      await onSubmit(account, value);
+    },
+  });
+
+  useEffect(() => {
+    if (!account) {
+      return;
+    }
+
+    form.reset(makeAccountEditFormDefaults({ name: account.name }));
+  }, [account, form]);
+
+  if (!account) {
+    return null;
+  }
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={true}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[30rem]"
+        data-testid={testIds.accounts.edit.dialog(account.id)}
+      >
+        <DialogHeader>
+          <DialogTitle data-testid={testIds.accounts.edit.title(account.id)}>
+            {en.accounts.editTitle}
+          </DialogTitle>
+          <DialogDescription>{en.accounts.editBody}</DialogDescription>
+        </DialogHeader>
+
+        <form
+          className="grid gap-4"
+          data-testid={testIds.accounts.edit.form(account.id)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field
+            name="name"
+            validators={{
+              onChange: ({ value }) => (value.trim() ? undefined : en.accounts.accountNameRequired),
+            }}
+          >
+            {(field) => (
+              <FormField
+                errors={field.state.meta.errors}
+                errorTestId={testIds.accounts.edit.nameError(account.id)}
+                inputId={field.name}
+                label={en.accounts.accountName}
+              >
+                <Input
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  autoComplete="off"
+                  data-testid={testIds.accounts.edit.nameInput(account.id)}
+                  disabled={isPending}
+                  id={field.name}
+                  name={field.name}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  value={field.state.value}
+                />
+              </FormField>
+            )}
+          </form.Field>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <DialogClose asChild>
+              <Button disabled={isPending} type="button" variant="outline">
+                {en.rules.cancel}
+              </Button>
+            </DialogClose>
+            <BlockedActionGate blocked={isPending} reason={en.actionGate.inProgress}>
+              <Button data-testid={testIds.accounts.edit.saveButton(account.id)} type="submit">
+                <Check aria-hidden="true" />
+                {isPending ? en.accounts.updating : en.accounts.update}
+              </Button>
+            </BlockedActionGate>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FormField({
+  children,
+  errors,
+  errorTestId,
+  inputId,
+  label,
+}: {
+  readonly children: ReactNode;
+  readonly errors: readonly unknown[];
+  readonly errorTestId?: string | undefined;
+  readonly inputId: string;
+  readonly label: string;
+}) {
+  return (
+    <Field data-invalid={errors.length > 0}>
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
+      {children}
+      <FieldError errors={errors} testId={errorTestId} />
+    </Field>
+  );
+}
+
+function FieldError({
+  errors,
+  testId,
+}: {
+  readonly errors: readonly unknown[];
+  readonly testId?: string | undefined;
+}) {
+  const firstError = errors[0];
+  if (!firstError) {
+    return null;
+  }
+
+  return <ShadcnFieldError data-testid={testId}>{String(firstError)}</ShadcnFieldError>;
 }
 
 function AccountStatusBadge({
@@ -781,6 +1082,14 @@ function formatArchivedAccountBody(count: number): string {
 
 function getAccountTransactionsHref(accountId: string): string {
   return `/transactions?accountId=${encodeURIComponent(accountId)}`;
+}
+
+function getAccountWriteError(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 function compareBigint(left: bigint, right: bigint): number {

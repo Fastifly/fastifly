@@ -71,6 +71,8 @@ import {
   type SyncStatusResponse,
   SyncStatusResponseSchema,
   UndoImportJobResponseSchema,
+  type UpdateAccountRequest,
+  UpdateAccountResponseSchema,
   type UpdateCategoryRequest,
   UpdateCategoryResponseSchema,
 } from "@fastifly/common";
@@ -118,6 +120,9 @@ export type ApiClient = {
   readonly listApiKeys: () => Promise<ApiKeyListResponse>;
   readonly revokeApiKey: (input: { readonly apiKeyId: string }) => Promise<void>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
+  readonly updateAccount: (
+    input: LedgerPathInput & { readonly accountId: string } & UpdateAccountRequest,
+  ) => Promise<void>;
   readonly createCategory: (input: LedgerPathInput & CreateCategoryRequest) => Promise<void>;
   readonly updateCategory: (
     input: LedgerPathInput & { readonly categoryId: string } & UpdateCategoryRequest,
@@ -177,7 +182,9 @@ export type ApiClient = {
   readonly getSyncStatus: (input: LedgerPathInput) => Promise<SyncStatusResponse>;
   readonly finishPasskeyRegistration: (input: FinishPasskeyRegistrationRequest) => Promise<Passkey>;
   readonly finishPasskeyLogin: (input: FinishPasskeyLoginRequest) => Promise<AuthResponse>;
-  readonly listAccounts: (input: LedgerPathInput) => Promise<ListAccountsResponse>;
+  readonly listAccounts: (
+    input: LedgerPathInput & { readonly includeArchived?: boolean },
+  ) => Promise<ListAccountsResponse>;
   readonly listBudgets: (
     input: LedgerPathInput & Partial<Pick<ListBudgetsQuery, "asOfDate" | "cursor" | "limit">>,
   ) => Promise<ListBudgetsResponse>;
@@ -557,6 +564,35 @@ export const apiClient: ApiClient = {
       );
     });
   },
+  async updateAccount(input) {
+    const { accountId, ledgerId, workspaceId, ...body } = input;
+    await withCsrf(async (csrfToken) => {
+      UpdateAccountResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.PATCH(
+            "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/accounts/{accountId}",
+            {
+              body: {
+                ...(body.name !== undefined ? { name: body.name } : {}),
+                ...(body.isActive === true ? { isActive: true } : {}),
+              },
+              headers: {
+                "idempotency-key": makeIdempotencyKey(),
+                "x-csrf-token": csrfToken,
+              },
+              params: {
+                path: {
+                  accountId,
+                  ledgerId,
+                  workspaceId,
+                },
+              },
+            },
+          ),
+        ),
+      );
+    });
+  },
   async createCategory(input) {
     const { ledgerId, workspaceId, ...body } = input;
     await withCsrf(async (csrfToken) => {
@@ -908,15 +944,17 @@ export const apiClient: ApiClient = {
     return response.data.rule;
   },
   async listAccounts(input) {
+    const { includeArchived, ledgerId, workspaceId } = input;
     return ListAccountsResponseSchema.parse(
       await unwrapOpenApiResponse(
         await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/accounts", {
           params: {
             path: {
-              ledgerId: input.ledgerId,
-              workspaceId: input.workspaceId,
+              ledgerId,
+              workspaceId,
             },
             query: {
+              ...(includeArchived !== undefined ? { includeArchived } : {}),
               limit: 50,
             },
           },

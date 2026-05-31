@@ -13,6 +13,7 @@ import { apiClient } from "./client";
 
 type LedgerQueryInput =
   | {
+      readonly includeArchived?: boolean;
       readonly ledgerId: string;
       readonly workspaceId: string;
     }
@@ -73,7 +74,13 @@ export function useAccountsQuery(input: LedgerQueryInput) {
       }
       return apiClient.listAccounts(input);
     },
-    queryKey: ["finance", "accounts", input?.workspaceId, input?.ledgerId],
+    queryKey: [
+      "finance",
+      "accounts",
+      input?.workspaceId,
+      input?.ledgerId,
+      input?.includeArchived ?? false,
+    ],
   });
 }
 

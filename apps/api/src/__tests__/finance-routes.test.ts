@@ -166,6 +166,29 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: true,
       status: 201,
     })),
+    updateAccount: vi.fn(async () => ({
+      body: {
+        data: {
+          account: {
+            archivedAt: null,
+            createdAt: "2026-05-09T00:00:00.000Z",
+            currencyCode: "INR",
+            id: createId(),
+            isActive: true,
+            kind: "asset",
+            ledgerId: createId(),
+            name: "Updated Bank",
+            openingBalanceDate: null,
+            openingBalanceMinor: null,
+            subtype: "bank",
+            updatedAt: "2026-05-09T01:00:00.000Z",
+            workspaceId: createId(),
+          },
+        },
+      },
+      idempotencyReplayed: false,
+      status: 200,
+    })),
     createCategory: vi.fn(async () => ({
       body: {
         data: {
@@ -392,6 +415,7 @@ describe("finance routes", () => {
             items: [account],
             nextCursor,
           })),
+          updateAccount: vi.fn(),
         } as AccountRepository,
       };
     });
@@ -420,6 +444,7 @@ describe("finance routes", () => {
     });
     expect(accountRepository?.listAccounts).toHaveBeenCalledWith({
       cursor: null,
+      includeArchived: false,
       ledgerId: state.context.activeLedger.id,
       limit: 50,
       workspaceId: state.context.activeWorkspace.id,
@@ -433,6 +458,7 @@ describe("finance routes", () => {
       findAccount: vi.fn(),
       getAccountBalance: vi.fn(),
       listAccounts: vi.fn(),
+      updateAccount: vi.fn(),
     } as AccountRepository;
     const { app, state } = await makeApp("viewer", () => ({ accountRepository }));
     const wrongCursor = encodeFinanceCursor({
@@ -569,6 +595,7 @@ describe("finance routes", () => {
             reportingCurrencyCode: "INR",
           })),
           listAccounts: vi.fn(),
+          updateAccount: vi.fn(),
         } as AccountRepository,
       };
     });
@@ -708,6 +735,41 @@ describe("finance routes", () => {
         envelope: expect.objectContaining({
           actorUserId: state.user.id,
           idempotencyKey: "create-account-1",
+          ledgerId: state.context.activeLedger.id,
+          workspaceId: state.context.activeWorkspace.id,
+        }),
+      }),
+    );
+  });
+
+  it("updates accounts through the finance mutation service with idempotency", async () => {
+    const { app, financeMutationService, state } = await makeApp("editor");
+    const accountId = createId();
+
+    const response = await injectWithCsrf(app, {
+      headers: {
+        cookie: sessionCookie(),
+        "idempotency-key": "update-account-1",
+      },
+      method: "PATCH",
+      payload: {
+        isActive: true,
+        name: "Main Bank",
+      },
+      url: `/api/v1/workspaces/${state.context.activeWorkspace.id}/ledgers/${state.context.activeLedger.id}/accounts/${accountId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(financeMutationService.updateAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: {
+          accountId,
+          isActive: true,
+          name: "Main Bank",
+        },
+        envelope: expect.objectContaining({
+          actorUserId: state.user.id,
+          idempotencyKey: "update-account-1",
           ledgerId: state.context.activeLedger.id,
           workspaceId: state.context.activeWorkspace.id,
         }),

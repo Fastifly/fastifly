@@ -12,10 +12,12 @@ export type {
   CreateAccountRequest,
   CreateTransactionRequest,
   ImportJobResponse,
+  ListAccountsQuery,
   ListBudgetsQuery,
   ListTransactionsQuery,
   RecurringTemplateResponse,
   RuleResponse,
+  UpdateAccountRequest,
 } from "../api/finance.js";
 export {
   AccountResponseSchema,
@@ -44,6 +46,7 @@ export {
   GetTransactionResponseSchema,
   ImportJobResponseSchema,
   ImportJobStatusSchema,
+  ListAccountsQuerySchema,
   ListAccountsResponseSchema,
   ListBudgetsQuerySchema,
   ListBudgetsResponseSchema,
@@ -68,6 +71,8 @@ export {
   TransactionLineRequestSchema,
   TransactionPostingResponseSchema,
   UndoImportJobResponseSchema,
+  UpdateAccountRequestSchema,
+  UpdateAccountResponseSchema,
   UpdateRecurringTemplateRequestSchema,
   UpdateRuleRequestSchema,
 } from "../api/finance.js";

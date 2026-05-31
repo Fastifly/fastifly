@@ -35,10 +35,17 @@ describe("transaction list filters", () => {
     });
   });
 
-  it("keeps only user-held accounts in the transaction account filter", () => {
+  it("keeps only active user-held accounts in the transaction account filter", () => {
     const accounts = [
       account({ id: "asset-1", kind: "asset", name: "Checking" }),
       account({ id: "liability-1", kind: "liability", name: "Credit Card" }),
+      account({
+        archivedAt: "2026-03-01T00:00:00.000Z",
+        id: "archived-asset",
+        kind: "asset",
+        name: "Old bank",
+      }),
+      account({ id: "inactive-asset", isActive: false, kind: "asset", name: "Closed wallet" }),
       account({ id: "expense-1", kind: "expense", name: "Groceries" }),
       account({ id: "revenue-1", kind: "revenue", name: "Salary" }),
     ] as const;
@@ -78,17 +85,19 @@ describe("transaction list filters", () => {
 });
 
 function account(input: {
+  readonly archivedAt?: string | null;
   readonly id: string;
+  readonly isActive?: boolean;
   readonly kind: AccountWithBalanceResponse["kind"];
   readonly name: string;
 }): AccountWithBalanceResponse {
   return {
-    archivedAt: null,
+    archivedAt: input.archivedAt ?? null,
     balance: { amountMinor: "0", currencyCode: "INR" },
     createdAt: "2026-05-01T00:00:00.000Z",
     currencyCode: "INR",
     id: input.id,
-    isActive: true,
+    isActive: input.isActive ?? true,
     kind: input.kind,
     ledgerId: "00000000-0000-7000-a000-000000001201",
     name: input.name,

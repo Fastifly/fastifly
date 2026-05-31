@@ -1,6 +1,6 @@
 import {
-  CursorPaginationQuerySchema,
   GetAccountResponseSchema,
+  ListAccountsQuerySchema,
   ListAccountsResponseSchema,
   parseSyncedId,
 } from "@fastifly/common";
@@ -32,7 +32,7 @@ export function registerFinanceAccountRoutes(app: FastifyInstance, options: Regi
     {
       schema: {
         params: LedgerParamsSchema,
-        querystring: CursorPaginationQuerySchema,
+        querystring: ListAccountsQuerySchema,
         response: {
           200: ListAccountsResponseSchema,
           ...ErrorResponseSchemas,
@@ -44,7 +44,7 @@ export function registerFinanceAccountRoutes(app: FastifyInstance, options: Regi
       const params = LedgerParamsSchema.parse(request.params);
       requireActiveWorkspace(request, params.workspaceId);
       requireAbility(request, "read", "Account");
-      const query = CursorPaginationQuerySchema.parse(request.query);
+      const query = ListAccountsQuerySchema.parse(request.query);
       const cursorError = validateFinanceCursorKind(
         query.cursor,
         "account.name.asc",
@@ -60,6 +60,7 @@ export function registerFinanceAccountRoutes(app: FastifyInstance, options: Regi
       const accountPage = await accountRepository.listAccounts({
         ...scope,
         cursor: query.cursor ?? null,
+        includeArchived: query.includeArchived ?? false,
         limit: query.limit,
       });
       const accountsWithBalances = await Promise.all(

@@ -178,6 +178,15 @@ export const testIds = {
     rowBalance: (id: string) => `account-row-${id}-balance`,
     rowStatus: (id: string) => `account-row-${id}-status`,
     viewTransactions: (id: string) => `account-row-${id}-view-transactions`,
+    edit: {
+      button: (id: string) => `account-${id}-edit-button`,
+      dialog: (id: string) => `account-${id}-edit-dialog`,
+      form: (id: string) => `account-${id}-edit-form`,
+      nameError: (id: string) => `account-${id}-edit-name-error`,
+      nameInput: (id: string) => `account-${id}-edit-name-input`,
+      saveButton: (id: string) => `account-${id}-edit-save-button`,
+      title: (id: string) => `account-${id}-edit-title`,
+    },
     create: {
       panel: "account-create-panel",
       title: "account-create-title",
@@ -210,6 +219,9 @@ export const testIds = {
       successAlert: "account-archive-success-alert",
       successMessage: "account-archive-success-message",
       title: (id: string) => `account-${id}-archive-title`,
+    },
+    restore: {
+      button: (id: string) => `account-${id}-restore-button`,
     },
     card: (id: string) => `account-card-${id}`,
     cardName: (id: string) => `account-card-${id}-name`,

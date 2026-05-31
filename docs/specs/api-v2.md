@@ -863,6 +863,13 @@ Account delete rules:
 
 Account response should include derived balances where requested, not raw balance fields as source of truth.
 
+Account list defaults to active accounts. Clients may pass `includeArchived=true` when a management
+surface needs to show archived accounts for restore/history workflows.
+
+Account update supports safe profile changes only: `name` for renaming and `isActive=true` for
+restoring an archived account. Account kind, subtype, currency, and opening balance are immutable
+after creation because ledger postings and reports depend on them.
+
 ---
 
 ## Transaction endpoints

@@ -43,7 +43,10 @@ export function buildTransactionListQuery(
 export function getFilterableTransactionAccounts(
   accounts: readonly AccountWithBalanceResponse[],
 ): readonly AccountWithBalanceResponse[] {
-  return accounts.filter((account) => isUserHeldAccountKind(account.kind));
+  return accounts.filter(
+    (account) =>
+      isUserHeldAccountKind(account.kind) && account.isActive && account.archivedAt === null,
+  );
 }
 
 export function normalizeTransactionAccountFilter(
