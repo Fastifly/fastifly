@@ -186,54 +186,63 @@ function toCategoryRepositoryHttpError(error: CategoryRepositoryError): {
 function toFinanceWorkflowHttpError(error: FinanceWorkflowServiceError): {
   readonly statusCode: number;
   readonly code: ApiErrorCode;
+  readonly details: Record<string, unknown>;
   readonly message: string;
 } {
   switch (error.code) {
     case "IMPORT_JOB_NOT_FOUND":
       return {
         code: "NOT_FOUND",
+        details: error.details,
         message: "Import job was not found.",
         statusCode: 404,
       };
     case "RULE_NOT_FOUND":
       return {
         code: "NOT_FOUND",
+        details: error.details,
         message: "Rule was not found.",
         statusCode: 404,
       };
     case "RECURRING_TEMPLATE_NOT_FOUND":
       return {
         code: "NOT_FOUND",
+        details: error.details,
         message: "Recurring template was not found.",
         statusCode: 404,
       };
     case "IMPORT_JOB_INVALID_STATE":
       return {
         code: "CONFLICT",
+        details: error.details,
         message: error.message,
         statusCode: 409,
       };
     case "INVALID_IMPORT_CSV":
       return {
         code: "BAD_REQUEST",
+        details: error.details,
         message: error.message,
         statusCode: 400,
       };
     case "INVALID_ACTUAL_IMPORT":
       return {
         code: "BAD_REQUEST",
+        details: error.details,
         message: error.message,
         statusCode: 400,
       };
     case "ACTUAL_IMPORT_UNAVAILABLE":
       return {
         code: "INTERNAL_SERVER_ERROR",
+        details: error.details,
         message: error.message,
         statusCode: 500,
       };
     case "INVALID_RECURRING_TEMPLATE":
       return {
         code: "BAD_REQUEST",
+        details: error.details,
         message: error.message,
         statusCode: 400,
       };
@@ -419,7 +428,7 @@ export function registerErrorHandlers(app: FastifyInstance): void {
         makeApiError({
           code: mappedError.code,
           message: mappedError.message,
-          details: {},
+          details: mappedError.details,
           requestId: getRequestId(request),
         }),
       );

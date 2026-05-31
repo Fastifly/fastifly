@@ -7,6 +7,7 @@ import {
   getPostgresE2eUrlFromEnv,
 } from "../helpers/postgres-system.js";
 import {
+  createAccount,
   createSqliteE2eSystem,
   getAccountBalanceMinor,
   registerAndResolveScope,
@@ -221,6 +222,40 @@ describe("e2e/api/workflow/actual-budget-import", () => {
         accountCountAfterCommit,
       );
 
+      const duplicateCreate = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { fileBase64: buildBudgetBase64(), fileName: "household-again.zip" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/actual-budget`,
+      });
+      expect(duplicateCreate.statusCode).toBe(409);
+      const duplicateError = duplicateCreate.json<{
+        readonly error: {
+          readonly details: {
+            readonly accountNames: readonly string[];
+            readonly categoryNames: readonly string[];
+            readonly kind: string;
+            readonly source: string;
+          };
+          readonly message: string;
+        };
+      }>().error;
+      expect(duplicateError.message).toContain("already exist in this ledger");
+      expect(duplicateError.message).toContain("Rename the conflicting accounts/categories");
+      expect(duplicateError.details).toMatchObject({
+        kind: "actual_import_name_conflict",
+        source: "ledger",
+      });
+      expect(duplicateError.details.accountNames).toEqual(["Checking", "Salary", "Savings"]);
+      expect(duplicateError.details.categoryNames).toEqual(["Food", "Rent"]);
+      const accountsAfterDuplicateUpload = await app.inject({
+        headers: { cookie: owner.cookie },
+        method: "GET",
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/accounts?limit=100`,
+      });
+      expect(accountsAfterDuplicateUpload.json<AccountListBody>().data).toHaveLength(
+        accountCountAfterCommit,
+      );
+
       const checkingId = await findAccountIdByName(app, owner, "Checking");
       const savingsId = await findAccountIdByName(app, owner, "Savings");
 
@@ -273,7 +308,97 @@ describe("e2e/api/workflow/actual-budget-import", () => {
         url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/actual-budget`,
       });
       expect(response.statusCode).toBe(400);
-      expect(response.json<{ error: { code: string } }>().error.code).toBe("BAD_REQUEST");
+      expect(response.json<{ error: { code: string; message: string } }>().error).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "The uploaded file is not a valid ZIP archive.",
+      });
+    } finally {
+      await system.cleanup();
+    }
+  });
+
+  it("rejects imports that conflict with archived account names", async () => {
+    const system = await createSqliteE2eSystem();
+
+    try {
+      const { app } = system;
+      const owner = await registerAndResolveScope(app, {
+        password: "password123",
+        username: "actual-import-archived-conflict",
+      });
+      const archivedAccountId = await createAccount(app, owner, {
+        currencyCode: "USD",
+        kind: "asset",
+        name: "Checking",
+        subtype: "bank",
+      });
+      const archiveResponse = await requestWithCsrf(app, owner.cookie, {
+        headers: { "idempotency-key": "actual-import-archive-conflict-account" },
+        method: "DELETE",
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/accounts/${archivedAccountId}`,
+      });
+      expect(archiveResponse.statusCode).toBe(200);
+
+      const response = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { fileBase64: buildBudgetBase64(), fileName: "household.zip" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/actual-budget`,
+      });
+      expect(response.statusCode).toBe(409);
+      expect(
+        response.json<{ error: { details: { source: string }; message: string } }>().error,
+      ).toMatchObject({
+        details: { source: "ledger" },
+        message: expect.stringContaining("already exist in this ledger"),
+      });
+    } finally {
+      await system.cleanup();
+    }
+  });
+
+  it("marks a stale preview as failed when commit conflicts with current ledger names", async () => {
+    const system = await createSqliteE2eSystem();
+
+    try {
+      const { app } = system;
+      const owner = await registerAndResolveScope(app, {
+        password: "password123",
+        username: "actual-import-stale-preview",
+      });
+
+      const createResponse = await requestWithCsrf(app, owner.cookie, {
+        method: "POST",
+        payload: { fileBase64: buildBudgetBase64(), fileName: "household.zip" },
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/actual-budget`,
+      });
+      expect(createResponse.statusCode).toBe(201);
+      const importJob = createResponse.json<ImportJobBody>().data.importJob;
+      await createAccount(app, owner, {
+        currencyCode: "USD",
+        kind: "asset",
+        name: "Checking",
+        subtype: "bank",
+      });
+
+      const commitResponse = await requestWithCsrf(app, owner.cookie, {
+        headers: { "idempotency-key": "actual-import-stale-preview-commit" },
+        method: "POST",
+        payload: {},
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/${importJob.id}/commit`,
+      });
+      expect(commitResponse.statusCode).toBe(409);
+      expect(
+        commitResponse.json<{ error: { details: { kind: string; source: string } } }>().error
+          .details,
+      ).toMatchObject({ kind: "actual_import_name_conflict", source: "ledger" });
+
+      const lookupResponse = await app.inject({
+        headers: { cookie: owner.cookie },
+        method: "GET",
+        url: `/api/v1/workspaces/${owner.workspaceId}/ledgers/${owner.ledgerId}/imports/${importJob.id}`,
+      });
+      expect(lookupResponse.statusCode).toBe(200);
+      expect(lookupResponse.json<ImportJobBody>().data.importJob.status).toBe("failed");
     } finally {
       await system.cleanup();
     }

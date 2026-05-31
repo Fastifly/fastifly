@@ -302,6 +302,9 @@ export const ImportJobStatusSchema = z.enum(["preview_ready", "committed", "undo
 
 export const ImportKindSchema = z.enum(["csv", "actual_budget"]);
 
+export const ACTUAL_IMPORT_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
+export const ACTUAL_IMPORT_MAX_BASE64_CHARS = Math.ceil(ACTUAL_IMPORT_MAX_ARCHIVE_BYTES / 3) * 4;
+
 export const ActualImportWarningSchema = z.strictObject({
   actualTransactionId: z.string().optional(),
   code: z.string(),
@@ -365,7 +368,7 @@ export const GetImportJobResponseSchema = z.strictObject({
 });
 
 export const CreateActualImportRequestSchema = z.strictObject({
-  fileBase64: z.string().min(1),
+  fileBase64: z.string().min(1).max(ACTUAL_IMPORT_MAX_BASE64_CHARS),
   fileName: z.string().trim().min(1).max(255).nullable().optional(),
 });
 
