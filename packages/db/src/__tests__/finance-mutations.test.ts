@@ -422,6 +422,76 @@ describe("finance mutation service", () => {
       );
     });
 
+    it(`updates and restores accounts through the ledger mutation runner on ${factory.name}`, async () => {
+      await factory.run(
+        async ({ accountRepository, dialect, events, identityRepository, rawDb, service }) => {
+          const { accounts, user, workspaceState } = await createWorkspaceAccounts(
+            identityRepository,
+            accountRepository,
+          );
+          await accountRepository.archiveAccount({
+            accountId: accounts.bank.id,
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          });
+          const envelope = createEnvelope({
+            actorUserId: user.id,
+            authorization: { action: "update", subject: "Account" },
+            idempotencyKey: "idem_update_account",
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          });
+
+          const first = await service.updateAccount({
+            account: {
+              accountId: accounts.bank.id,
+              isActive: true,
+              name: "Main Bank",
+            },
+            envelope,
+          });
+          const replay = await service.updateAccount({
+            account: {
+              accountId: accounts.bank.id,
+              isActive: true,
+              name: "Main Bank",
+            },
+            envelope,
+          });
+
+          expect(first).toMatchObject({
+            body: {
+              data: {
+                account: {
+                  archivedAt: null,
+                  id: accounts.bank.id,
+                  isActive: true,
+                  name: "Main Bank",
+                },
+              },
+            },
+            idempotencyReplayed: false,
+            status: 200,
+          });
+          expect(replay).toMatchObject({
+            body: first.body,
+            idempotencyReplayed: true,
+            status: 200,
+          });
+          expect(events).toEqual(["account.updated"]);
+          await expect(countRows(dialect, rawDb, "audit_log")).resolves.toBe(1);
+          await expect(countRows(dialect, rawDb, "idempotency_receipts")).resolves.toBe(1);
+          expect(
+            await accountRepository.findAccount({
+              accountId: accounts.bank.id,
+              ledgerId: workspaceState.ledger.id,
+              workspaceId: workspaceState.workspace.id,
+            }),
+          ).toMatchObject({ archivedAt: null, isActive: true, name: "Main Bank" });
+        },
+      );
+    });
+
     it(`rejects missing account archive mutations without side effects on ${factory.name}`, async () => {
       await factory.run(async ({ dialect, events, identityRepository, rawDb, service }) => {
         const { user, workspaceState } = await createBaseState(identityRepository);

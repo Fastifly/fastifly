@@ -16,6 +16,7 @@ import {
 } from "../../api/queries";
 import { type AuthSessionState, getAuthRedirect } from "../../auth/flow";
 import { SESSION_EXPIRED_EVENT, shouldShowSessionExpiredDialog } from "../../auth/session-events";
+import { isActiveAccount } from "../../finance/accounts-overview";
 import { en } from "../../i18n/en";
 import {
   activateServiceWorkerUpdate,
@@ -75,7 +76,9 @@ export function AppShell({ children }: PropsWithChildren) {
         workspaceId: meContext.data.data.activeWorkspace.id,
       }
     : null;
-  const accountsQuery = useAccountsQuery(ledgerContext);
+  const accountsQuery = useAccountsQuery(
+    ledgerContext ? { ...ledgerContext, includeArchived: true } : ledgerContext,
+  );
   const syncStatusQuery = useSyncStatusQuery(ledgerContext);
   const syncConflictsQuery = useSyncConflictsQuery(ledgerContext);
   const transactionsQuery = useTransactionsQuery(ledgerContext, { limit: 100 });
@@ -252,7 +255,9 @@ export function AppShell({ children }: PropsWithChildren) {
   const syncConflicts = syncConflictsQuery.data?.data.conflicts ?? [];
   const transactions = transactionsQuery.data?.data ?? [];
   const currentMonthKey = toUtcMonthKey(new Date());
-  const userHeldAccounts = accounts.filter((account) => isUserHeldAccountKind(account.kind));
+  const userHeldAccounts = accounts.filter(
+    (account) => isUserHeldAccountKind(account.kind) && isActiveAccount(account),
+  );
   const assetAccounts = userHeldAccounts.filter((account) => account.kind === "asset");
   const liabilityAccounts = userHeldAccounts.filter((account) => account.kind === "liability");
   const incomeMinor = sumTransactionAmounts(transactions, "income", { monthKey: currentMonthKey });

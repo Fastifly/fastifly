@@ -11,6 +11,7 @@ import type {
   AccountRepository,
   CreateAccountInput,
   CreateAccountResult,
+  UpdateAccountInput,
 } from "../repositories/accounts.js";
 import type {
   CategoryRecord,
@@ -46,6 +47,8 @@ export type ArchiveAccountMutationPayload = {
   readonly accountId: AccountRecord["id"];
 };
 
+export type UpdateAccountMutationPayload = Omit<UpdateAccountInput, "ledgerId" | "workspaceId">;
+
 export type CreateCategoryMutationPayload = Omit<
   CreateCategoryInput,
   "counterpartyAccountId" | "ledgerId" | "workspaceId"
@@ -74,6 +77,11 @@ export type CreateAccountMutationInput = {
 export type ArchiveAccountMutationInput = {
   readonly envelope: LedgerMutationEnvelope;
   readonly account: ArchiveAccountMutationPayload;
+};
+
+export type UpdateAccountMutationInput = {
+  readonly envelope: LedgerMutationEnvelope;
+  readonly account: UpdateAccountMutationPayload;
 };
 
 export type CreateCategoryMutationInput = {
@@ -114,6 +122,7 @@ export type CreateTypedTransactionMutationInput = {
 export type LedgerFinanceMutationService = {
   readonly createAccount: (input: CreateAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly createCategory: (input: CreateCategoryMutationInput) => Promise<LedgerMutationRunResult>;
+  readonly updateAccount: (input: UpdateAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly updateCategory: (input: UpdateCategoryMutationInput) => Promise<LedgerMutationRunResult>;
   readonly archiveAccount: (input: ArchiveAccountMutationInput) => Promise<LedgerMutationRunResult>;
   readonly archiveCategory: (
@@ -345,6 +354,81 @@ export function createLedgerFinanceMutationService(
                 },
               ),
             );
+          });
+        },
+      });
+    },
+
+    updateAccount(input) {
+      assertExpectedAuthorization(input.envelope, {
+        action: "update",
+        subject: "Account",
+      });
+      const requestPayload = serializeUpdateAccountPayload(input.account);
+
+      return options.runner.run({
+        envelope: input.envelope,
+        requestPayload,
+        handler: ({ emitEvent, envelope, recordAudit, transaction }) => {
+          if (envelope.dryRun) {
+            return {
+              body: {
+                data: {
+                  account: requestPayload,
+                  dryRun: true,
+                },
+              },
+              status: 200,
+            };
+          }
+
+          const repository =
+            options.createAccountRepositoryForTransaction?.(transaction) ??
+            options.accountRepository;
+          const result = repository.updateAccount({
+            accountId: input.account.accountId,
+            ...(input.account.name !== undefined ? { name: input.account.name } : {}),
+            ...(input.account.isActive === true ? { isActive: true } : {}),
+            ledgerId: envelope.ledgerId,
+            workspaceId: envelope.workspaceId,
+          });
+
+          return mapMaybePromise(result, (account) => {
+            if (!account) {
+              throw new FinanceMutationError(
+                "Account was not found.",
+                "ACCOUNT_NOT_FOUND_OR_ARCHIVED",
+              );
+            }
+
+            emitEvent({
+              payload: {
+                accountId: account.id,
+                ledgerId: envelope.ledgerId,
+                workspaceId: envelope.workspaceId,
+              },
+              type: "account.updated",
+            });
+            recordAudit({
+              action: "account.updated",
+              entityId: account.id,
+              entityType: "account",
+              metadataJson: {
+                archivedAt: account.archivedAt,
+                isActive: account.isActive,
+                name: account.name,
+                updatedAt: account.updatedAt,
+              },
+            });
+
+            return {
+              body: {
+                data: {
+                  account: serializeAccount(account),
+                },
+              },
+              status: 200,
+            };
           });
         },
       });
@@ -915,6 +999,14 @@ function serializeCreateTransactionPayload(input: CreateTransactionMutationPaylo
 function serializeArchiveAccountPayload(input: ArchiveAccountMutationPayload): JsonObject {
   return {
     accountId: input.accountId,
+  };
+}
+
+function serializeUpdateAccountPayload(input: UpdateAccountMutationPayload): JsonObject {
+  return {
+    accountId: input.accountId,
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.isActive === true ? { isActive: true } : {}),
   };
 }
 

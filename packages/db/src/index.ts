@@ -73,6 +73,7 @@ export type {
   CreateAccountResult,
   FindAccountInput,
   ListAccountsInput,
+  UpdateAccountInput,
 } from "./repositories/accounts.js";
 export {
   createPostgresAccountRepository,
@@ -301,6 +302,8 @@ export type {
   LedgerFinanceMutationServiceOptions,
   SetTransactionGroupStatusMutationInput,
   SetTransactionGroupStatusMutationPayload,
+  UpdateAccountMutationInput,
+  UpdateAccountMutationPayload,
 } from "./services/finance-mutations.js";
 export {
   createLedgerFinanceMutationService,

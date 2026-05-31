@@ -362,7 +362,13 @@ export function PageBody({
   readonly ledgerId: string;
 }) {
   if (pageSlug === "transactions") {
-    return <TransactionsPage accounts={accounts} ledgerContext={ledgerContext} />;
+    return (
+      <TransactionsPage
+        accounts={accounts}
+        accountsLoading={accountsLoading}
+        ledgerContext={ledgerContext}
+      />
+    );
   }
   if (pageSlug === "accounts") {
     return (
@@ -577,9 +583,11 @@ function CategoryCardShimmer({ className }: { readonly className?: string }) {
 
 export function TransactionsPage({
   accounts,
+  accountsLoading,
   ledgerContext,
 }: {
   readonly accounts: readonly AccountWithBalanceResponse[];
+  readonly accountsLoading: boolean;
   readonly ledgerContext: {
     readonly ledgerId: string;
     readonly workspaceId: string;
@@ -605,7 +613,9 @@ export function TransactionsPage({
 
   useEffect(() => {
     const normalizedFilters = {
-      accountId: normalizeTransactionAccountFilter(filters.accountId, filterableAccounts),
+      accountId: accountsLoading
+        ? filters.accountId
+        : normalizeTransactionAccountFilter(filters.accountId, filterableAccounts),
       categoryId: categoriesQuery.isPending
         ? filters.categoryId
         : normalizeTransactionCategoryFilter(filters.categoryId, filterableCategories),
@@ -627,6 +637,7 @@ export function TransactionsPage({
   }, [
     filterableAccounts,
     filterableCategories,
+    accountsLoading,
     filters.accountId,
     filters.categoryId,
     filters.status,

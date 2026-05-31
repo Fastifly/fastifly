@@ -6150,6 +6150,7 @@ export interface paths {
         query?: {
           cursor?: string;
           limit?: number;
+          includeArchived?: boolean | "true" | "false";
         };
         header?: never;
         path: {
@@ -7038,7 +7039,221 @@ export interface paths {
     };
     options?: never;
     head?: never;
-    patch?: never;
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+          accountId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            isActive?: true;
+            name?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                account: {
+                  archivedAt: string | null;
+                  /** Format: date-time */
+                  createdAt: string;
+                  currencyCode: string;
+                  /** Format: uuid */
+                  id: string;
+                  isActive: boolean;
+                  /** @enum {string} */
+                  kind: "asset" | "liability" | "expense" | "revenue" | "equity";
+                  /** Format: uuid */
+                  ledgerId: string;
+                  name: string;
+                  openingBalanceDate: string | null;
+                  openingBalanceMinor: string | null;
+                  /** @enum {string} */
+                  subtype:
+                    | "bank"
+                    | "cash"
+                    | "wallet"
+                    | "credit_card"
+                    | "loan"
+                    | "investment"
+                    | "income_source"
+                    | "expense_category"
+                    | "external"
+                    | "opening_helper"
+                    | "reconciliation_helper";
+                  /** Format: date-time */
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
     trace?: never;
   };
   "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}/categories": {

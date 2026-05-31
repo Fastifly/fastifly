@@ -9,6 +9,8 @@ import {
   CreateTransactionResponseSchema,
   parseAmountMinor,
   parseSyncedId,
+  UpdateAccountRequestSchema,
+  UpdateAccountResponseSchema,
   UpdateCategoryRequestSchema,
   UpdateCategoryResponseSchema,
 } from "@fastifly/common";
@@ -76,6 +78,56 @@ export function registerFinanceMutationRoutes(
             actorUserId,
             authorization: {
               action: "create",
+              subject: "Account",
+            },
+            baseRevision: null,
+            deviceId: null,
+            dryRun: false,
+            idempotencyKey: getRequestIdempotencyKey(request),
+            ledgerId: parseSyncedId(params.ledgerId),
+            requestId: String(request.id),
+            sideEffectFlags: makeSideEffectFlags(),
+            source: "rest",
+            syncOperation: null,
+            workspaceId: parseSyncedId(params.workspaceId),
+          },
+        }),
+      );
+    },
+  );
+
+  app.patch(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId/accounts/:accountId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: UpdateAccountRequestSchema,
+        params: AccountParamsSchema,
+        response: {
+          200: UpdateAccountResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actorUserId = requireAuthenticatedUser(request);
+      const params = AccountParamsSchema.parse(request.params);
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "update", "Account");
+      const body = UpdateAccountRequestSchema.parse(request.body);
+
+      return sendLedgerMutationResult(
+        reply,
+        await financeMutationService.updateAccount({
+          account: {
+            accountId: parseSyncedId(params.accountId),
+            ...(body.name !== undefined ? { name: body.name } : {}),
+            ...(body.isActive === true ? { isActive: true } : {}),
+          },
+          envelope: {
+            actorUserId,
+            authorization: {
+              action: "update",
               subject: "Account",
             },
             baseRevision: null,

@@ -4,6 +4,8 @@ import {
   type CreateAccountRequest,
   CreateAccountRequestSchema,
   parseSignedDecimalMoneyToMinor,
+  type UpdateAccountRequest,
+  UpdateAccountRequestSchema,
 } from "@fastifly/common";
 
 export type AccountFormType = "bank" | "cash" | "credit_card" | "investment" | "loan" | "wallet";
@@ -14,6 +16,10 @@ export type AccountFormValues = {
   readonly openingBalance: string;
   readonly openingBalanceDate: string;
   readonly type: AccountFormType;
+};
+
+export type AccountEditFormValues = {
+  readonly name: string;
 };
 
 export type AccountTypeDefinition = {
@@ -40,6 +46,23 @@ export function makeAccountFormDefaults(type: AccountFormType = "bank"): Account
     openingBalanceDate: new Date().toISOString().slice(0, 10),
     type,
   };
+}
+
+export function makeAccountEditFormDefaults(input: {
+  readonly name: string;
+}): AccountEditFormValues {
+  return {
+    name: input.name,
+  };
+}
+
+export function buildUpdateAccountRequest(values: AccountEditFormValues): UpdateAccountRequest {
+  const name = values.name.trim();
+  if (!name) {
+    throw new Error("Account name is required.");
+  }
+
+  return UpdateAccountRequestSchema.parse({ name });
 }
 
 export function buildCreateAccountRequest(values: AccountFormValues): CreateAccountRequest {

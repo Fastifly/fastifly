@@ -431,7 +431,10 @@ class FakeSyncRepository implements SyncRepository {
 function makeFinanceMutationService(): LedgerFinanceMutationService {
   return {
     archiveAccount: vi.fn(),
+    archiveCategory: vi.fn(),
+    archiveTransactionGroups: vi.fn(),
     createAccount: vi.fn(),
+    createCategory: vi.fn(),
     createExpense: vi.fn(async () => ({
       body: { data: { transactionGroup: { id: createUuidV7() } } },
       idempotencyReplayed: false,
@@ -448,6 +451,9 @@ function makeFinanceMutationService(): LedgerFinanceMutationService {
       idempotencyReplayed: false,
       status: 201,
     })),
+    setTransactionGroupStatus: vi.fn(),
+    updateAccount: vi.fn(),
+    updateCategory: vi.fn(),
   };
 }
 

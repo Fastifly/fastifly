@@ -44,7 +44,30 @@ export const CreateAccountResponseSchema = z.strictObject({
   }),
 });
 
+const QueryBooleanSchema = z
+  .union([z.boolean(), z.literal("true"), z.literal("false")])
+  .transform((value) => value === true || value === "true");
+
+export const ListAccountsQuerySchema = CursorPaginationQuerySchema.extend({
+  includeArchived: QueryBooleanSchema.optional(),
+});
+
 export const ArchiveAccountResponseSchema = z.strictObject({
+  data: z.strictObject({
+    account: AccountResponseSchema,
+  }),
+});
+
+export const UpdateAccountRequestSchema = z
+  .strictObject({
+    isActive: z.literal(true).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((value) => value.name !== undefined || value.isActive !== undefined, {
+    message: "At least one field must be provided.",
+  });
+
+export const UpdateAccountResponseSchema = z.strictObject({
   data: z.strictObject({
     account: AccountResponseSchema,
   }),
@@ -212,10 +235,6 @@ export const CreateTransactionResponseSchema = z.strictObject({
     transactionGroup: TransactionGroupResponseSchema,
   }),
 });
-
-const QueryBooleanSchema = z
-  .union([z.boolean(), z.literal("true"), z.literal("false")])
-  .transform((value) => value === true || value === "true");
 
 export const ListTransactionsQuerySchema = CursorPaginationQuerySchema.extend({
   accountId: SyncedIdSchema.optional(),
@@ -540,10 +559,12 @@ export const GenerateRecurringTemplateResponseSchema = z.strictObject({
 export type BudgetSummaryResponse = z.infer<typeof BudgetSummaryResponseSchema>;
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
 export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequestSchema>;
+export type UpdateAccountRequest = z.infer<typeof UpdateAccountRequestSchema>;
 export type UpdateCategoryRequest = z.infer<typeof UpdateCategoryRequestSchema>;
 export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSchema>;
 export type AccountWithBalanceResponse = z.infer<typeof AccountWithBalanceResponseSchema>;
 export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
+export type ListAccountsQuery = z.infer<typeof ListAccountsQuerySchema>;
 export type ListAccountsResponse = z.infer<typeof ListAccountsResponseSchema>;
 export type ListCategoriesResponse = z.infer<typeof ListCategoriesResponseSchema>;
 export type ListBudgetsQuery = z.infer<typeof ListBudgetsQuerySchema>;

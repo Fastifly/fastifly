@@ -301,6 +301,62 @@ describe("account repository", () => {
       });
     });
 
+    it(`renames and restores archived accounts on ${factory.name}`, async () => {
+      await factory.run(async ({ accountRepository, identityRepository }) => {
+        const { workspaceState } = await createBaseState(identityRepository);
+        const result = await accountRepository.createAccount({
+          currencyCode: "INR",
+          kind: "asset",
+          ledgerId: workspaceState.ledger.id,
+          name: "Old Checking",
+          subtype: "bank",
+          workspaceId: workspaceState.workspace.id,
+        });
+        const scope = {
+          accountId: result.account.id,
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        };
+
+        await accountRepository.archiveAccount(scope);
+
+        const archivedAccounts = await accountRepository.listAccounts({
+          includeArchived: true,
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+        expect(archivedAccounts.items.map((account) => account.name)).toEqual(["Old Checking"]);
+
+        const renamed = await accountRepository.updateAccount({
+          ...scope,
+          name: " Main Checking ",
+        });
+        expect(renamed).toMatchObject({
+          archivedAt: "2026-05-09T10:11:12.000Z",
+          id: result.account.id,
+          isActive: false,
+          name: "Main Checking",
+        });
+
+        const restored = await accountRepository.updateAccount({
+          ...scope,
+          isActive: true,
+        });
+        expect(restored).toMatchObject({
+          archivedAt: null,
+          id: result.account.id,
+          isActive: true,
+          name: "Main Checking",
+        });
+
+        const visibleAccounts = await accountRepository.listAccounts({
+          ledgerId: workspaceState.ledger.id,
+          workspaceId: workspaceState.workspace.id,
+        });
+        expect(visibleAccounts.items.map((account) => account.name)).toEqual(["Main Checking"]);
+      });
+    });
+
     it(`aligns base currency to the first user-held account before any ledger journal exists on ${factory.name}`, async () => {
       await factory.run(async ({ accountRepository, identityRepository, rawDb }) => {
         const { workspaceState } = await createDefaultCurrencyState(identityRepository);

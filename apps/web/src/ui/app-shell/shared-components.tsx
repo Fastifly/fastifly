@@ -19,7 +19,6 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
-import { BlockedActionGate } from "../blocked-action-gate";
 import { formatAccountArchiveTitle } from "./utils";
 
 export function GlassSection({
@@ -191,55 +190,60 @@ export function AccountCard({
   );
 }
 
-function AccountArchiveAction({
+export function AccountArchiveAction({
   account,
+  className,
   disabled,
   onArchive,
+  testIdsEnabled = true,
 }: {
   readonly account: AccountWithBalanceResponse;
+  readonly className?: string;
   readonly disabled: boolean;
   readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
+  readonly testIdsEnabled?: boolean;
 }) {
+  const archiveTestIds = testIdsEnabled ? testIds.accounts.archive : null;
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <BlockedActionGate blocked={disabled} reason={en.actionGate.inProgress}>
-          <Button
-            data-testid={testIds.accounts.archive.button(account.id)}
-            size="sm"
-            type="button"
-            variant="destructive"
-          >
-            <Archive aria-hidden="true" data-icon="inline-start" />
-            {disabled ? en.accounts.archiving : en.accounts.archive}
-          </Button>
-        </BlockedActionGate>
+        <Button
+          className={className}
+          data-testid={archiveTestIds?.button(account.id)}
+          disabled={disabled}
+          size="sm"
+          type="button"
+          variant="destructive"
+        >
+          <Archive aria-hidden="true" data-icon="inline-start" />
+          {disabled ? en.accounts.archiving : en.accounts.archive}
+        </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent data-testid={testIds.accounts.archive.dialog(account.id)}>
+      <AlertDialogContent data-testid={archiveTestIds?.dialog(account.id)}>
         <AlertDialogHeader>
-          <AlertDialogTitle data-testid={testIds.accounts.archive.title(account.id)}>
+          <AlertDialogTitle data-testid={archiveTestIds?.title(account.id)}>
             {formatAccountArchiveTitle(account.name)}
           </AlertDialogTitle>
-          <AlertDialogDescription data-testid={testIds.accounts.archive.description(account.id)}>
+          <AlertDialogDescription data-testid={archiveTestIds?.description(account.id)}>
             {en.accounts.archiveDescription}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel data-testid={testIds.accounts.archive.cancelButton(account.id)}>
+          <AlertDialogCancel data-testid={archiveTestIds?.cancelButton(account.id)}>
             {en.accounts.archiveCancel}
           </AlertDialogCancel>
-          <BlockedActionGate blocked={disabled} reason={en.actionGate.inProgress}>
-            <AlertDialogAction
-              data-testid={testIds.accounts.archive.confirmButton(account.id)}
-              onClick={() => {
-                void onArchive(account);
-              }}
-              variant="destructive"
-            >
-              <Archive aria-hidden="true" />
-              {disabled ? en.accounts.archiving : en.accounts.archiveConfirm}
-            </AlertDialogAction>
-          </BlockedActionGate>
+          <AlertDialogAction
+            data-testid={archiveTestIds?.confirmButton(account.id)}
+            disabled={disabled}
+            onClick={() => {
+              void onArchive(account);
+            }}
+            variant="destructive"
+          >
+            <Archive aria-hidden="true" />
+            {disabled ? en.accounts.archiving : en.accounts.archiveConfirm}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

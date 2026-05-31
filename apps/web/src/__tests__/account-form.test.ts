@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCreateAccountRequest,
+  buildUpdateAccountRequest,
   getAccountTypeDefinition,
+  makeAccountEditFormDefaults,
   makeAccountFormDefaults,
 } from "../finance/account-form";
 
@@ -62,5 +64,15 @@ describe("account form", () => {
         openingBalance: "1.234",
       }),
     ).toThrow("Money amount must be a decimal with up to 2 fraction digits");
+  });
+
+  it("builds update account requests for safe account edits", () => {
+    expect(
+      buildUpdateAccountRequest(makeAccountEditFormDefaults({ name: "  Renamed bank " })),
+    ).toEqual({
+      name: "Renamed bank",
+    });
+
+    expect(() => buildUpdateAccountRequest({ name: "" })).toThrow("Account name is required.");
   });
 });

@@ -11,7 +11,7 @@ import {
   parseSyncedId,
   type SyncedId,
 } from "@fastifly/common";
-import { and, asc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, ne, or, type SQL, sql } from "drizzle-orm";
 
 import type { PostgresDatabase } from "../postgres/client.js";
 import {
@@ -82,18 +82,26 @@ export type ArchiveAccountInput = LedgerScope & {
   readonly accountId: SyncedId;
 };
 
+export type UpdateAccountInput = LedgerScope & {
+  readonly accountId: SyncedId;
+  readonly isActive?: true;
+  readonly name?: string;
+};
+
 export type FindAccountInput = LedgerScope & {
   readonly accountId: SyncedId;
 };
 
 export type ListAccountsInput = LedgerScope & {
   readonly cursor?: string | null;
+  readonly includeArchived?: boolean;
   readonly limit?: number | null;
 };
 
 export type AccountRepository = {
   readonly createAccount: (input: CreateAccountInput) => MaybePromise<CreateAccountResult>;
   readonly archiveAccount: (input: ArchiveAccountInput) => MaybePromise<AccountRecord | null>;
+  readonly updateAccount: (input: UpdateAccountInput) => MaybePromise<AccountRecord | null>;
   readonly findAccount: (input: FindAccountInput) => MaybePromise<AccountRecord | null>;
   readonly listAccounts: (
     input: ListAccountsInput,
@@ -217,6 +225,39 @@ export function createSqliteAccountRepository(
       return row ? toSqliteAccountRecord(row) : null;
     },
 
+    updateAccount(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeUpdateAccountInput(input);
+      const now = makeTimestamp(resolved.clock);
+      const restoreValue = normalized.isActive ? 1 : 0;
+      const row = prepareSqliteMoneyStatement<SqliteAccountRow>(
+        client,
+        `
+          UPDATE accounts
+          SET
+            name = COALESCE(?, name),
+            is_active = CASE WHEN ? = 1 THEN 1 ELSE is_active END,
+            archived_at = CASE WHEN ? = 1 THEN NULL ELSE archived_at END,
+            updated_at = ?
+          WHERE id = ?
+            AND workspace_id = ?
+            AND ledger_id = ?
+            AND kind IN ('asset', 'liability')
+          RETURNING *
+        `,
+      ).get(
+        normalized.name ?? null,
+        restoreValue,
+        restoreValue,
+        now,
+        input.accountId,
+        scope.workspaceId,
+        scope.ledgerId,
+      );
+
+      return row ? toSqliteAccountRecord(row) : null;
+    },
+
     findAccount(input) {
       const scope = assertLedgerScope(input);
       const row = prepareSqliteMoneyStatement<SqliteAccountRow>(
@@ -240,6 +281,9 @@ export function createSqliteAccountRepository(
       const cursor = scopeInput.cursor
         ? parseFinanceCursor(scopeInput.cursor, "account.name.asc")
         : null;
+      const archivedClause = scopeInput.includeArchived
+        ? ""
+        : "AND is_active = 1 AND archived_at IS NULL";
       const cursorClause = cursor ? "AND (name > ? OR (name = ? AND id > ?))" : "";
       const params = cursor
         ? [scope.workspaceId, scope.ledgerId, cursor.sortKey, cursor.sortKey, cursor.id, limit + 1]
@@ -251,8 +295,7 @@ export function createSqliteAccountRepository(
           FROM accounts
           WHERE workspace_id = ?
             AND ledger_id = ?
-            AND is_active = 1
-            AND archived_at IS NULL
+            ${archivedClause}
             AND NOT (kind = 'equity' AND subtype IN ('opening_helper', 'reconciliation_helper'))
             ${cursorClause}
           ORDER BY name, id
@@ -392,6 +435,30 @@ export function createPostgresAccountRepository(
       return rows[0] ? toPostgresAccountRecord(rows[0]) : null;
     },
 
+    async updateAccount(input) {
+      const scope = assertLedgerScope(input);
+      const normalized = normalizeUpdateAccountInput(input);
+      const now = resolved.clock.now();
+      const rows = await db
+        .update(pgAccounts)
+        .set({
+          ...(normalized.name !== undefined ? { name: normalized.name } : {}),
+          ...(normalized.isActive ? { archivedAt: null, isActive: true } : {}),
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(pgAccounts.id, input.accountId),
+            eq(pgAccounts.workspaceId, scope.workspaceId),
+            eq(pgAccounts.ledgerId, scope.ledgerId),
+            sql`${pgAccounts.kind} IN ('asset', 'liability')`,
+          ),
+        )
+        .returning();
+
+      return rows[0] ? toPostgresAccountRecord(rows[0]) : null;
+    },
+
     async findAccount(input) {
       const scope = assertLedgerScope(input);
       const rows = await db
@@ -415,24 +482,27 @@ export function createPostgresAccountRepository(
       const cursor = scopeInput.cursor
         ? parseFinanceCursor(scopeInput.cursor, "account.name.asc")
         : null;
+      const conditions: SQL[] = [
+        eq(pgAccounts.workspaceId, scope.workspaceId),
+        eq(pgAccounts.ledgerId, scope.ledgerId),
+        sql`NOT (${pgAccounts.kind} = 'equity' AND ${pgAccounts.subtype} IN ('opening_helper', 'reconciliation_helper'))`,
+      ];
+      if (cursor) {
+        const cursorCondition = or(
+          gt(pgAccounts.name, cursor.sortKey),
+          and(eq(pgAccounts.name, cursor.sortKey), gt(pgAccounts.id, cursor.id)),
+        );
+        if (cursorCondition) {
+          conditions.push(cursorCondition);
+        }
+      }
+      if (!scopeInput.includeArchived) {
+        conditions.push(eq(pgAccounts.isActive, true), isNull(pgAccounts.archivedAt));
+      }
       const rows = await db
         .select()
         .from(pgAccounts)
-        .where(
-          and(
-            eq(pgAccounts.workspaceId, scope.workspaceId),
-            eq(pgAccounts.ledgerId, scope.ledgerId),
-            eq(pgAccounts.isActive, true),
-            isNull(pgAccounts.archivedAt),
-            sql`NOT (${pgAccounts.kind} = 'equity' AND ${pgAccounts.subtype} IN ('opening_helper', 'reconciliation_helper'))`,
-            cursor
-              ? or(
-                  gt(pgAccounts.name, cursor.sortKey),
-                  and(eq(pgAccounts.name, cursor.sortKey), gt(pgAccounts.id, cursor.id)),
-                )
-              : undefined,
-          ),
-        )
+        .where(and(...conditions))
         .orderBy(asc(pgAccounts.name), asc(pgAccounts.id))
         .limit(limit + 1);
 
@@ -521,6 +591,21 @@ function normalizeCreateAccountInput(input: CreateAccountInput) {
     openingBalanceMinor,
     subtype: AccountSubtypeSchema.parse(input.subtype),
   };
+}
+
+function normalizeUpdateAccountInput(input: UpdateAccountInput): {
+  readonly isActive?: true;
+  readonly name?: string;
+} {
+  const normalized = {
+    ...(input.name !== undefined ? { name: normalizeName(input.name) } : {}),
+    ...(input.isActive === true ? { isActive: true as const } : {}),
+  };
+  if (normalized.name === undefined && normalized.isActive !== true) {
+    throw new Error("At least one account field must be provided.");
+  }
+
+  return normalized;
 }
 
 function normalizeAccountQueryLimit(limit: number | null | undefined): number {

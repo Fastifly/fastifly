@@ -95,6 +95,7 @@ export type {
   CreateCategoryRequest,
   CreateTransactionRequest,
   ImportJobResponse,
+  ListAccountsQuery,
   ListAccountsResponse,
   ListBudgetsQuery,
   ListBudgetsResponse,
@@ -106,6 +107,7 @@ export type {
   RecurringTemplateResponse,
   RuleResponse,
   TransactionGroupResponse,
+  UpdateAccountRequest,
   UpdateCategoryRequest,
 } from "./api/finance.js";
 export {
@@ -145,6 +147,7 @@ export {
   ImportJobResponseSchema,
   ImportJobStatusSchema,
   ImportKindSchema,
+  ListAccountsQuerySchema,
   ListAccountsResponseSchema,
   ListBudgetsQuerySchema,
   ListBudgetsResponseSchema,
@@ -173,6 +176,8 @@ export {
   TransactionLineRequestSchema,
   TransactionPostingResponseSchema,
   UndoImportJobResponseSchema,
+  UpdateAccountRequestSchema,
+  UpdateAccountResponseSchema,
   UpdateCategoryRequestSchema,
   UpdateCategoryResponseSchema,
   UpdateRecurringTemplateRequestSchema,
