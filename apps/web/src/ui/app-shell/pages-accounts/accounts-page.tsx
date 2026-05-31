@@ -276,6 +276,7 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
             onEdit={setEditingAccount}
             onRestore={restoreAccount}
             testIdsEnabled={true}
+            variant="desktop"
           />
         ),
         header: () => <span className="sr-only">{en.accounts.columns.actions}</span>,
@@ -341,8 +342,8 @@ export function AccountsPage({ accounts, accountsLoading, ledgerContext }: Accou
             <AccountsLoadingState />
           ) : rows.length > 0 ? (
             <>
-              <div className="hidden md:block" data-testid={testIds.accounts.table}>
-                <Table className="table-fixed lg:table-auto">
+              <div className="hidden overflow-x-auto md:block" data-testid={testIds.accounts.table}>
+                <Table className="min-w-[72rem] table-fixed lg:table-auto">
                   <TableHeader className="bg-muted/40">
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
@@ -623,6 +624,7 @@ function AccountRowActions({
   onEdit,
   onRestore,
   testIdsEnabled,
+  variant,
 }: {
   readonly account: AccountWithBalanceResponse;
   readonly isArchiving: boolean;
@@ -632,23 +634,32 @@ function AccountRowActions({
   readonly onEdit: (account: AccountWithBalanceResponse) => void;
   readonly onRestore: (account: AccountWithBalanceResponse) => Promise<void>;
   readonly testIdsEnabled: boolean;
+  readonly variant: "desktop" | "mobile";
 }) {
   const active = isActiveAccount(account);
+  const compact = variant === "mobile";
+  const actionButtonClassName = compact ? "min-w-0 justify-center px-2 text-xs" : "shrink-0";
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div
+      className={cn(
+        compact ? "grid grid-cols-3 gap-2" : "flex flex-nowrap items-center justify-end gap-2",
+      )}
+    >
       <Button
         asChild
+        className={actionButtonClassName}
         data-testid={testIdsEnabled ? testIds.accounts.viewTransactions(account.id) : undefined}
         size="sm"
         variant="outline"
       >
         <a href={getAccountTransactionsHref(account.id)}>
           <ReceiptText aria-hidden="true" />
-          {en.accounts.viewTransactions}
+          {compact ? en.accounts.viewTransactionsShort : en.accounts.viewTransactions}
         </a>
       </Button>
       <Button
+        className={actionButtonClassName}
         data-testid={testIdsEnabled ? testIds.accounts.edit.button(account.id) : undefined}
         disabled={isUpdating || isRestoring || isArchiving}
         onClick={() => onEdit(account)}
@@ -662,12 +673,14 @@ function AccountRowActions({
       {active ? (
         <AccountArchiveAction
           account={account}
+          className={actionButtonClassName}
           disabled={isArchiving}
           onArchive={onArchive}
           testIdsEnabled={testIdsEnabled}
         />
       ) : (
         <Button
+          className={actionButtonClassName}
           data-testid={testIdsEnabled ? testIds.accounts.restore.button(account.id) : undefined}
           disabled={isRestoring || isUpdating || isArchiving}
           onClick={() => {
@@ -704,23 +717,23 @@ function AccountMobileRow({
 }) {
   return (
     <div className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
           <p className="truncate font-semibold">{row.name}</p>
-          <p className="mt-1 text-muted-foreground text-xs">
+          <p className="mt-1 truncate text-muted-foreground text-xs">
             {row.typeLabel} / {row.currencyCode}
           </p>
         </div>
-        <AccountStatusBadge account={row.account} />
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <p className="text-muted-foreground text-xs">{en.accounts.columns.balance}</p>
-          <p className="mt-1 break-words font-semibold">{row.balanceLabel}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-xs">{en.accounts.columns.openingBalance}</p>
-          <p className="mt-1 break-words text-muted-foreground">{row.openingBalanceLabel}</p>
+        <div className="min-w-[7rem] text-right">
+          <p
+            className="break-words font-semibold text-sm leading-tight"
+            data-testid={testIds.accounts.rowBalance(row.account.id)}
+          >
+            {row.balanceLabel}
+          </p>
+          <div className="mt-1 flex justify-end">
+            <AccountStatusBadge account={row.account} />
+          </div>
         </div>
       </div>
       <AccountRowActions
@@ -732,6 +745,7 @@ function AccountMobileRow({
         onEdit={onEdit}
         onRestore={onRestore}
         testIdsEnabled={false}
+        variant="mobile"
       />
     </div>
   );
@@ -1006,7 +1020,7 @@ function getAccountHeaderClassName(columnId: string): string {
     return "w-[10rem] px-3 text-right";
   }
   if (columnId === "actions") {
-    return "w-[15rem] px-3 text-right";
+    return "w-[18.5rem] min-w-[18.5rem] px-3 text-right";
   }
 
   return "px-3";
@@ -1026,7 +1040,7 @@ function getAccountCellClassName(columnId: string): string {
     return "w-[10rem] px-3 py-3 text-right";
   }
   if (columnId === "actions") {
-    return "w-[15rem] px-3 py-3";
+    return "w-[18.5rem] min-w-[18.5rem] px-3 py-3";
   }
 
   return "px-3 py-3";

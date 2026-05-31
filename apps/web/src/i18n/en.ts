@@ -713,6 +713,7 @@ export const en = {
     updateSuccess: "Account updated.",
     updating: "Updating...",
     viewTransactions: "Transactions",
+    viewTransactionsShort: "Txns",
   },
   categories: {
     addCategory: "Add category",

@@ -192,11 +192,13 @@ export function AccountCard({
 
 export function AccountArchiveAction({
   account,
+  className,
   disabled,
   onArchive,
   testIdsEnabled = true,
 }: {
   readonly account: AccountWithBalanceResponse;
+  readonly className?: string;
   readonly disabled: boolean;
   readonly onArchive: (account: AccountWithBalanceResponse) => Promise<void>;
   readonly testIdsEnabled?: boolean;
@@ -207,6 +209,7 @@ export function AccountArchiveAction({
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
+          className={className}
           data-testid={archiveTestIds?.button(account.id)}
           disabled={disabled}
           size="sm"
