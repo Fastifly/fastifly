@@ -16,6 +16,11 @@ const ACTUAL_METADATA_FILE = "metadata.json";
 // entry's declared uncompressed size before any decompression happens.
 const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024;
 
+type ActualArchiveEntries = {
+  readonly dbBytes: Uint8Array;
+  readonly metadataBytes?: Uint8Array;
+};
+
 export class ActualImportParseError extends Error {
   constructor(message: string) {
     super(message);
@@ -29,24 +34,18 @@ export class ActualImportParseError extends Error {
  * to unzip and `better-sqlite3` to read the embedded database from a Buffer.
  */
 export function parseActualBudgetExport(zipBytes: Uint8Array): ActualBudgetExport {
-  const files = unzipArchive(zipBytes);
-  const dbBytes = files[ACTUAL_DB_FILE];
-  if (!dbBytes) {
-    throw new ActualImportParseError(
-      "The uploaded file is not an Actual Budget export (missing db.sqlite).",
-    );
-  }
-
-  const budgetName = readBudgetName(files[ACTUAL_METADATA_FILE]);
+  const archive = unzipArchive(zipBytes);
+  const budgetName = readBudgetName(archive.metadataBytes);
 
   let db: Database.Database;
   try {
-    db = new Database(Buffer.from(dbBytes), { readonly: true, fileMustExist: true });
+    db = new Database(Buffer.from(archive.dbBytes), { readonly: true, fileMustExist: true });
   } catch {
     throw new ActualImportParseError("The Actual Budget database could not be opened.");
   }
 
   try {
+    assertActualBudgetSchema(db);
     return {
       accounts: readAccounts(db),
       budgetName,
@@ -66,13 +65,14 @@ export function parseActualBudgetExport(zipBytes: Uint8Array): ActualBudgetExpor
   }
 }
 
-function unzipArchive(zipBytes: Uint8Array): Record<string, Uint8Array> {
+function unzipArchive(zipBytes: Uint8Array): ActualArchiveEntries {
+  let files: Record<string, Uint8Array>;
   try {
-    return unzipSync(zipBytes, {
+    files = unzipSync(zipBytes, {
       // Only decompress the two files we need, and reject oversized entries
       // before decompression so a zip bomb cannot exhaust memory.
       filter: (file) => {
-        if (file.name !== ACTUAL_DB_FILE && file.name !== ACTUAL_METADATA_FILE) {
+        if (!isActualArchiveEntryName(file.name)) {
           return false;
         }
         if (file.originalSize > MAX_DECOMPRESSED_BYTES) {
@@ -87,6 +87,55 @@ function unzipArchive(zipBytes: Uint8Array): Record<string, Uint8Array> {
     }
     throw new ActualImportParseError("The uploaded file is not a valid ZIP archive.");
   }
+
+  const dbEntries = findArchiveEntries(files, ACTUAL_DB_FILE);
+  if (dbEntries.length === 0) {
+    throw new ActualImportParseError(
+      "The uploaded file is not an Actual Budget export. It must contain db.sqlite.",
+    );
+  }
+  if (dbEntries.length > 1) {
+    throw new ActualImportParseError(
+      "The uploaded file contains more than one db.sqlite file. Export one Actual budget at a time.",
+    );
+  }
+  const dbEntry = dbEntries[0];
+  if (!dbEntry) {
+    throw new ActualImportParseError(
+      "The uploaded file is not an Actual Budget export. It must contain db.sqlite.",
+    );
+  }
+
+  const metadataEntries = findArchiveEntries(files, ACTUAL_METADATA_FILE);
+  if (metadataEntries.length > 1) {
+    throw new ActualImportParseError(
+      "The uploaded file contains more than one metadata.json file. Export one Actual budget at a time.",
+    );
+  }
+  const metadataEntry = metadataEntries[0];
+
+  return metadataEntry
+    ? { dbBytes: dbEntry.bytes, metadataBytes: metadataEntry.bytes }
+    : { dbBytes: dbEntry.bytes };
+}
+
+function isActualArchiveEntryName(name: string): boolean {
+  const basename = archiveBasename(name);
+  return basename === ACTUAL_DB_FILE || basename === ACTUAL_METADATA_FILE;
+}
+
+function findArchiveEntries(
+  files: Record<string, Uint8Array>,
+  basename: string,
+): readonly { readonly bytes: Uint8Array; readonly name: string }[] {
+  return Object.entries(files)
+    .filter(([name]) => archiveBasename(name) === basename)
+    .map(([name, bytes]) => ({ bytes, name }));
+}
+
+function archiveBasename(name: string): string {
+  const parts = name.replaceAll("\\", "/").split("/").filter(Boolean);
+  return parts.at(-1) ?? "";
 }
 
 function readBudgetName(metadataBytes: Uint8Array | undefined): string | null {
@@ -103,6 +152,17 @@ function readBudgetName(metadataBytes: Uint8Array | undefined): string | null {
     return null;
   }
   return null;
+}
+
+function assertActualBudgetSchema(db: Database.Database): void {
+  const missingRequiredTables = ["accounts", "transactions"].filter(
+    (table) => !tableExists(db, table),
+  );
+  if (missingRequiredTables.length > 0) {
+    throw new ActualImportParseError(
+      `The SQLite database is not an Actual Budget export. Missing required table: ${missingRequiredTables.join(", ")}.`,
+    );
+  }
 }
 
 /** Select the requested columns from a table, tolerating schema drift. */

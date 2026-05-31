@@ -1050,6 +1050,7 @@ DELETE /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/budgets/:budgetId
 
 ```text
 POST   /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/csv
+POST   /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/actual-budget
 GET    /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports
 GET    /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId
 POST   /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId/commit
@@ -1059,6 +1060,8 @@ POST   /api/v1/workspaces/:workspaceId/ledgers/:ledgerId/imports/:importJobId/un
 Rules:
 
 - upload validates file size/type
+- Actual Budget upload accepts an unencrypted ZIP export containing `db.sqlite`; raw archive size is capped at 32 MiB and invalid archives return a stable `400 BAD_REQUEST` message
+- Actual Budget name conflicts return `409 CONFLICT` with `details.kind=actual_import_name_conflict`, `details.source`, and conflicting `accountNames`/`categoryNames`
 - parse runs as DB-backed job
 - preview before commit
 - commit is idempotent

@@ -111,6 +111,8 @@ export type {
   UpdateCategoryRequest,
 } from "./api/finance.js";
 export {
+  ACTUAL_IMPORT_MAX_ARCHIVE_BYTES,
+  ACTUAL_IMPORT_MAX_BASE64_CHARS,
   AccountResponseSchema,
   AccountWithBalanceResponseSchema,
   ActualImportDetailsSchema,
