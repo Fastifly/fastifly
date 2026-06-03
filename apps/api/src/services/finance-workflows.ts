@@ -298,11 +298,17 @@ export function createFinanceWorkflowService(
           await assertActualImportHasNoNameConflicts(options, input.scope, importJob.plan);
         } catch (error) {
           if (error instanceof FinanceWorkflowServiceError) {
-            await options.workflowRepository.markImportJobFailed({
-              importJobId: input.importJobId,
-              ledgerId: input.scope.ledgerId,
-              workspaceId: input.scope.workspaceId,
-            });
+            // Best-effort: marking the job failed must not mask the original
+            // conflict error if the repository write itself throws.
+            try {
+              await options.workflowRepository.markImportJobFailed({
+                importJobId: input.importJobId,
+                ledgerId: input.scope.ledgerId,
+                workspaceId: input.scope.workspaceId,
+              });
+            } catch {
+              // Swallow: the original error below is the meaningful one.
+            }
           }
           throw error;
         }
