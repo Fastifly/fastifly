@@ -1562,9 +1562,19 @@ export interface paths {
               data: {
                 activeLedger: {
                   baseCurrencyCode: string;
+                  firstDayOfWeek: number;
                   /** Format: uuid */
                   id: string;
                   name: string;
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
                 };
                 activeWorkspace: {
                   /** Format: uuid */
@@ -1572,7 +1582,56 @@ export interface paths {
                   name: string;
                   /** @enum {string} */
                   role: "owner" | "admin" | "editor" | "viewer";
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
                 };
+                workspaces: {
+                  archivedAt: string | null;
+                  createdAt: string;
+                  /** Format: uuid */
+                  id: string;
+                  ledgers: {
+                    archivedAt: string | null;
+                    baseCurrencyCode: string;
+                    createdAt: string;
+                    firstDayOfWeek: number;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    status:
+                      | "active"
+                      | "read_only"
+                      | "maintenance"
+                      | "archived"
+                      | "restore_preview"
+                      | "pending_restore"
+                      | "broken";
+                    updatedAt: string;
+                    /** Format: uuid */
+                    workspaceId: string;
+                  }[];
+                  name: string;
+                  /** @enum {string} */
+                  role: "owner" | "admin" | "editor" | "viewer";
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                }[];
                 user: {
                   displayName: string;
                   /** Format: uuid */
@@ -3433,6 +3492,1498 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                workspaces: {
+                  archivedAt: string | null;
+                  createdAt: string;
+                  /** Format: uuid */
+                  id: string;
+                  ledgers: {
+                    archivedAt: string | null;
+                    baseCurrencyCode: string;
+                    createdAt: string;
+                    firstDayOfWeek: number;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    status:
+                      | "active"
+                      | "read_only"
+                      | "maintenance"
+                      | "archived"
+                      | "restore_preview"
+                      | "pending_restore"
+                      | "broken";
+                    updatedAt: string;
+                    /** Format: uuid */
+                    workspaceId: string;
+                  }[];
+                  name: string;
+                  /** @enum {string} */
+                  role: "owner" | "admin" | "editor" | "viewer";
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            baseCurrencyCode: string;
+            ledgerName: string;
+            name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                workspace: {
+                  archivedAt: string | null;
+                  createdAt: string;
+                  /** Format: uuid */
+                  id: string;
+                  ledgers: {
+                    archivedAt: string | null;
+                    baseCurrencyCode: string;
+                    createdAt: string;
+                    firstDayOfWeek: number;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    status:
+                      | "active"
+                      | "read_only"
+                      | "maintenance"
+                      | "archived"
+                      | "restore_preview"
+                      | "pending_restore"
+                      | "broken";
+                    updatedAt: string;
+                    /** Format: uuid */
+                    workspaceId: string;
+                  }[];
+                  name: string;
+                  /** @enum {string} */
+                  role: "owner" | "admin" | "editor" | "viewer";
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                workspace: {
+                  archivedAt: string | null;
+                  createdAt: string;
+                  /** Format: uuid */
+                  id: string;
+                  ledgers: {
+                    archivedAt: string | null;
+                    baseCurrencyCode: string;
+                    createdAt: string;
+                    firstDayOfWeek: number;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    status:
+                      | "active"
+                      | "read_only"
+                      | "maintenance"
+                      | "archived"
+                      | "restore_preview"
+                      | "pending_restore"
+                      | "broken";
+                    updatedAt: string;
+                    /** Format: uuid */
+                    workspaceId: string;
+                  }[];
+                  name: string;
+                  /** @enum {string} */
+                  role: "owner" | "admin" | "editor" | "viewer";
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/ledgers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                ledgers: {
+                  archivedAt: string | null;
+                  baseCurrencyCode: string;
+                  createdAt: string;
+                  firstDayOfWeek: number;
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                }[];
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            baseCurrencyCode: string;
+            firstDayOfWeek?: number;
+            name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                ledger: {
+                  archivedAt: string | null;
+                  baseCurrencyCode: string;
+                  createdAt: string;
+                  firstDayOfWeek: number;
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                ledger: {
+                  archivedAt: string | null;
+                  baseCurrencyCode: string;
+                  createdAt: string;
+                  firstDayOfWeek: number;
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          ledgerId: string;
+          workspaceId: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            firstDayOfWeek?: number;
+            name: string;
+          };
+        };
+      };
+      responses: {
+        /** @description Default Response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                ledger: {
+                  archivedAt: string | null;
+                  baseCurrencyCode: string;
+                  createdAt: string;
+                  firstDayOfWeek: number;
+                  /** Format: uuid */
+                  id: string;
+                  name: string;
+                  /** @enum {string} */
+                  status:
+                    | "active"
+                    | "read_only"
+                    | "maintenance"
+                    | "archived"
+                    | "restore_preview"
+                    | "pending_restore"
+                    | "broken";
+                  updatedAt: string;
+                  /** Format: uuid */
+                  workspaceId: string;
+                };
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "VALIDATION_ERROR";
+                    message: string;
+                    details: {
+                      fields: {
+                        [key: string]: string[];
+                      };
+                    };
+                    requestId: string;
+                  };
+                }
+              | {
+                  error: {
+                    /** @enum {string} */
+                    code: "BAD_REQUEST";
+                    message: string;
+                    details: {
+                      [key: string]: unknown;
+                    };
+                    requestId: string;
+                  };
+                };
+          };
+        };
+        /** @description Default Response */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "UNAUTHENTICATED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "FORBIDDEN";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "NOT_FOUND";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "CONFLICT";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "RATE_LIMITED";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+        /** @description Default Response */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: {
+                /** @enum {string} */
+                code: "INTERNAL_SERVER_ERROR";
+                message: string;
+                details: {
+                  [key: string]: unknown;
+                };
+                requestId: string;
+              };
+            };
+          };
+        };
+      };
+    };
     trace?: never;
   };
   "/api/v1/workspaces/{workspaceId}/invitations": {

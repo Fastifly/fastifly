@@ -9,7 +9,7 @@ import { apiClient } from "../../api/client";
 import {
   useAccountsQuery,
   useHealthQuery,
-  useMeContextQuery,
+  useSelectedMeContextQuery,
   useSyncConflictsQuery,
   useSyncStatusQuery,
   useTransactionsQuery,
@@ -54,12 +54,13 @@ export function AppShell({ children }: PropsWithChildren) {
   const [pendingOutboxCount, setPendingOutboxCount] = useState(() =>
     readPendingOutboxCount(window.localStorage),
   );
+  const [ledgerSelection, setLedgerSelection] = useState(() => readInitialLedgerSelection());
   const previousOpenConflictCountRef = useRef(0);
   const previousPendingOutboxCountRef = useRef(0);
   const updateToastShownRef = useRef(false);
   const health = useHealthQuery();
   const shouldLoadAuthContext = !isAuthRoute;
-  const meContext = useMeContextQuery(shouldLoadAuthContext);
+  const meContext = useSelectedMeContextQuery(ledgerSelection, shouldLoadAuthContext);
   const logoutMutation = useMutation({
     mutationFn: apiClient.logout,
     onSuccess: async () => {
@@ -151,8 +152,19 @@ export function AppShell({ children }: PropsWithChildren) {
     if (meContext.data) {
       setHadAuthenticatedSession(true);
       setSessionExpiredFromEvent(false);
+      const activeSelection = {
+        ledgerId: meContext.data.data.activeLedger.id,
+        workspaceId: meContext.data.data.activeWorkspace.id,
+      };
+      if (
+        ledgerSelection?.ledgerId !== activeSelection.ledgerId ||
+        ledgerSelection.workspaceId !== activeSelection.workspaceId
+      ) {
+        setLedgerSelection(activeSelection);
+      }
+      writeLedgerSelection(activeSelection);
     }
-  }, [meContext.data]);
+  }, [ledgerSelection, meContext.data]);
 
   useEffect(() => {
     const onSessionExpired = () => {
@@ -278,6 +290,12 @@ export function AppShell({ children }: PropsWithChildren) {
   const spendingRate =
     incomeMinor > 0n ? `${((expenseMinor * 100n) / incomeMinor).toString()}%` : "0%";
   const accountPreview = userHeldAccounts.slice(0, 5);
+  const handleLedgerSelectionChange = (nextSelection: LedgerSelection) => {
+    setLedgerSelection(nextSelection);
+    writeLedgerSelection(nextSelection);
+    queryClient.removeQueries({ queryKey: ["finance"] });
+    queryClient.removeQueries({ queryKey: ["sync"] });
+  };
 
   if (isAuthRoute) {
     if (sessionState === "pending") {
@@ -327,10 +345,14 @@ export function AppShell({ children }: PropsWithChildren) {
       >
         <div className="shrink-0">
           <TopBar
+            activeLedgerId={meContext.data.data.activeLedger.id}
+            activeWorkspaceId={meContext.data.data.activeWorkspace.id}
             currentNavigationItem={currentNavigationItem}
             isOnline={isOnline}
+            onLedgerSelectionChange={handleLedgerSelectionChange}
             onToggleTheme={() => setTheme(cycleTheme(theme))}
             theme={theme}
+            workspaces={meContext.data.data.workspaces}
           />
           <DesktopNavigation currentSlug={currentNavigationItem.slug} />
           {children}
@@ -371,11 +393,13 @@ export function AppShell({ children }: PropsWithChildren) {
             theme={theme}
             transferCount={transferCount}
             user={meContext.data.data.user}
+            workspaces={meContext.data.data.workspaces}
             workspaceId={meContext.data.data.activeWorkspace.id}
             workspaceName={meContext.data.data.activeWorkspace.name}
             workspaceRole={meContext.data.data.activeWorkspace.role}
             ledgerName={meContext.data.data.activeLedger.name}
             ledgerId={meContext.data.data.activeLedger.id}
+            onLedgerSelectionChange={handleLedgerSelectionChange}
           />
         </div>
       </main>
@@ -426,4 +450,28 @@ export function AppShell({ children }: PropsWithChildren) {
       />
     </div>
   );
+}
+
+type LedgerSelection = {
+  readonly ledgerId: string;
+  readonly workspaceId: string;
+};
+
+function readInitialLedgerSelection(): LedgerSelection | null {
+  try {
+    const raw = window.localStorage.getItem("fastifly.ledgerSelection");
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<LedgerSelection>;
+    return parsed.ledgerId && parsed.workspaceId
+      ? { ledgerId: parsed.ledgerId, workspaceId: parsed.workspaceId }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLedgerSelection(selection: LedgerSelection): void {
+  window.localStorage.setItem("fastifly.ledgerSelection", JSON.stringify(selection));
 }

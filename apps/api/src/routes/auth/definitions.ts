@@ -1,7 +1,12 @@
 import {
   type AuthUserSchema,
+  CreateLedgerRequestSchema,
+  CreateWorkspaceRequestSchema,
   FinishPasskeyLoginRequestSchema,
   FinishPasskeyRegistrationRequestSchema,
+  LedgerListResponseSchema,
+  LedgerResponseSchema,
+  LedgerSummarySchema,
   PasskeyListResponseSchema,
   PasskeyOptionsResponseSchema,
   PasskeyResponseSchema,
@@ -11,9 +16,21 @@ import {
   StartPasskeyLoginRequestSchema,
   StartPasskeyRegistrationRequestSchema,
   type SyncedId,
+  UpdateLedgerRequestSchema,
+  UpdateWorkspaceRequestSchema,
+  WorkspaceListResponseSchema,
+  WorkspaceResponseSchema,
+  WorkspaceSummarySchema,
 } from "@fastifly/common";
 import type { ApiConfig } from "@fastifly/config";
-import type { ApiKeyRecord, IdentityRepository, UserRecord } from "@fastifly/db";
+import type {
+  ApiKeyRecord,
+  IdentityRepository,
+  LedgerRecord,
+  UserRecord,
+  WorkspaceListItemRecord,
+  WorkspaceRecord,
+} from "@fastifly/db";
 import type { FastifyReply } from "fastify";
 import { z } from "zod/v4";
 import { hashApiKeyToken, parseApiKeyFromAuthorizationHeader } from "../../auth/api-keys.js";
@@ -89,6 +106,13 @@ export const CreateInvitationBodySchema = z
 
 export const WorkspaceParamsSchema = z
   .object({
+    workspaceId: z.uuidv7(),
+  })
+  .strict();
+
+export const LedgerParamsSchema = z
+  .object({
+    ledgerId: z.uuidv7(),
     workspaceId: z.uuidv7(),
   })
   .strict();
@@ -198,8 +222,13 @@ export const WorkspaceMemberListResponseSchema = z
   .strict();
 
 export {
+  CreateLedgerRequestSchema,
+  CreateWorkspaceRequestSchema,
   FinishPasskeyLoginRequestSchema,
   FinishPasskeyRegistrationRequestSchema,
+  LedgerListResponseSchema,
+  LedgerResponseSchema,
+  LedgerSummarySchema,
   PasskeyListResponseSchema,
   PasskeyOptionsResponseSchema,
   PasskeyResponseSchema,
@@ -207,6 +236,11 @@ export {
   RenamePasskeyRequestSchema,
   StartPasskeyLoginRequestSchema,
   StartPasskeyRegistrationRequestSchema,
+  UpdateLedgerRequestSchema,
+  UpdateWorkspaceRequestSchema,
+  WorkspaceListResponseSchema,
+  WorkspaceResponseSchema,
+  WorkspaceSummarySchema,
 };
 
 export function toAuthUser(user: UserRecord): z.infer<typeof AuthUserSchema> {
@@ -327,6 +361,38 @@ export function toWorkspaceMemberResponse(member: {
     updatedAt: member.updatedAt,
     removedAt: member.removedAt,
     user: member.user,
+  };
+}
+
+export function toLedgerResponse(ledger: LedgerRecord): z.infer<typeof LedgerSummarySchema> {
+  return {
+    archivedAt: ledger.archivedAt,
+    baseCurrencyCode: ledger.baseCurrencyCode,
+    createdAt: ledger.createdAt,
+    firstDayOfWeek: ledger.firstDayOfWeek,
+    id: ledger.id,
+    name: ledger.name,
+    status: ledger.status,
+    updatedAt: ledger.updatedAt,
+    workspaceId: ledger.workspaceId,
+  };
+}
+
+export function toWorkspaceResponse(
+  workspace:
+    | WorkspaceListItemRecord
+    | (WorkspaceRecord & { role: WorkspaceListItemRecord["role"] }),
+  ledgers: readonly LedgerRecord[],
+): z.infer<typeof WorkspaceSummarySchema> {
+  return {
+    archivedAt: workspace.archivedAt,
+    createdAt: workspace.createdAt,
+    id: workspace.id,
+    ledgers: ledgers.map(toLedgerResponse),
+    name: workspace.name,
+    role: workspace.role,
+    status: workspace.status,
+    updatedAt: workspace.updatedAt,
   };
 }
 

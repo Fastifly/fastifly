@@ -8,6 +8,12 @@ import {
   requestWithCsrf,
 } from "../helpers/system.js";
 
+function futureUtcMidnightIso(daysFromNow: number): string {
+  const date = new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
 describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
   it("keeps dashboard and settings query surfaces consistent immediately after writes", async () => {
     const system = await createSqliteE2eSystem();
@@ -183,7 +189,7 @@ describe("e2e/api/workflow/dashboard-settings-read-after-write", () => {
         payload: {
           cadence: "monthly",
           intervalCount: 1,
-          nextRunAt: "2026-06-01T00:00:00.000Z",
+          nextRunAt: futureUtcMidnightIso(30),
           payload: {
             currencyCode: "INR",
             description: "read-after-write recurring",

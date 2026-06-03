@@ -40,14 +40,27 @@ export function useHealthQuery() {
 export function useMeContextQuery(enabled = true) {
   return useQuery({
     enabled,
-    queryFn: apiClient.getMeContext,
+    queryFn: () => apiClient.getMeContext(),
     queryKey: ["me", "context"],
+    retry: false,
+  });
+}
+
+export function useSelectedMeContextQuery(
+  input: { readonly ledgerId?: string; readonly workspaceId?: string } | null,
+  enabled = true,
+) {
+  return useQuery({
+    enabled,
+    queryFn: () => apiClient.getMeContext(input ?? {}),
+    queryKey: ["me", "context", input?.workspaceId ?? null, input?.ledgerId ?? null],
     retry: false,
   });
 }
 
 export const apiKeysQueryKey = ["me", "api-keys"] as const;
 export const passkeysQueryKey = ["me", "passkeys"] as const;
+export const workspacesQueryKey = ["me", "workspaces"] as const;
 
 export function useApiKeysQuery(enabled = true) {
   return useQuery({
@@ -62,6 +75,14 @@ export function usePasskeysQuery(enabled = true) {
     enabled,
     queryFn: apiClient.listPasskeys,
     queryKey: passkeysQueryKey,
+  });
+}
+
+export function useWorkspacesQuery(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: apiClient.listWorkspaces,
+    queryKey: workspacesQueryKey,
   });
 }
 

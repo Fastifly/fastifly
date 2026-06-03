@@ -124,16 +124,25 @@ export async function buildApiApp(options: BuildApiAppOptions = {}): Promise<Fas
       return;
     }
 
-    const preferredWorkspaceId = parsePreferredWorkspaceId(request);
+    const routeWorkspaceId = parseRouteWorkspaceId(request);
+    const routeLedgerId = parseRouteLedgerId(request);
+    const headerWorkspaceId = routeWorkspaceId ? null : parseWorkspaceSelectionHeader(request);
+    const headerLedgerId = routeLedgerId ? null : parseLedgerSelectionHeader(request);
+    const preferredWorkspaceId = routeWorkspaceId ?? headerWorkspaceId;
+    const preferredLedgerId = routeLedgerId ?? headerLedgerId;
 
-    if (!preferredWorkspaceId) {
+    if (!preferredWorkspaceId && !preferredLedgerId) {
       return;
     }
 
     request.workspaceContext = await options.identityRepository.findDefaultWorkspaceContextForUser(
       request.authContext.userId,
-      preferredWorkspaceId,
+      preferredWorkspaceId ?? undefined,
+      preferredLedgerId ?? undefined,
     );
+    if (routeWorkspaceId && request.workspaceContext?.activeWorkspace.id !== routeWorkspaceId) {
+      request.workspaceContext = null;
+    }
     request.authzAbility = request.workspaceContext
       ? defineWorkspaceAbility({ role: request.workspaceContext.activeWorkspace.role })
       : denyAllAbility;
@@ -312,10 +321,7 @@ function makeRateLimitError(message: string, statusCode: number): Error & { stat
   return error;
 }
 
-function parsePreferredWorkspaceId(request: {
-  readonly headers: Record<string, unknown>;
-  readonly params: unknown;
-}) {
+function parseWorkspaceSelectionHeader(request: { readonly headers: Record<string, unknown> }) {
   const headerWorkspaceId = request.headers["x-fastifly-workspace-id"];
 
   if (typeof headerWorkspaceId === "string" && headerWorkspaceId.trim().length > 0) {
@@ -326,6 +332,10 @@ function parsePreferredWorkspaceId(request: {
     }
   }
 
+  return null;
+}
+
+function parseRouteWorkspaceId(request: { readonly params: unknown }) {
   const params = request.params;
 
   if (
@@ -339,6 +349,40 @@ function parsePreferredWorkspaceId(request: {
       return parseSyncedId(params.workspaceId.trim());
     } catch {
       throw makeHttpError(400, "Workspace route parameter is invalid.");
+    }
+  }
+
+  return null;
+}
+
+function parseLedgerSelectionHeader(request: { readonly headers: Record<string, unknown> }) {
+  const headerLedgerId = request.headers["x-fastifly-ledger-id"];
+
+  if (typeof headerLedgerId === "string" && headerLedgerId.trim().length > 0) {
+    try {
+      return parseSyncedId(headerLedgerId.trim());
+    } catch {
+      throw makeHttpError(400, "Ledger selection header is invalid.");
+    }
+  }
+
+  return null;
+}
+
+function parseRouteLedgerId(request: { readonly params: unknown }) {
+  const params = request.params;
+
+  if (
+    params &&
+    typeof params === "object" &&
+    "ledgerId" in params &&
+    typeof params.ledgerId === "string" &&
+    params.ledgerId.trim().length > 0
+  ) {
+    try {
+      return parseSyncedId(params.ledgerId.trim());
+    } catch {
+      throw makeHttpError(400, "Ledger route parameter is invalid.");
     }
   }
 

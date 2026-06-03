@@ -43,7 +43,7 @@ export function AuthPage() {
     },
     onSuccess: async () => {
       await queryClient.fetchQuery({
-        queryFn: apiClient.getMeContext,
+        queryFn: () => apiClient.getMeContext(),
         queryKey: ["me", "context"],
       });
       await navigate({ replace: true, to: "/" });
@@ -73,7 +73,7 @@ export function AuthPage() {
     },
     onSuccess: async () => {
       await queryClient.fetchQuery({
-        queryFn: apiClient.getMeContext,
+        queryFn: () => apiClient.getMeContext(),
         queryKey: ["me", "context"],
       });
       await navigate({ replace: true, to: "/" });

@@ -11,11 +11,11 @@ type FileInfo = {
 };
 
 export type ImportJobAction = "commit" | "undo";
-export type ImportFeedbackActionTarget = "accounts" | "categories";
+export type ImportFeedbackActionTarget = "accounts" | "categories" | "settings";
 export type ImportFeedbackActionLink = {
   readonly label: string;
   readonly target: ImportFeedbackActionTarget;
-  readonly to: "/accounts" | "/categories";
+  readonly to: "/accounts" | "/categories" | "/settings";
 };
 export type ImportErrorPresentation = {
   readonly actionLinks: readonly ImportFeedbackActionLink[];
@@ -115,6 +115,11 @@ function getImportErrorActionLinks(error: unknown): readonly ImportFeedbackActio
       to: "/categories",
     });
   }
+  links.push({
+    label: en.imports.openWorkspaceLedgerSettings,
+    target: "settings",
+    to: "/settings",
+  });
   return links;
 }
 

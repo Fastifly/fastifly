@@ -2,15 +2,36 @@ import {
   type AccountWithBalanceResponse,
   formatMoneyMinor,
   isUserHeldAccountKind,
+  type WorkspaceSummary,
 } from "@fastifly/common";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@ui/badge";
 import { Button } from "@ui/button";
 import { Card } from "@ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@ui/field";
+import { Input } from "@ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui/select";
+import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
+  BookOpen,
   Check,
   Copy,
   Landmark,
@@ -20,10 +41,12 @@ import {
   RefreshCcw,
   ShieldCheck,
   Sun,
+  Trash2,
   WalletCards,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { apiClient, FastiflyApiError } from "../../api/client";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { BlockedActionGate } from "../blocked-action-gate";
@@ -119,6 +142,7 @@ export function SettingsPage({
   isUpdateReady,
   ledgerName,
   onApplyUpdate,
+  onLedgerSelectionChange,
   onLogout,
   onThemeChange,
   openConflictCount,
@@ -127,6 +151,7 @@ export function SettingsPage({
   workspaceId,
   workspaceName,
   workspaceRole,
+  workspaces,
   ledgerId,
 }: {
   readonly apiStatus: string;
@@ -135,6 +160,10 @@ export function SettingsPage({
   readonly isUpdateReady: boolean;
   readonly ledgerName: string;
   readonly onApplyUpdate: () => void;
+  readonly onLedgerSelectionChange: (selection: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  }) => void;
   readonly onLogout: () => void;
   readonly onThemeChange: (theme: Theme) => void;
   readonly openConflictCount: number;
@@ -143,6 +172,7 @@ export function SettingsPage({
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
+  readonly workspaces: readonly WorkspaceSummary[];
   readonly ledgerId: string;
 }) {
   const roleLabel = `${workspaceRole.slice(0, 1).toUpperCase()}${workspaceRole.slice(1)}`;
@@ -288,6 +318,13 @@ export function SettingsPage({
             </div>
           </div>
         </GlassSection>
+
+        <WorkspaceLedgerManagement
+          activeLedgerId={ledgerId}
+          activeWorkspaceId={workspaceId}
+          onLedgerSelectionChange={onLedgerSelectionChange}
+          workspaces={workspaces}
+        />
 
         <GlassSection
           title={en.settings.automationTitle}
@@ -464,6 +501,352 @@ export function SettingsPage({
       </aside>
     </section>
   );
+}
+
+type LedgerDialogState =
+  | {
+      readonly mode: "create";
+      readonly workspaceId: string;
+    }
+  | {
+      readonly ledger: WorkspaceSummary["ledgers"][number];
+      readonly mode: "edit";
+      readonly workspaceId: string;
+    };
+
+function WorkspaceLedgerManagement({
+  activeLedgerId,
+  activeWorkspaceId,
+  onLedgerSelectionChange,
+  workspaces,
+}: {
+  readonly activeLedgerId: string;
+  readonly activeWorkspaceId: string;
+  readonly onLedgerSelectionChange: (selection: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  }) => void;
+  readonly workspaces: readonly WorkspaceSummary[];
+}) {
+  const queryClient = useQueryClient();
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceLedgerName, setWorkspaceLedgerName] = useState("");
+  const [workspaceCurrencyCode, setWorkspaceCurrencyCode] = useState("INR");
+  const [ledgerDialog, setLedgerDialog] = useState<LedgerDialogState | null>(null);
+  const [ledgerName, setLedgerName] = useState("");
+  const [ledgerCurrencyCode, setLedgerCurrencyCode] = useState("INR");
+  const [ledgerFirstDay, setLedgerFirstDay] = useState("1");
+
+  const invalidateContext = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["me"] });
+  };
+
+  const createWorkspaceMutation = useMutation({
+    mutationFn: async () =>
+      apiClient.createWorkspace({
+        baseCurrencyCode: workspaceCurrencyCode,
+        ledgerName: workspaceLedgerName,
+        name: workspaceName,
+      }),
+    onError: (error) => toast.error(resolveWorkspaceLedgerError(error)),
+    onSuccess: async (workspace) => {
+      const firstLedger = workspace.ledgers[0];
+      toast.success(en.settings.workspaceCreated);
+      setWorkspaceDialogOpen(false);
+      setWorkspaceName("");
+      setWorkspaceLedgerName("");
+      await invalidateContext();
+      if (firstLedger) {
+        onLedgerSelectionChange({ ledgerId: firstLedger.id, workspaceId: workspace.id });
+      }
+    },
+  });
+
+  const saveLedgerMutation = useMutation({
+    mutationFn: async () => {
+      if (!ledgerDialog) {
+        throw new Error(en.settings.ledgerSaveFailed);
+      }
+      const firstDayOfWeek = Number.parseInt(ledgerFirstDay, 10);
+      if (ledgerDialog.mode === "create") {
+        return apiClient.createLedger({
+          baseCurrencyCode: ledgerCurrencyCode,
+          firstDayOfWeek,
+          name: ledgerName,
+          workspaceId: ledgerDialog.workspaceId,
+        });
+      }
+      return apiClient.updateLedger({
+        firstDayOfWeek,
+        ledgerId: ledgerDialog.ledger.id,
+        name: ledgerName,
+        workspaceId: ledgerDialog.workspaceId,
+      });
+    },
+    onError: (error) => toast.error(resolveWorkspaceLedgerError(error)),
+    onSuccess: async (ledger) => {
+      toast.success(en.settings.ledgerSaved);
+      setLedgerDialog(null);
+      await invalidateContext();
+      onLedgerSelectionChange({ ledgerId: ledger.id, workspaceId: ledger.workspaceId });
+    },
+  });
+
+  const archiveLedgerMutation = useMutation({
+    mutationFn: apiClient.archiveLedger,
+    onError: (error) => toast.error(resolveWorkspaceLedgerError(error)),
+    onSuccess: async (response) => {
+      toast.success(en.settings.ledgerArchived);
+      await invalidateContext();
+      if (response.data.ledger.id === activeLedgerId) {
+        const fallback = workspaces
+          .find((workspace) => workspace.id === activeWorkspaceId)
+          ?.ledgers.find((ledger) => ledger.id !== activeLedgerId);
+        if (fallback) {
+          onLedgerSelectionChange({ ledgerId: fallback.id, workspaceId: fallback.workspaceId });
+        }
+      }
+    },
+  });
+
+  const openCreateLedger = (workspaceId: string) => {
+    setLedgerDialog({ mode: "create", workspaceId });
+    setLedgerName("");
+    setLedgerCurrencyCode(
+      workspaces.find((workspace) => workspace.id === workspaceId)?.ledgers[0]?.baseCurrencyCode ??
+        "INR",
+    );
+    setLedgerFirstDay("1");
+  };
+
+  const openEditLedger = (workspaceId: string, ledger: WorkspaceSummary["ledgers"][number]) => {
+    setLedgerDialog({ ledger, mode: "edit", workspaceId });
+    setLedgerName(ledger.name);
+    setLedgerCurrencyCode(ledger.baseCurrencyCode);
+    setLedgerFirstDay(ledger.firstDayOfWeek.toString());
+  };
+
+  return (
+    <>
+      <GlassSection
+        title={en.settings.workspaceLedgerTitle}
+        description={en.settings.workspaceLedgerBody}
+        testId={testIds.settings.workspaceLedgerCard}
+        headerAction={
+          <Button size="sm" type="button" onClick={() => setWorkspaceDialogOpen(true)}>
+            <Landmark aria-hidden="true" />
+            {en.settings.addWorkspace}
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          {workspaces.map((workspace) => (
+            <div key={workspace.id} className="rounded-lg border border-border bg-background p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-sm">{workspace.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {workspace.role} / {en.settings.ledgerCount(workspace.ledgers.length)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => openCreateLedger(workspace.id)}
+                >
+                  <BookOpen aria-hidden="true" />
+                  {en.settings.addLedger}
+                </Button>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {workspace.ledgers.map((ledger) => {
+                  const isActive = ledger.id === activeLedgerId;
+                  const canArchive = workspace.ledgers.length > 1;
+                  return (
+                    <div
+                      key={ledger.id}
+                      className="flex flex-col gap-2 rounded-lg bg-muted/35 p-3 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-medium text-sm">{ledger.name}</p>
+                          {isActive ? (
+                            <Badge variant="secondary">{en.settings.active}</Badge>
+                          ) : null}
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          {ledger.baseCurrencyCode} / {en.settings.weekStartsOn}{" "}
+                          {formatWeekday(ledger.firstDayOfWeek)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant={isActive ? "secondary" : "outline"}
+                          onClick={() =>
+                            onLedgerSelectionChange({
+                              ledgerId: ledger.id,
+                              workspaceId: workspace.id,
+                            })
+                          }
+                        >
+                          <Check aria-hidden="true" />
+                          {isActive ? en.settings.active : en.settings.useLedger}
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                          onClick={() => openEditLedger(workspace.id, ledger)}
+                        >
+                          {en.settings.editLedger}
+                        </Button>
+                        <BlockedActionGate blocked={!canArchive} reason={en.settings.keepOneLedger}>
+                          <Button
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            disabled={archiveLedgerMutation.isPending}
+                            className="border-rose-500/40 text-rose-700 hover:bg-rose-50 dark:text-rose-300"
+                            onClick={() =>
+                              archiveLedgerMutation.mutate({
+                                ledgerId: ledger.id,
+                                workspaceId: workspace.id,
+                              })
+                            }
+                          >
+                            <Trash2 aria-hidden="true" />
+                            {en.settings.archiveLedger}
+                          </Button>
+                        </BlockedActionGate>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </GlassSection>
+
+      <Dialog open={workspaceDialogOpen} onOpenChange={setWorkspaceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{en.settings.addWorkspace}</DialogTitle>
+            <DialogDescription>{en.settings.addWorkspaceBody}</DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>{en.settings.workspaceName}</FieldLabel>
+              <Input
+                value={workspaceName}
+                onChange={(event) => setWorkspaceName(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{en.settings.initialLedgerName}</FieldLabel>
+              <Input
+                value={workspaceLedgerName}
+                onChange={(event) => setWorkspaceLedgerName(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{en.settings.baseCurrency}</FieldLabel>
+              <Input
+                maxLength={3}
+                value={workspaceCurrencyCode}
+                onChange={(event) => setWorkspaceCurrencyCode(event.target.value.toUpperCase())}
+              />
+            </Field>
+            {createWorkspaceMutation.isError ? (
+              <FieldError>{resolveWorkspaceLedgerError(createWorkspaceMutation.error)}</FieldError>
+            ) : null}
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              type="button"
+              disabled={createWorkspaceMutation.isPending}
+              onClick={() => createWorkspaceMutation.mutate()}
+            >
+              {createWorkspaceMutation.isPending ? en.shell.loadingData : en.settings.saveWorkspace}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={ledgerDialog !== null}
+        onOpenChange={(open) => (open ? undefined : setLedgerDialog(null))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {ledgerDialog?.mode === "edit" ? en.settings.editLedger : en.settings.addLedger}
+            </DialogTitle>
+            <DialogDescription>{en.settings.ledgerDialogBody}</DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>{en.settings.ledgerName}</FieldLabel>
+              <Input value={ledgerName} onChange={(event) => setLedgerName(event.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel>{en.settings.baseCurrency}</FieldLabel>
+              <Input
+                disabled={ledgerDialog?.mode === "edit"}
+                maxLength={3}
+                value={ledgerCurrencyCode}
+                onChange={(event) => setLedgerCurrencyCode(event.target.value.toUpperCase())}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>{en.settings.weekStartsOn}</FieldLabel>
+              <Select value={ledgerFirstDay} onValueChange={setLedgerFirstDay}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {[0, 1, 2, 3, 4, 5, 6].map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {formatWeekday(day)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            {saveLedgerMutation.isError ? (
+              <FieldError>{resolveWorkspaceLedgerError(saveLedgerMutation.error)}</FieldError>
+            ) : null}
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              type="button"
+              disabled={saveLedgerMutation.isPending}
+              onClick={() => saveLedgerMutation.mutate()}
+            >
+              {saveLedgerMutation.isPending ? en.shell.loadingData : en.settings.saveLedger}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function resolveWorkspaceLedgerError(error: unknown): string {
+  if (error instanceof FastiflyApiError) {
+    return error.response.error.message;
+  }
+  return error instanceof Error ? error.message : en.settings.ledgerSaveFailed;
+}
+
+function formatWeekday(day: number): string {
+  return en.settings.weekdays[day] ?? en.settings.weekdays[1] ?? "";
 }
 
 export function SyncPage({

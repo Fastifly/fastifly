@@ -35,7 +35,7 @@ export function SessionExpiredDialog({
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ["finance"] });
       await queryClient.fetchQuery({
-        queryFn: apiClient.getMeContext,
+        queryFn: () => apiClient.getMeContext(),
         queryKey: ["me", "context"],
       });
       onLoginSuccess();

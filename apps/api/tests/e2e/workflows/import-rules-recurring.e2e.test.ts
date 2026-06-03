@@ -7,6 +7,12 @@ import {
   requestWithCsrf,
 } from "../helpers/system.js";
 
+function futureUtcMidnightIso(daysFromNow: number): string {
+  const date = new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
 describe("e2e/api/workflow/import-rules-recurring", () => {
   it("runs import, rules, and recurring lifecycle including archive and undo flows", async () => {
     const system = await createSqliteE2eSystem();
@@ -200,7 +206,7 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
         payload: {
           cadence: "monthly",
           intervalCount: 1,
-          nextRunAt: "2026-06-01T00:00:00.000Z",
+          nextRunAt: futureUtcMidnightIso(30),
           payload: {
             currencyCode: "INR",
             description: "Monthly groceries",
@@ -235,7 +241,7 @@ describe("e2e/api/workflow/import-rules-recurring", () => {
         payload: {
           cadence: "monthly",
           intervalCount: 1,
-          nextRunAt: "2026-06-15T00:00:00.000Z",
+          nextRunAt: futureUtcMidnightIso(45),
           payload: {
             currencyCode: "INR",
             description: "Monthly groceries updated",

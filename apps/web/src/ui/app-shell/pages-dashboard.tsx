@@ -3,6 +3,7 @@ import type {
   CategoryResponse,
   MeContextResponse,
   TransactionGroupResponse,
+  WorkspaceSummary,
 } from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
@@ -289,6 +290,7 @@ export function PageBody({
   liabilities,
   onApplyUpdate,
   onLogout,
+  onLedgerSelectionChange,
   onThemeChange,
   openConflictCount,
   pageSlug,
@@ -305,6 +307,7 @@ export function PageBody({
   theme,
   transferCount,
   user,
+  workspaces,
   workspaceId,
   workspaceName,
   workspaceRole,
@@ -352,9 +355,14 @@ export function PageBody({
   readonly theme: Theme;
   readonly onApplyUpdate: () => void;
   readonly onLogout: () => void;
+  readonly onLedgerSelectionChange: (selection: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  }) => void;
   readonly onThemeChange: (theme: Theme) => void;
   readonly transferCount: number;
   readonly user: MeContextResponse["data"]["user"];
+  readonly workspaces: readonly WorkspaceSummary[];
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly workspaceRole: "admin" | "editor" | "owner" | "viewer";
@@ -425,6 +433,7 @@ export function PageBody({
         ledgerName={ledgerName}
         ledgerId={ledgerId}
         onApplyUpdate={onApplyUpdate}
+        onLedgerSelectionChange={onLedgerSelectionChange}
         onLogout={onLogout}
         onThemeChange={onThemeChange}
         openConflictCount={openConflictCount}
@@ -433,6 +442,7 @@ export function PageBody({
         workspaceId={workspaceId}
         workspaceName={workspaceName}
         workspaceRole={workspaceRole}
+        workspaces={workspaces}
       />
     );
   }

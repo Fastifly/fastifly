@@ -199,6 +199,9 @@ export const sqliteLedgers = sqliteTable(
   },
   (table) => [
     index("ledgers_workspace_id_idx").on(table.workspaceId),
+    uniqueIndex("ledgers_workspace_active_name_unique")
+      .on(table.workspaceId, sql`lower(${table.name})`)
+      .where(sql`${table.archivedAt} IS NULL`),
     check(
       "ledgers_status_check",
       sql`${table.status} IN ('active', 'read_only', 'maintenance', 'archived', 'restore_preview', 'pending_restore', 'broken')`,

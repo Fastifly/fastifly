@@ -86,6 +86,7 @@ describe("Actual import UI support", () => {
       actionLinks: [
         { label: "Open accounts", target: "accounts", to: "/accounts" },
         { label: "Open categories", target: "categories", to: "/categories" },
+        { label: "Create a ledger", target: "settings", to: "/settings" },
       ],
       message:
         "This Actual Budget import cannot continue because account and category names already exist.",

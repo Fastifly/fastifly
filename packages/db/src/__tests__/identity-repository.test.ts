@@ -168,6 +168,97 @@ describe("identity repository", () => {
             role: "owner",
           },
         });
+        await expect(repo.listWorkspacesForUser(user.id)).resolves.toMatchObject([
+          {
+            id: workspaceState.workspace.id,
+            ledgers: [{ id: workspaceState.ledger.id }],
+            role: "owner",
+          },
+          {
+            id: secondaryWorkspaceState.workspace.id,
+            ledgers: [{ id: secondaryWorkspaceState.ledger.id }],
+            role: "owner",
+          },
+        ]);
+
+        const extraLedger = await repo.createLedger({
+          baseCurrencyCode: "INR",
+          firstDayOfWeek: 0,
+          name: "Actual import",
+          workspaceId: workspaceState.workspace.id,
+        });
+        await expect(
+          repo.findDefaultWorkspaceContextForUser(
+            user.id,
+            workspaceState.workspace.id,
+            extraLedger.id,
+          ),
+        ).resolves.toMatchObject({
+          activeLedger: {
+            id: extraLedger.id,
+            name: "Actual import",
+          },
+        });
+        await expect(
+          repo.createLedger({
+            baseCurrencyCode: "INR",
+            name: "actual import",
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).rejects.toThrow("Ledger name is already used");
+        await expect(
+          repo.updateLedger({
+            firstDayOfWeek: 2,
+            ledgerId: extraLedger.id,
+            name: "Imported budget",
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject({
+          firstDayOfWeek: 2,
+          name: "Imported budget",
+        });
+        await expect(
+          repo.updateLedger({
+            ledgerId: extraLedger.id,
+            name: "Renamed imported budget",
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject({
+          firstDayOfWeek: 2,
+          name: "Renamed imported budget",
+        });
+        await expect(
+          repo.archiveLedger({
+            ledgerId: extraLedger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject({
+          archivedAt: "2026-05-09T00:00:00.000Z",
+          status: "archived",
+        });
+        await expect(
+          repo.listLedgersForWorkspace(workspaceState.workspace.id),
+        ).resolves.toHaveLength(1);
+        await expect(
+          repo.archiveLedger({
+            ledgerId: workspaceState.ledger.id,
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).rejects.toThrow("at least one active ledger");
+        await expect(
+          repo.archiveWorkspace({
+            workspaceId: secondaryWorkspaceState.workspace.id,
+          }),
+        ).resolves.toMatchObject({
+          archivedAt: "2026-05-09T00:00:00.000Z",
+          status: "archived",
+        });
+        await expect(repo.listWorkspacesForUser(user.id)).resolves.toHaveLength(1);
+        await expect(
+          repo.archiveWorkspace({
+            workspaceId: workspaceState.workspace.id,
+          }),
+        ).rejects.toThrow("at least one active workspace");
 
         const session = await repo.createSession({
           expiresAt: new Date("2026-05-10T00:00:00.000Z"),

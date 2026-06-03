@@ -204,6 +204,42 @@ export type BootstrapDefaultWorkspaceInput = {
   readonly firstDayOfWeek?: number;
 };
 
+export type CreateWorkspaceInput = {
+  readonly userId: SyncedId;
+  readonly name: string;
+  readonly ledgerName: string;
+  readonly baseCurrencyCode: string;
+  readonly firstDayOfWeek?: number;
+};
+
+export type UpdateWorkspaceInput = {
+  readonly workspaceId: SyncedId;
+  readonly name: string;
+};
+
+export type ArchiveWorkspaceInput = {
+  readonly workspaceId: SyncedId;
+};
+
+export type CreateLedgerInput = {
+  readonly workspaceId: SyncedId;
+  readonly name: string;
+  readonly baseCurrencyCode: string;
+  readonly firstDayOfWeek?: number;
+};
+
+export type UpdateLedgerInput = {
+  readonly ledgerId: SyncedId;
+  readonly workspaceId: SyncedId;
+  readonly name: string;
+  readonly firstDayOfWeek?: number;
+};
+
+export type ArchiveLedgerInput = {
+  readonly ledgerId: SyncedId;
+  readonly workspaceId: SyncedId;
+};
+
 export type ReplaceRecoveryCodesInput = {
   readonly userId: SyncedId;
   readonly codeHashes: readonly string[];
@@ -316,6 +352,26 @@ export type UserWorkspaceContextRecord = {
   readonly activeLedger: LedgerRecord;
 };
 
+export type WorkspaceListItemRecord = WorkspaceRecord & {
+  readonly role: WorkspaceMemberRecord["role"];
+  readonly ledgers: readonly LedgerRecord[];
+};
+
+export type IdentityRepositoryErrorCode =
+  | "DUPLICATE_LEDGER_NAME"
+  | "LAST_ACTIVE_LEDGER"
+  | "LAST_ACTIVE_WORKSPACE";
+
+export class IdentityRepositoryError extends Error {
+  readonly code: IdentityRepositoryErrorCode;
+
+  constructor(code: IdentityRepositoryErrorCode, message: string) {
+    super(message);
+    this.name = "IdentityRepositoryError";
+    this.code = code;
+  }
+}
+
 export type IdentityRepository = {
   readonly createUser: (input: CreateUserInput) => Promise<UserRecord>;
   readonly updateUserPasswordHash: (
@@ -324,6 +380,23 @@ export type IdentityRepository = {
   readonly findUserByNormalizedUsername: (username: string) => Promise<UserRecord | null>;
   readonly findUserById: (id: SyncedId) => Promise<UserRecord | null>;
   readonly findWorkspaceById: (id: SyncedId) => Promise<WorkspaceRecord | null>;
+  readonly findLedgerById: (
+    workspaceId: SyncedId,
+    ledgerId: SyncedId,
+  ) => Promise<LedgerRecord | null>;
+  readonly listWorkspacesForUser: (userId: SyncedId) => Promise<readonly WorkspaceListItemRecord[]>;
+  readonly createWorkspace: (
+    input: CreateWorkspaceInput,
+  ) => Promise<BootstrapDefaultWorkspaceResult>;
+  readonly updateWorkspace: (input: UpdateWorkspaceInput) => Promise<WorkspaceRecord | null>;
+  readonly archiveWorkspace: (input: ArchiveWorkspaceInput) => Promise<WorkspaceRecord | null>;
+  readonly listLedgersForWorkspace: (
+    workspaceId: SyncedId,
+    includeArchived?: boolean,
+  ) => Promise<readonly LedgerRecord[]>;
+  readonly createLedger: (input: CreateLedgerInput) => Promise<LedgerRecord>;
+  readonly updateLedger: (input: UpdateLedgerInput) => Promise<LedgerRecord | null>;
+  readonly archiveLedger: (input: ArchiveLedgerInput) => Promise<LedgerRecord | null>;
   readonly createSession: (input: CreateSessionInput) => Promise<SessionRecord>;
   readonly findActiveSessionByTokenHash: (
     tokenHash: string,
@@ -337,6 +410,7 @@ export type IdentityRepository = {
   readonly findDefaultWorkspaceContextForUser: (
     userId: SyncedId,
     preferredWorkspaceId?: SyncedId,
+    preferredLedgerId?: SyncedId,
   ) => Promise<UserWorkspaceContextRecord | null>;
   readonly replaceRecoveryCodes: (
     input: ReplaceRecoveryCodesInput,
@@ -422,6 +496,62 @@ const DEFAULT_WORKSPACE_NAME = "My workspace";
 const DEFAULT_LEDGER_NAME = "Main ledger";
 const DEFAULT_BASE_CURRENCY_CODE = "USD";
 const DEFAULT_FIRST_DAY_OF_WEEK = 1;
+
+function normalizeWorkspaceName(name: string): string {
+  return name.trim() || DEFAULT_WORKSPACE_NAME;
+}
+
+function normalizeLedgerName(name: string): string {
+  return name.trim() || DEFAULT_LEDGER_NAME;
+}
+
+function normalizeLedgerNameKey(name: string): string {
+  return normalizeLedgerName(name).toLocaleLowerCase("en-US");
+}
+
+function isAvailableLedger(ledger: LedgerRecord): boolean {
+  return ledger.archivedAt === null && ledger.status === "active";
+}
+
+function isAvailableWorkspace(workspace: WorkspaceRecord): boolean {
+  return workspace.archivedAt === null && workspace.status === "active";
+}
+
+function assertLedgerNameAvailable(
+  ledgers: readonly LedgerRecord[],
+  name: string,
+  currentLedgerId?: SyncedId,
+): void {
+  const normalizedName = normalizeLedgerNameKey(name);
+  const duplicate = ledgers.some(
+    (ledger) =>
+      ledger.id !== currentLedgerId &&
+      ledger.archivedAt === null &&
+      normalizeLedgerNameKey(ledger.name) === normalizedName,
+  );
+
+  if (duplicate) {
+    throw new IdentityRepositoryError(
+      "DUPLICATE_LEDGER_NAME",
+      "Ledger name is already used in this workspace.",
+    );
+  }
+}
+
+function isLedgerNameUniqueViolation(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("ledgers_workspace_active_name_unique");
+}
+
+function rethrowLedgerNameUniqueViolation(error: unknown): never {
+  if (isLedgerNameUniqueViolation(error)) {
+    throw new IdentityRepositoryError(
+      "DUPLICATE_LEDGER_NAME",
+      "Ledger name is already used in this workspace.",
+    );
+  }
+
+  throw error;
+}
 
 function resolveOptions(
   options: IdentityRepositoryOptions = {},
@@ -679,6 +809,309 @@ export function createSqliteIdentityRepository(
       return rows[0] ? toWorkspaceRecord(rows[0]) : null;
     },
 
+    async findLedgerById(workspaceId, ledgerId) {
+      const rows = await db
+        .select()
+        .from(sqliteLedgers)
+        .where(and(eq(sqliteLedgers.workspaceId, workspaceId), eq(sqliteLedgers.id, ledgerId)))
+        .limit(1);
+
+      return rows[0] ? toLedgerRecord(rows[0]) : null;
+    },
+
+    async listWorkspacesForUser(userId) {
+      const memberships = await db
+        .select()
+        .from(sqliteWorkspaceMembers)
+        .where(
+          and(eq(sqliteWorkspaceMembers.userId, userId), isNull(sqliteWorkspaceMembers.removedAt)),
+        )
+        .orderBy(asc(sqliteWorkspaceMembers.createdAt), asc(sqliteWorkspaceMembers.id));
+      const workspaces: WorkspaceListItemRecord[] = [];
+
+      for (const membershipRow of memberships) {
+        const workspaceRows = await db
+          .select()
+          .from(sqliteWorkspaces)
+          .where(
+            and(
+              eq(sqliteWorkspaces.id, membershipRow.workspaceId),
+              isNull(sqliteWorkspaces.archivedAt),
+            ),
+          )
+          .limit(1);
+        const workspace = workspaceRows[0];
+
+        if (!workspace) {
+          continue;
+        }
+
+        const ledgerRows = await db
+          .select()
+          .from(sqliteLedgers)
+          .where(
+            and(
+              eq(sqliteLedgers.workspaceId, membershipRow.workspaceId),
+              isNull(sqliteLedgers.archivedAt),
+            ),
+          )
+          .orderBy(asc(sqliteLedgers.createdAt), asc(sqliteLedgers.id));
+
+        workspaces.push({
+          ...toWorkspaceRecord(workspace),
+          ledgers: ledgerRows.map(toLedgerRecord),
+          role: toWorkspaceMemberRecord(membershipRow).role,
+        });
+      }
+
+      return workspaces;
+    },
+
+    async createWorkspace(input) {
+      return db.transaction((tx) => {
+        const now = makeTimestamp(resolved.clock);
+        const workspace = assertCreated(
+          tx
+            .insert(sqliteWorkspaces)
+            .values({
+              id: resolved.createId(),
+              name: normalizeWorkspaceName(input.name),
+              ownerUserId: input.userId,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning()
+            .all(),
+          "Workspace",
+        );
+        const membership = assertCreated(
+          tx
+            .insert(sqliteWorkspaceMembers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: workspace.id,
+              userId: input.userId,
+              role: "owner",
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning()
+            .all(),
+          "Workspace membership",
+        );
+        const ledger = assertCreated(
+          tx
+            .insert(sqliteLedgers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: workspace.id,
+              name: normalizeLedgerName(input.ledgerName),
+              baseCurrencyCode: input.baseCurrencyCode,
+              firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning()
+            .all(),
+          "Ledger",
+        );
+
+        return {
+          ledger: toLedgerRecord(ledger),
+          membership: toWorkspaceMemberRecord(membership),
+          workspace: toWorkspaceRecord(workspace),
+        };
+      });
+    },
+
+    async updateWorkspace(input) {
+      const rows = await db
+        .update(sqliteWorkspaces)
+        .set({
+          name: normalizeWorkspaceName(input.name),
+          updatedAt: makeTimestamp(resolved.clock),
+        })
+        .where(and(eq(sqliteWorkspaces.id, input.workspaceId), isNull(sqliteWorkspaces.archivedAt)))
+        .returning();
+
+      return rows[0] ? toWorkspaceRecord(rows[0]) : null;
+    },
+
+    async archiveWorkspace(input) {
+      return db.transaction((tx) => {
+        const workspaceRows = tx
+          .select()
+          .from(sqliteWorkspaces)
+          .where(eq(sqliteWorkspaces.id, input.workspaceId))
+          .all()
+          .map(toWorkspaceRecord);
+        const target = workspaceRows[0];
+
+        if (!target || target.archivedAt !== null) {
+          return null;
+        }
+
+        const ownerWorkspaceRows = tx
+          .select()
+          .from(sqliteWorkspaces)
+          .where(eq(sqliteWorkspaces.ownerUserId, target.ownerUserId))
+          .all()
+          .map(toWorkspaceRecord);
+        if (
+          isAvailableWorkspace(target) &&
+          ownerWorkspaceRows.filter(isAvailableWorkspace).length <= 1
+        ) {
+          throw new IdentityRepositoryError(
+            "LAST_ACTIVE_WORKSPACE",
+            "An account must keep at least one active workspace.",
+          );
+        }
+
+        const now = makeTimestamp(resolved.clock);
+        tx.update(sqliteLedgers)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(
+            and(eq(sqliteLedgers.workspaceId, input.workspaceId), isNull(sqliteLedgers.archivedAt)),
+          )
+          .run();
+        const rows = tx
+          .update(sqliteWorkspaces)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(
+            and(eq(sqliteWorkspaces.id, input.workspaceId), isNull(sqliteWorkspaces.archivedAt)),
+          )
+          .returning()
+          .all();
+
+        return rows[0] ? toWorkspaceRecord(rows[0]) : null;
+      });
+    },
+
+    async listLedgersForWorkspace(workspaceId, includeArchived = false) {
+      const rows = await db
+        .select()
+        .from(sqliteLedgers)
+        .where(
+          includeArchived
+            ? eq(sqliteLedgers.workspaceId, workspaceId)
+            : and(eq(sqliteLedgers.workspaceId, workspaceId), isNull(sqliteLedgers.archivedAt)),
+        )
+        .orderBy(asc(sqliteLedgers.createdAt), asc(sqliteLedgers.id));
+
+      return rows.map(toLedgerRecord);
+    },
+
+    async createLedger(input) {
+      const existingLedgers = await db
+        .select()
+        .from(sqliteLedgers)
+        .where(eq(sqliteLedgers.workspaceId, input.workspaceId));
+      assertLedgerNameAvailable(existingLedgers.map(toLedgerRecord), input.name);
+
+      const now = makeTimestamp(resolved.clock);
+      let ledger: SqliteLedgerRow;
+      try {
+        ledger = assertCreated(
+          await db
+            .insert(sqliteLedgers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: input.workspaceId,
+              name: normalizeLedgerName(input.name),
+              baseCurrencyCode: input.baseCurrencyCode,
+              firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Ledger",
+        );
+      } catch (error) {
+        rethrowLedgerNameUniqueViolation(error);
+      }
+
+      return toLedgerRecord(ledger);
+    },
+
+    async updateLedger(input) {
+      const existingLedgers = await db
+        .select()
+        .from(sqliteLedgers)
+        .where(eq(sqliteLedgers.workspaceId, input.workspaceId));
+      const existingLedgerRecords = existingLedgers.map(toLedgerRecord);
+      const targetLedger = existingLedgerRecords.find(
+        (ledger) => ledger.id === input.ledgerId && ledger.archivedAt === null,
+      );
+
+      if (!targetLedger) {
+        return null;
+      }
+
+      assertLedgerNameAvailable(existingLedgerRecords, input.name, input.ledgerId);
+
+      let rows: SqliteLedgerRow[];
+      try {
+        rows = await db
+          .update(sqliteLedgers)
+          .set({
+            firstDayOfWeek: input.firstDayOfWeek ?? targetLedger.firstDayOfWeek,
+            name: normalizeLedgerName(input.name),
+            updatedAt: makeTimestamp(resolved.clock),
+          })
+          .where(
+            and(
+              eq(sqliteLedgers.workspaceId, input.workspaceId),
+              eq(sqliteLedgers.id, input.ledgerId),
+              isNull(sqliteLedgers.archivedAt),
+            ),
+          )
+          .returning();
+      } catch (error) {
+        rethrowLedgerNameUniqueViolation(error);
+      }
+
+      return rows[0] ? toLedgerRecord(rows[0]) : null;
+    },
+
+    async archiveLedger(input) {
+      return db.transaction((tx) => {
+        const ledgerRows = tx
+          .select()
+          .from(sqliteLedgers)
+          .where(eq(sqliteLedgers.workspaceId, input.workspaceId))
+          .all()
+          .map(toLedgerRecord);
+        const target = ledgerRows.find((ledger) => ledger.id === input.ledgerId);
+
+        if (!target || target.archivedAt !== null) {
+          return null;
+        }
+
+        if (isAvailableLedger(target) && ledgerRows.filter(isAvailableLedger).length <= 1) {
+          throw new IdentityRepositoryError(
+            "LAST_ACTIVE_LEDGER",
+            "A workspace must keep at least one active ledger.",
+          );
+        }
+
+        const now = makeTimestamp(resolved.clock);
+        const rows = tx
+          .update(sqliteLedgers)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(
+            and(
+              eq(sqliteLedgers.workspaceId, input.workspaceId),
+              eq(sqliteLedgers.id, input.ledgerId),
+              isNull(sqliteLedgers.archivedAt),
+            ),
+          )
+          .returning()
+          .all();
+
+        return rows[0] ? toLedgerRecord(rows[0]) : null;
+      });
+    },
+
     async createSession(input) {
       const now = makeTimestamp(resolved.clock);
       const session = assertCreated(
@@ -794,8 +1227,11 @@ export function createSqliteIdentityRepository(
       });
     },
 
-    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId) {
-      const resolveContext = async (membershipRow: SqliteWorkspaceMemberRow) => {
+    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId, preferredLedgerId) {
+      const resolveContext = async (
+        membershipRow: SqliteWorkspaceMemberRow,
+        ledgerId?: SyncedId,
+      ) => {
         const workspaceRows = await db
           .select()
           .from(sqliteWorkspaces)
@@ -806,15 +1242,20 @@ export function createSqliteIdentityRepository(
             ),
           )
           .limit(1);
+        const ledgerWhere = ledgerId
+          ? and(
+              eq(sqliteLedgers.workspaceId, membershipRow.workspaceId),
+              eq(sqliteLedgers.id, ledgerId),
+              isNull(sqliteLedgers.archivedAt),
+            )
+          : and(
+              eq(sqliteLedgers.workspaceId, membershipRow.workspaceId),
+              isNull(sqliteLedgers.archivedAt),
+            );
         const ledgerRows = await db
           .select()
           .from(sqliteLedgers)
-          .where(
-            and(
-              eq(sqliteLedgers.workspaceId, membershipRow.workspaceId),
-              isNull(sqliteLedgers.archivedAt),
-            ),
-          )
+          .where(ledgerWhere)
           .orderBy(asc(sqliteLedgers.createdAt))
           .limit(1);
 
@@ -844,7 +1285,11 @@ export function createSqliteIdentityRepository(
         const preferredMembership = preferredMembershipRows[0];
 
         if (preferredMembership) {
-          const preferredContext = await resolveContext(preferredMembership);
+          const preferredContext =
+            preferredLedgerId === undefined
+              ? await resolveContext(preferredMembership)
+              : ((await resolveContext(preferredMembership, preferredLedgerId)) ??
+                (await resolveContext(preferredMembership)));
 
           if (preferredContext) {
             return preferredContext;
@@ -1448,6 +1893,286 @@ export function createPostgresIdentityRepository(
       return rows[0] ? toWorkspaceRecord(rows[0]) : null;
     },
 
+    async findLedgerById(workspaceId, ledgerId) {
+      const rows = await db
+        .select()
+        .from(pgLedgers)
+        .where(and(eq(pgLedgers.workspaceId, workspaceId), eq(pgLedgers.id, ledgerId)))
+        .limit(1);
+
+      return rows[0] ? toLedgerRecord(rows[0]) : null;
+    },
+
+    async listWorkspacesForUser(userId) {
+      const memberships = await db
+        .select()
+        .from(pgWorkspaceMembers)
+        .where(and(eq(pgWorkspaceMembers.userId, userId), isNull(pgWorkspaceMembers.removedAt)))
+        .orderBy(asc(pgWorkspaceMembers.createdAt), asc(pgWorkspaceMembers.id));
+      const workspaces: WorkspaceListItemRecord[] = [];
+
+      for (const membershipRow of memberships) {
+        const workspaceRows = await db
+          .select()
+          .from(pgWorkspaces)
+          .where(
+            and(eq(pgWorkspaces.id, membershipRow.workspaceId), isNull(pgWorkspaces.archivedAt)),
+          )
+          .limit(1);
+        const workspace = workspaceRows[0];
+
+        if (!workspace) {
+          continue;
+        }
+
+        const ledgerRows = await db
+          .select()
+          .from(pgLedgers)
+          .where(
+            and(eq(pgLedgers.workspaceId, membershipRow.workspaceId), isNull(pgLedgers.archivedAt)),
+          )
+          .orderBy(asc(pgLedgers.createdAt), asc(pgLedgers.id));
+
+        workspaces.push({
+          ...toWorkspaceRecord(workspace),
+          ledgers: ledgerRows.map(toLedgerRecord),
+          role: toWorkspaceMemberRecord(membershipRow).role,
+        });
+      }
+
+      return workspaces;
+    },
+
+    async createWorkspace(input) {
+      return db.transaction(async (tx) => {
+        const now = resolved.clock.now();
+        const workspace = assertCreated(
+          await tx
+            .insert(pgWorkspaces)
+            .values({
+              id: resolved.createId(),
+              name: normalizeWorkspaceName(input.name),
+              ownerUserId: input.userId,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Workspace",
+        );
+        const membership = assertCreated(
+          await tx
+            .insert(pgWorkspaceMembers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: workspace.id,
+              userId: input.userId,
+              role: "owner",
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Workspace membership",
+        );
+        const ledger = assertCreated(
+          await tx
+            .insert(pgLedgers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: workspace.id,
+              name: normalizeLedgerName(input.ledgerName),
+              baseCurrencyCode: input.baseCurrencyCode,
+              firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Ledger",
+        );
+
+        return {
+          ledger: toLedgerRecord(ledger),
+          membership: toWorkspaceMemberRecord(membership),
+          workspace: toWorkspaceRecord(workspace),
+        };
+      });
+    },
+
+    async updateWorkspace(input) {
+      const rows = await db
+        .update(pgWorkspaces)
+        .set({
+          name: normalizeWorkspaceName(input.name),
+          updatedAt: resolved.clock.now(),
+        })
+        .where(and(eq(pgWorkspaces.id, input.workspaceId), isNull(pgWorkspaces.archivedAt)))
+        .returning();
+
+      return rows[0] ? toWorkspaceRecord(rows[0]) : null;
+    },
+
+    async archiveWorkspace(input) {
+      return db.transaction(async (tx) => {
+        const workspaceRows = (
+          await tx.select().from(pgWorkspaces).where(eq(pgWorkspaces.id, input.workspaceId))
+        ).map(toWorkspaceRecord);
+        const target = workspaceRows[0];
+
+        if (!target || target.archivedAt !== null) {
+          return null;
+        }
+
+        const ownerWorkspaceRows = (
+          await tx
+            .select()
+            .from(pgWorkspaces)
+            .where(eq(pgWorkspaces.ownerUserId, target.ownerUserId))
+        ).map(toWorkspaceRecord);
+        if (
+          isAvailableWorkspace(target) &&
+          ownerWorkspaceRows.filter(isAvailableWorkspace).length <= 1
+        ) {
+          throw new IdentityRepositoryError(
+            "LAST_ACTIVE_WORKSPACE",
+            "An account must keep at least one active workspace.",
+          );
+        }
+
+        const now = resolved.clock.now();
+        await tx
+          .update(pgLedgers)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(and(eq(pgLedgers.workspaceId, input.workspaceId), isNull(pgLedgers.archivedAt)));
+        const rows = await tx
+          .update(pgWorkspaces)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(and(eq(pgWorkspaces.id, input.workspaceId), isNull(pgWorkspaces.archivedAt)))
+          .returning();
+
+        return rows[0] ? toWorkspaceRecord(rows[0]) : null;
+      });
+    },
+
+    async listLedgersForWorkspace(workspaceId, includeArchived = false) {
+      const rows = await db
+        .select()
+        .from(pgLedgers)
+        .where(
+          includeArchived
+            ? eq(pgLedgers.workspaceId, workspaceId)
+            : and(eq(pgLedgers.workspaceId, workspaceId), isNull(pgLedgers.archivedAt)),
+        )
+        .orderBy(asc(pgLedgers.createdAt), asc(pgLedgers.id));
+
+      return rows.map(toLedgerRecord);
+    },
+
+    async createLedger(input) {
+      const existingLedgers = await db
+        .select()
+        .from(pgLedgers)
+        .where(eq(pgLedgers.workspaceId, input.workspaceId));
+      assertLedgerNameAvailable(existingLedgers.map(toLedgerRecord), input.name);
+
+      const now = resolved.clock.now();
+      let ledger: PostgresLedgerRow;
+      try {
+        ledger = assertCreated(
+          await db
+            .insert(pgLedgers)
+            .values({
+              id: resolved.createId(),
+              workspaceId: input.workspaceId,
+              name: normalizeLedgerName(input.name),
+              baseCurrencyCode: input.baseCurrencyCode,
+              firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning(),
+          "Ledger",
+        );
+      } catch (error) {
+        rethrowLedgerNameUniqueViolation(error);
+      }
+
+      return toLedgerRecord(ledger);
+    },
+
+    async updateLedger(input) {
+      const existingLedgers = await db
+        .select()
+        .from(pgLedgers)
+        .where(eq(pgLedgers.workspaceId, input.workspaceId));
+      const existingLedgerRecords = existingLedgers.map(toLedgerRecord);
+      const targetLedger = existingLedgerRecords.find(
+        (ledger) => ledger.id === input.ledgerId && ledger.archivedAt === null,
+      );
+
+      if (!targetLedger) {
+        return null;
+      }
+
+      assertLedgerNameAvailable(existingLedgerRecords, input.name, input.ledgerId);
+
+      let rows: PostgresLedgerRow[];
+      try {
+        rows = await db
+          .update(pgLedgers)
+          .set({
+            firstDayOfWeek: input.firstDayOfWeek ?? targetLedger.firstDayOfWeek,
+            name: normalizeLedgerName(input.name),
+            updatedAt: resolved.clock.now(),
+          })
+          .where(
+            and(
+              eq(pgLedgers.workspaceId, input.workspaceId),
+              eq(pgLedgers.id, input.ledgerId),
+              isNull(pgLedgers.archivedAt),
+            ),
+          )
+          .returning();
+      } catch (error) {
+        rethrowLedgerNameUniqueViolation(error);
+      }
+
+      return rows[0] ? toLedgerRecord(rows[0]) : null;
+    },
+
+    async archiveLedger(input) {
+      return db.transaction(async (tx) => {
+        const ledgerRows = (
+          await tx.select().from(pgLedgers).where(eq(pgLedgers.workspaceId, input.workspaceId))
+        ).map(toLedgerRecord);
+        const target = ledgerRows.find((ledger) => ledger.id === input.ledgerId);
+
+        if (!target || target.archivedAt !== null) {
+          return null;
+        }
+
+        if (isAvailableLedger(target) && ledgerRows.filter(isAvailableLedger).length <= 1) {
+          throw new IdentityRepositoryError(
+            "LAST_ACTIVE_LEDGER",
+            "A workspace must keep at least one active ledger.",
+          );
+        }
+
+        const now = resolved.clock.now();
+        const rows = await tx
+          .update(pgLedgers)
+          .set({ archivedAt: now, status: "archived", updatedAt: now })
+          .where(
+            and(
+              eq(pgLedgers.workspaceId, input.workspaceId),
+              eq(pgLedgers.id, input.ledgerId),
+              isNull(pgLedgers.archivedAt),
+            ),
+          )
+          .returning();
+
+        return rows[0] ? toLedgerRecord(rows[0]) : null;
+      });
+    },
+
     async createSession(input) {
       const now = resolved.clock.now();
       const session = assertCreated(
@@ -1560,8 +2285,11 @@ export function createPostgresIdentityRepository(
       });
     },
 
-    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId) {
-      const resolveContext = async (membershipRow: PostgresWorkspaceMemberRow) => {
+    async findDefaultWorkspaceContextForUser(userId, preferredWorkspaceId, preferredLedgerId) {
+      const resolveContext = async (
+        membershipRow: PostgresWorkspaceMemberRow,
+        ledgerId?: SyncedId,
+      ) => {
         const workspaceRows = await db
           .select()
           .from(pgWorkspaces)
@@ -1569,12 +2297,17 @@ export function createPostgresIdentityRepository(
             and(eq(pgWorkspaces.id, membershipRow.workspaceId), isNull(pgWorkspaces.archivedAt)),
           )
           .limit(1);
+        const ledgerWhere = ledgerId
+          ? and(
+              eq(pgLedgers.workspaceId, membershipRow.workspaceId),
+              eq(pgLedgers.id, ledgerId),
+              isNull(pgLedgers.archivedAt),
+            )
+          : and(eq(pgLedgers.workspaceId, membershipRow.workspaceId), isNull(pgLedgers.archivedAt));
         const ledgerRows = await db
           .select()
           .from(pgLedgers)
-          .where(
-            and(eq(pgLedgers.workspaceId, membershipRow.workspaceId), isNull(pgLedgers.archivedAt)),
-          )
+          .where(ledgerWhere)
           .orderBy(asc(pgLedgers.createdAt))
           .limit(1);
 
@@ -1604,7 +2337,11 @@ export function createPostgresIdentityRepository(
         const preferredMembership = preferredMembershipRows[0];
 
         if (preferredMembership) {
-          const preferredContext = await resolveContext(preferredMembership);
+          const preferredContext =
+            preferredLedgerId === undefined
+              ? await resolveContext(preferredMembership)
+              : ((await resolveContext(preferredMembership, preferredLedgerId)) ??
+                (await resolveContext(preferredMembership)));
 
           if (preferredContext) {
             return preferredContext;
