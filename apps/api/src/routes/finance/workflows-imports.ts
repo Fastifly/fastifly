@@ -1,4 +1,5 @@
 import {
+  ACTUAL_IMPORT_MAX_BASE64_CHARS,
   CommitImportJobRequestSchema,
   CommitImportJobResponseSchema,
   CreateActualImportRequestSchema,
@@ -72,7 +73,7 @@ export function registerFinanceImportWorkflowRoutes(
     {
       // Actual Budget exports are base64-encoded ZIP archives; allow a larger
       // body than the default 1 MB while keeping the upload bounded.
-      bodyLimit: 32 * 1024 * 1024,
+      bodyLimit: ACTUAL_IMPORT_MAX_BASE64_CHARS + 4096,
       onRequest: app.csrfProtection,
       schema: {
         body: CreateActualImportRequestSchema,

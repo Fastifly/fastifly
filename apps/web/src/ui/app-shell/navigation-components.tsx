@@ -107,7 +107,13 @@ export function RuntimeStatusChips({
       className="mt-4 border-y border-border py-3"
       data-testid={testIds.runtimeStatus.group(surface)}
     >
-      <div className="flex max-w-full items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        className={
+          surface === "settings"
+            ? "grid max-w-full grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:w-full [&>*]:justify-start [&_span]:whitespace-normal"
+            : "flex max-w-full items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        }
+      >
         <StatusCapsule
           icon={isOnline ? CheckCircle2 : XCircle}
           label={en.status.internet}

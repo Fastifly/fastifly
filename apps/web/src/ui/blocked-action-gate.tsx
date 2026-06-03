@@ -40,6 +40,7 @@ export function BlockedActionGate({
   }
 
   const originalProps = children.props as {
+    readonly disabled?: boolean;
     readonly onClick?: (event: MouseEvent<HTMLElement>) => void;
     [key: string]: unknown;
   };
@@ -47,7 +48,7 @@ export function BlockedActionGate({
 
   const wrappedChild = cloneElement(children, {
     ...originalProps,
-    disabled: false,
+    disabled: blocked ? false : originalProps.disabled,
     onClick: (event: MouseEvent<HTMLElement>) => {
       if (blocked) {
         event.preventDefault();

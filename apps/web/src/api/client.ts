@@ -19,10 +19,14 @@ import {
   type CreatedApiKeyResponse,
   CreatedApiKeyResponseSchema,
   CreateImportCsvResponseSchema,
+  type CreateLedgerRequest,
+  CreateLedgerRequestSchema,
   CreateRecurringTemplateResponseSchema,
   CreateRuleResponseSchema,
   type CreateTransactionRequest,
   CreateTransactionResponseSchema,
+  type CreateWorkspaceRequest,
+  CreateWorkspaceRequestSchema,
   CsrfTokenResponseSchema,
   type FinishPasskeyLoginRequest,
   FinishPasskeyLoginRequestSchema,
@@ -33,6 +37,11 @@ import {
   GetRecurringTemplateResponseSchema,
   GetRuleResponseSchema,
   type ImportJobResponse,
+  type LedgerListResponse,
+  LedgerListResponseSchema,
+  type LedgerResponse,
+  LedgerResponseSchema,
+  type LedgerSummary,
   type ListAccountsResponse,
   ListAccountsResponseSchema,
   type ListBudgetsQuery,
@@ -75,6 +84,14 @@ import {
   UpdateAccountResponseSchema,
   type UpdateCategoryRequest,
   UpdateCategoryResponseSchema,
+  type UpdateLedgerRequest,
+  UpdateLedgerRequestSchema,
+  type UpdateWorkspaceRequest,
+  UpdateWorkspaceRequestSchema,
+  type WorkspaceListResponse,
+  WorkspaceListResponseSchema,
+  WorkspaceResponseSchema,
+  type WorkspaceSummary,
 } from "@fastifly/common";
 import createClient from "openapi-fetch";
 import { notifySessionExpired } from "../auth/session-events";
@@ -101,6 +118,7 @@ export type ApiClient = {
   readonly archiveRule: (
     input: LedgerPathInput & { readonly ruleId: string },
   ) => Promise<RuleResponse>;
+  readonly archiveLedger: (input: LedgerPathInput) => Promise<LedgerResponse>;
   readonly changePassword: (input: ChangePasswordRequest) => Promise<void>;
   readonly applyRule: (
     input: LedgerPathInput & { readonly limit?: number; readonly ruleId: string },
@@ -117,7 +135,13 @@ export type ApiClient = {
     },
   ) => Promise<ImportJobResponse>;
   readonly createApiKey: (input: CreateApiKeyRequest) => Promise<CreatedApiKeyResponse["data"]>;
+  readonly createLedger: (
+    input: { readonly workspaceId: string } & CreateLedgerRequest,
+  ) => Promise<LedgerSummary>;
+  readonly createWorkspace: (input: CreateWorkspaceRequest) => Promise<WorkspaceSummary>;
   readonly listApiKeys: () => Promise<ApiKeyListResponse>;
+  readonly listLedgers: (input: { readonly workspaceId: string }) => Promise<LedgerListResponse>;
+  readonly listWorkspaces: () => Promise<WorkspaceListResponse>;
   readonly revokeApiKey: (input: { readonly apiKeyId: string }) => Promise<void>;
   readonly createAccount: (input: LedgerPathInput & CreateAccountRequest) => Promise<void>;
   readonly updateAccount: (
@@ -170,7 +194,7 @@ export type ApiClient = {
   readonly getImportJob: (
     input: LedgerPathInput & { readonly importJobId: string },
   ) => Promise<ImportJobResponse>;
-  readonly getMeContext: () => Promise<MeContextResponse>;
+  readonly getMeContext: (input?: Partial<LedgerPathInput>) => Promise<MeContextResponse>;
   readonly getNetWorthTrend: (
     input: LedgerPathInput & { readonly months?: number },
   ) => Promise<NetWorthTrendResponse["data"]>;
@@ -246,6 +270,10 @@ export type ApiClient = {
       readonly ruleId: string;
     },
   ) => Promise<RuleResponse>;
+  readonly updateLedger: (input: LedgerPathInput & UpdateLedgerRequest) => Promise<LedgerSummary>;
+  readonly updateWorkspace: (
+    input: { readonly workspaceId: string } & UpdateWorkspaceRequest,
+  ) => Promise<WorkspaceSummary>;
 };
 
 type LedgerPathInput = {
@@ -310,6 +338,27 @@ export const apiClient: ApiClient = {
         ),
       );
     });
+  },
+  async archiveLedger(input) {
+    const { ledgerId, workspaceId } = input;
+    const response = await withCsrf(async (csrfToken) =>
+      LedgerResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.DELETE("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}", {
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+            params: {
+              path: {
+                ledgerId,
+                workspaceId,
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    return response;
   },
   async applyRule(input) {
     const { ledgerId, limit, ruleId, workspaceId } = input;
@@ -422,9 +471,76 @@ export const apiClient: ApiClient = {
       return response.data;
     });
   },
+  async createLedger(input) {
+    const { firstDayOfWeek, workspaceId, ...payload } = input;
+    const body = CreateLedgerRequestSchema.parse({
+      ...payload,
+      ...(firstDayOfWeek !== undefined ? { firstDayOfWeek } : {}),
+    });
+    const requestBody =
+      body.firstDayOfWeek === undefined
+        ? { baseCurrencyCode: body.baseCurrencyCode, name: body.name }
+        : {
+            baseCurrencyCode: body.baseCurrencyCode,
+            firstDayOfWeek: body.firstDayOfWeek,
+            name: body.name,
+          };
+    const response = await withCsrf(async (csrfToken) =>
+      LedgerResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/workspaces/{workspaceId}/ledgers", {
+            body: requestBody,
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+            params: {
+              path: {
+                workspaceId,
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    return response.data.ledger;
+  },
+  async createWorkspace(input) {
+    const body = CreateWorkspaceRequestSchema.parse(input);
+    const response = await withCsrf(async (csrfToken) =>
+      WorkspaceResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.POST("/api/v1/workspaces", {
+            body,
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+          }),
+        ),
+      ),
+    );
+    return response.data.workspace;
+  },
   async listApiKeys() {
     return ApiKeyListResponseSchema.parse(
       await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/api-keys")),
+    );
+  },
+  async listLedgers(input) {
+    return LedgerListResponseSchema.parse(
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/workspaces/{workspaceId}/ledgers", {
+          params: {
+            path: {
+              workspaceId: input.workspaceId,
+            },
+          },
+        }),
+      ),
+    );
+  },
+  async listWorkspaces() {
+    return WorkspaceListResponseSchema.parse(
+      await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/workspaces")),
     );
   },
   async revokeApiKey(input) {
@@ -845,9 +961,13 @@ export const apiClient: ApiClient = {
     );
     return response.data.importJob;
   },
-  async getMeContext() {
+  async getMeContext(input = {}) {
     return MeContextResponseSchema.parse(
-      await unwrapOpenApiResponse(await openApiClient.GET("/api/v1/me/context")),
+      await unwrapOpenApiResponse(
+        await openApiClient.GET("/api/v1/me/context", {
+          headers: makeSelectionHeaders(input),
+        }),
+      ),
     );
   },
   async getNetWorthTrend(input) {
@@ -1245,6 +1365,58 @@ export const apiClient: ApiClient = {
       return response.data.rule;
     });
   },
+  async updateLedger(input) {
+    const { firstDayOfWeek, ledgerId, workspaceId, ...payload } = input;
+    const body = UpdateLedgerRequestSchema.parse({
+      ...payload,
+      ...(firstDayOfWeek !== undefined ? { firstDayOfWeek } : {}),
+    });
+    const requestBody =
+      body.firstDayOfWeek === undefined
+        ? { name: body.name }
+        : { firstDayOfWeek: body.firstDayOfWeek, name: body.name };
+    const response = await withCsrf(async (csrfToken) =>
+      LedgerResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.PATCH("/api/v1/workspaces/{workspaceId}/ledgers/{ledgerId}", {
+            body: requestBody,
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+            params: {
+              path: {
+                ledgerId,
+                workspaceId,
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    return response.data.ledger;
+  },
+  async updateWorkspace(input) {
+    const { workspaceId, ...payload } = input;
+    const body = UpdateWorkspaceRequestSchema.parse(payload);
+    const response = await withCsrf(async (csrfToken) =>
+      WorkspaceResponseSchema.parse(
+        await unwrapOpenApiResponse(
+          await openApiClient.PATCH("/api/v1/workspaces/{workspaceId}", {
+            body,
+            headers: {
+              "x-csrf-token": csrfToken,
+            },
+            params: {
+              path: {
+                workspaceId,
+              },
+            },
+          }),
+        ),
+      ),
+    );
+    return response.data.workspace;
+  },
 };
 
 type OpenApiFetchResult<TData> = {
@@ -1330,6 +1502,13 @@ function notifyIfSessionExpired(error: ApiError): void {
 
 function makeIdempotencyKey(): string {
   return `web-${crypto.randomUUID()}`;
+}
+
+function makeSelectionHeaders(input: Partial<LedgerPathInput>): Record<string, string> {
+  return {
+    ...(input.workspaceId ? { "x-fastifly-workspace-id": input.workspaceId } : {}),
+    ...(input.ledgerId ? { "x-fastifly-ledger-id": input.ledgerId } : {}),
+  };
 }
 
 function makeCreateAccountBody(input: CreateAccountRequest) {

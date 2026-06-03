@@ -1,4 +1,4 @@
-import { normalizeInviteeIdentifier } from "@fastifly/db";
+import { IdentityRepositoryError, normalizeInviteeIdentifier } from "@fastifly/db";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod/v4";
 import { generateInvitationToken, hashInvitationToken } from "../../auth/sessions.js";
@@ -12,19 +12,30 @@ import { ErrorResponseSchemas } from "../../schemas.js";
 import type { RegisterAuthRoutesOptions } from "./contracts.js";
 import {
   CreateInvitationBodySchema,
+  CreateLedgerRequestSchema,
+  CreateWorkspaceRequestSchema,
   createInvitationExpiry,
   createInvitationLink,
   InvitationPreviewResponseSchema,
   InvitationResponseSchema,
   InvitationTokenParamsSchema,
+  LedgerListResponseSchema,
+  LedgerParamsSchema,
+  LedgerResponseSchema,
   makeHttpError,
+  toLedgerResponse,
   toWorkspaceMemberResponse,
+  toWorkspaceResponse,
+  UpdateLedgerRequestSchema,
   UpdateWorkspaceMemberBodySchema,
+  UpdateWorkspaceRequestSchema,
   WorkspaceInvitationParamsSchema,
+  WorkspaceListResponseSchema,
   WorkspaceMemberListResponseSchema,
   WorkspaceMemberParamsSchema,
   WorkspaceMemberResponseSchema,
   WorkspaceParamsSchema,
+  WorkspaceResponseSchema,
 } from "./definitions.js";
 
 export async function registerAuthWorkspaceRoutes(
@@ -32,6 +43,294 @@ export async function registerAuthWorkspaceRoutes(
   options: RegisterAuthRoutesOptions,
 ): Promise<void> {
   const { config, identityRepository } = options;
+
+  app.get(
+    "/api/v1/workspaces",
+    {
+      schema: {
+        response: {
+          200: WorkspaceListResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request) => {
+      const userId = requireAuthenticatedUser(request);
+      const workspaces = await identityRepository.listWorkspacesForUser(userId);
+
+      return {
+        data: {
+          workspaces: workspaces.map((workspace) =>
+            toWorkspaceResponse(workspace, workspace.ledgers),
+          ),
+        },
+      };
+    },
+  );
+
+  app.post(
+    "/api/v1/workspaces",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: CreateWorkspaceRequestSchema,
+        response: {
+          201: WorkspaceResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
+      const input = CreateWorkspaceRequestSchema.parse(request.body);
+      const state = await identityRepository.createWorkspace({
+        baseCurrencyCode: input.baseCurrencyCode,
+        ledgerName: input.ledgerName,
+        name: input.name,
+        userId,
+      });
+
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace.created",
+        actorUserId: userId,
+        entityId: state.workspace.id,
+        entityType: "workspace",
+        metadataJson: {
+          ledgerId: state.ledger.id,
+          ledgerName: state.ledger.name,
+          name: state.workspace.name,
+        },
+        workspaceId: state.workspace.id,
+      });
+
+      return reply.status(201).send({
+        data: {
+          workspace: toWorkspaceResponse({ ...state.workspace, role: state.membership.role }, [
+            state.ledger,
+          ]),
+        },
+      });
+    },
+  );
+
+  app.patch(
+    "/api/v1/workspaces/:workspaceId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: UpdateWorkspaceRequestSchema,
+        params: WorkspaceParamsSchema,
+        response: {
+          200: WorkspaceResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request) => {
+      const userId = requireAuthenticatedUser(request);
+      const params = WorkspaceParamsSchema.parse(request.params);
+      const input = UpdateWorkspaceRequestSchema.parse(request.body);
+
+      requireWritableWorkspace(request, params.workspaceId);
+      requireAbility(request, "update", "Workspace");
+
+      const workspace = await identityRepository.updateWorkspace({
+        name: input.name,
+        workspaceId: params.workspaceId,
+      });
+
+      if (!workspace) {
+        throw makeHttpError(404, "Workspace was not found.");
+      }
+
+      await identityRepository.recordWorkspaceAuditEvent({
+        action: "workspace.updated",
+        actorUserId: userId,
+        entityId: workspace.id,
+        entityType: "workspace",
+        metadataJson: { name: workspace.name },
+        workspaceId: workspace.id,
+      });
+
+      const context = requireActiveWorkspace(request, params.workspaceId);
+      const ledgers = await identityRepository.listLedgersForWorkspace(params.workspaceId);
+
+      return {
+        data: {
+          workspace: toWorkspaceResponse(
+            { ...workspace, role: context.activeWorkspace.role },
+            ledgers,
+          ),
+        },
+      };
+    },
+  );
+
+  app.get(
+    "/api/v1/workspaces/:workspaceId/ledgers",
+    {
+      schema: {
+        params: WorkspaceParamsSchema,
+        response: {
+          200: LedgerListResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request) => {
+      requireAuthenticatedUser(request);
+      const params = WorkspaceParamsSchema.parse(request.params);
+
+      requireActiveWorkspace(request, params.workspaceId);
+      requireAbility(request, "read", "Ledger");
+
+      const ledgers = await identityRepository.listLedgersForWorkspace(params.workspaceId);
+
+      return { data: { ledgers: ledgers.map(toLedgerResponse) } };
+    },
+  );
+
+  app.post(
+    "/api/v1/workspaces/:workspaceId/ledgers",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: CreateLedgerRequestSchema,
+        params: WorkspaceParamsSchema,
+        response: {
+          201: LedgerResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = requireAuthenticatedUser(request);
+      const params = WorkspaceParamsSchema.parse(request.params);
+      const input = CreateLedgerRequestSchema.parse(request.body);
+
+      requireWritableWorkspace(request, params.workspaceId);
+      requireAbility(request, "create", "Ledger");
+
+      try {
+        const ledger = await identityRepository.createLedger({
+          baseCurrencyCode: input.baseCurrencyCode,
+          ...(input.firstDayOfWeek !== undefined ? { firstDayOfWeek: input.firstDayOfWeek } : {}),
+          name: input.name,
+          workspaceId: params.workspaceId,
+        });
+
+        await identityRepository.recordWorkspaceAuditEvent({
+          action: "ledger.created",
+          actorUserId: userId,
+          entityId: ledger.id,
+          entityType: "ledger",
+          ledgerId: ledger.id,
+          metadataJson: { name: ledger.name },
+          workspaceId: params.workspaceId,
+        });
+
+        return reply.status(201).send({ data: { ledger: toLedgerResponse(ledger) } });
+      } catch (error) {
+        handleIdentityRepositoryError(error);
+      }
+    },
+  );
+
+  app.patch(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        body: UpdateLedgerRequestSchema,
+        params: LedgerParamsSchema,
+        response: {
+          200: LedgerResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request) => {
+      const userId = requireAuthenticatedUser(request);
+      const params = LedgerParamsSchema.parse(request.params);
+      const input = UpdateLedgerRequestSchema.parse(request.body);
+
+      requireWritableWorkspace(request, params.workspaceId);
+      requireAbility(request, "update", "Ledger");
+
+      try {
+        const ledger = await identityRepository.updateLedger({
+          ...(input.firstDayOfWeek !== undefined ? { firstDayOfWeek: input.firstDayOfWeek } : {}),
+          ledgerId: params.ledgerId,
+          name: input.name,
+          workspaceId: params.workspaceId,
+        });
+
+        if (!ledger) {
+          throw makeHttpError(404, "Ledger was not found.");
+        }
+
+        await identityRepository.recordWorkspaceAuditEvent({
+          action: "ledger.updated",
+          actorUserId: userId,
+          entityId: ledger.id,
+          entityType: "ledger",
+          ledgerId: ledger.id,
+          metadataJson: { name: ledger.name },
+          workspaceId: params.workspaceId,
+        });
+
+        return { data: { ledger: toLedgerResponse(ledger) } };
+      } catch (error) {
+        handleIdentityRepositoryError(error);
+      }
+    },
+  );
+
+  app.delete(
+    "/api/v1/workspaces/:workspaceId/ledgers/:ledgerId",
+    {
+      onRequest: app.csrfProtection,
+      schema: {
+        params: LedgerParamsSchema,
+        response: {
+          200: LedgerResponseSchema,
+          ...ErrorResponseSchemas,
+        },
+      },
+    },
+    async (request) => {
+      const userId = requireAuthenticatedUser(request);
+      const params = LedgerParamsSchema.parse(request.params);
+
+      requireWritableWorkspace(request, params.workspaceId);
+      requireAbility(request, "archive", "Ledger");
+
+      try {
+        const ledger = await identityRepository.archiveLedger({
+          ledgerId: params.ledgerId,
+          workspaceId: params.workspaceId,
+        });
+
+        if (!ledger) {
+          throw makeHttpError(404, "Ledger was not found.");
+        }
+
+        await identityRepository.recordWorkspaceAuditEvent({
+          action: "ledger.archived",
+          actorUserId: userId,
+          entityId: ledger.id,
+          entityType: "ledger",
+          ledgerId: ledger.id,
+          metadataJson: { name: ledger.name },
+          workspaceId: params.workspaceId,
+        });
+
+        return { data: { ledger: toLedgerResponse(ledger) } };
+      } catch (error) {
+        handleIdentityRepositoryError(error);
+      }
+    },
+  );
 
   app.post(
     "/api/v1/workspaces/:workspaceId/invitations",
@@ -425,4 +724,20 @@ export async function registerAuthWorkspaceRoutes(
       return reply.status(204).send();
     },
   );
+}
+
+function handleIdentityRepositoryError(error: unknown): never {
+  if (error instanceof IdentityRepositoryError) {
+    if (error.code === "DUPLICATE_LEDGER_NAME") {
+      throw makeHttpError(409, "Ledger name is already used in this workspace.");
+    }
+    if (error.code === "LAST_ACTIVE_LEDGER") {
+      throw makeHttpError(409, "A workspace must keep at least one active ledger.");
+    }
+    if (error.code === "LAST_ACTIVE_WORKSPACE") {
+      throw makeHttpError(409, "Your account must keep at least one active workspace.");
+    }
+  }
+
+  throw error;
 }

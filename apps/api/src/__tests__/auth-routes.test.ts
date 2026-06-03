@@ -3,13 +3,17 @@ import { createUuidV7, type SyncedId } from "@fastifly/common";
 import type {
   AcceptWorkspaceInvitationInput,
   ApiKeyRecord,
+  ArchiveLedgerInput,
+  ArchiveWorkspaceInput,
   BootstrapDefaultWorkspaceInput,
   BootstrapDefaultWorkspaceResult,
   CreateApiKeyInput,
+  CreateLedgerInput,
   CreatePasskeyChallengeInput,
   CreatePasskeyInput,
   CreateSessionInput,
   CreateUserInput,
+  CreateWorkspaceInput,
   CreateWorkspaceInvitationInput,
   DeclineWorkspaceInvitationInput,
   DeletePasskeyInput,
@@ -28,17 +32,20 @@ import type {
   RevokeApiKeyInput,
   RevokeWorkspaceInvitationInput,
   SessionRecord,
+  UpdateLedgerInput,
   UpdatePasskeyAfterLoginInput,
   UpdateUserPasswordHashInput,
+  UpdateWorkspaceInput,
   UpdateWorkspaceMemberRoleInput,
   UserRecord,
   UserWorkspaceContextRecord,
   WorkspaceInvitationRecord,
+  WorkspaceListItemRecord,
   WorkspaceMemberRecord,
   WorkspaceMemberWithUserRecord,
   WorkspaceRecord,
 } from "@fastifly/db";
-import { normalizeInviteeIdentifier } from "@fastifly/db";
+import { IdentityRepositoryError, normalizeInviteeIdentifier } from "@fastifly/db";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApiApp } from "../app.js";
@@ -127,6 +134,168 @@ class FakeIdentityRepository implements IdentityRepository {
 
   async findWorkspaceById(id: SyncedId): Promise<WorkspaceRecord | null> {
     return this.workspaces.get(id) ?? null;
+  }
+
+  async findLedgerById(workspaceId: SyncedId, ledgerId: SyncedId): Promise<LedgerRecord | null> {
+    const ledger = this.ledgers.get(ledgerId);
+    return ledger?.workspaceId === workspaceId ? ledger : null;
+  }
+
+  async listWorkspacesForUser(userId: SyncedId): Promise<readonly WorkspaceListItemRecord[]> {
+    const memberships = Array.from(this.members.values()).filter(
+      (member) => member.userId === userId && member.removedAt === null,
+    );
+
+    return memberships.flatMap((membership) => {
+      const workspace = this.workspaces.get(membership.workspaceId);
+      if (!workspace || workspace.archivedAt !== null) {
+        return [];
+      }
+      const ledgers = Array.from(this.ledgers.values()).filter(
+        (ledger) => ledger.workspaceId === workspace.id && ledger.archivedAt === null,
+      );
+      return [{ ...workspace, ledgers, role: membership.role }];
+    });
+  }
+
+  async createWorkspace(input: CreateWorkspaceInput): Promise<BootstrapDefaultWorkspaceResult> {
+    return this.bootstrapDefaultWorkspace({
+      baseCurrencyCode: input.baseCurrencyCode,
+      ...(input.firstDayOfWeek !== undefined ? { firstDayOfWeek: input.firstDayOfWeek } : {}),
+      ledgerName: input.ledgerName,
+      userId: input.userId,
+      workspaceName: input.name,
+    });
+  }
+
+  async updateWorkspace(input: UpdateWorkspaceInput): Promise<WorkspaceRecord | null> {
+    const workspace = this.workspaces.get(input.workspaceId);
+    if (!workspace || workspace.archivedAt !== null) {
+      return null;
+    }
+    const updated: WorkspaceRecord = {
+      ...workspace,
+      name: input.name,
+      updatedAt: "2026-05-09T00:00:00.000Z",
+    };
+    this.workspaces.set(updated.id, updated);
+    return updated;
+  }
+
+  async archiveWorkspace(input: ArchiveWorkspaceInput): Promise<WorkspaceRecord | null> {
+    const workspace = this.workspaces.get(input.workspaceId);
+    if (!workspace || workspace.archivedAt !== null) {
+      return null;
+    }
+    const activeOwnerWorkspaces = Array.from(this.workspaces.values()).filter(
+      (candidate) =>
+        candidate.ownerUserId === workspace.ownerUserId &&
+        candidate.archivedAt === null &&
+        candidate.status === "active",
+    );
+    if (workspace.status === "active" && activeOwnerWorkspaces.length <= 1) {
+      throw new IdentityRepositoryError(
+        "LAST_ACTIVE_WORKSPACE",
+        "An account must keep at least one active workspace.",
+      );
+    }
+    const updated: WorkspaceRecord = {
+      ...workspace,
+      archivedAt: "2026-05-09T00:00:00.000Z",
+      status: "archived",
+      updatedAt: "2026-05-09T00:00:00.000Z",
+    };
+    this.workspaces.set(updated.id, updated);
+    return updated;
+  }
+
+  async listLedgersForWorkspace(
+    workspaceId: SyncedId,
+    includeArchived = false,
+  ): Promise<readonly LedgerRecord[]> {
+    return Array.from(this.ledgers.values()).filter(
+      (ledger) =>
+        ledger.workspaceId === workspaceId && (includeArchived || ledger.archivedAt === null),
+    );
+  }
+
+  async createLedger(input: CreateLedgerInput): Promise<LedgerRecord> {
+    const normalizedName = input.name.trim();
+    const duplicate = Array.from(this.ledgers.values()).some(
+      (ledger) =>
+        ledger.workspaceId === input.workspaceId &&
+        ledger.archivedAt === null &&
+        ledger.name.toLocaleLowerCase("en-US") === normalizedName.toLocaleLowerCase("en-US"),
+    );
+    if (duplicate) {
+      throw new IdentityRepositoryError("DUPLICATE_LEDGER_NAME", "Ledger name is already used");
+    }
+    const ledger: LedgerRecord = {
+      archivedAt: null,
+      baseCurrencyCode: input.baseCurrencyCode,
+      createdAt: "2026-05-09T00:00:00.000Z",
+      firstDayOfWeek: input.firstDayOfWeek ?? 1,
+      id: this.#createId(),
+      name: normalizedName,
+      status: "active",
+      updatedAt: "2026-05-09T00:00:00.000Z",
+      workspaceId: input.workspaceId,
+    };
+    this.ledgers.set(ledger.id, ledger);
+    return ledger;
+  }
+
+  async updateLedger(input: UpdateLedgerInput): Promise<LedgerRecord | null> {
+    const ledger = this.ledgers.get(input.ledgerId);
+    if (!ledger || ledger.workspaceId !== input.workspaceId || ledger.archivedAt !== null) {
+      return null;
+    }
+    const normalizedName = input.name.trim();
+    const duplicate = Array.from(this.ledgers.values()).some(
+      (candidate) =>
+        candidate.id !== input.ledgerId &&
+        candidate.workspaceId === input.workspaceId &&
+        candidate.archivedAt === null &&
+        candidate.name.toLocaleLowerCase("en-US") === normalizedName.toLocaleLowerCase("en-US"),
+    );
+    if (duplicate) {
+      throw new IdentityRepositoryError("DUPLICATE_LEDGER_NAME", "Ledger name is already used");
+    }
+    const updated: LedgerRecord = {
+      ...ledger,
+      firstDayOfWeek: input.firstDayOfWeek ?? ledger.firstDayOfWeek,
+      name: normalizedName,
+      updatedAt: "2026-05-09T00:00:00.000Z",
+    };
+    this.ledgers.set(updated.id, updated);
+    return updated;
+  }
+
+  async archiveLedger(input: ArchiveLedgerInput): Promise<LedgerRecord | null> {
+    const ledger = this.ledgers.get(input.ledgerId);
+    if (!ledger || ledger.workspaceId !== input.workspaceId || ledger.archivedAt !== null) {
+      return null;
+    }
+    const activeLedgers = Array.from(this.ledgers.values()).filter(
+      (candidate) =>
+        candidate.workspaceId === input.workspaceId &&
+        candidate.archivedAt === null &&
+        candidate.status === "active",
+    );
+    if (ledger.status === "active" && activeLedgers.length <= 1) {
+      throw new IdentityRepositoryError(
+        "LAST_ACTIVE_LEDGER",
+        "A workspace must keep at least one active ledger.",
+      );
+    }
+    const updated: LedgerRecord = {
+      ...ledger,
+      archivedAt: "2026-05-09T00:00:00.000Z",
+      status: "archived",
+      updatedAt: "2026-05-09T00:00:00.000Z",
+    };
+    this.ledgers.set(updated.id, updated);
+    return updated;
   }
 
   async createSession(input: CreateSessionInput): Promise<SessionRecord> {
@@ -241,6 +410,7 @@ class FakeIdentityRepository implements IdentityRepository {
   async findDefaultWorkspaceContextForUser(
     userId: SyncedId,
     preferredWorkspaceId?: SyncedId,
+    preferredLedgerId?: SyncedId,
   ): Promise<UserWorkspaceContextRecord | null> {
     const memberships = Array.from(this.members.values()).filter(
       (member) => member.userId === userId && member.removedAt === null,
@@ -264,14 +434,14 @@ class FakeIdentityRepository implements IdentityRepository {
     const ledger =
       Array.from(this.ledgers.values()).find(
         (candidate) =>
-          candidate.workspaceId === membership.workspaceId && candidate.archivedAt === null,
+          candidate.workspaceId === membership.workspaceId &&
+          (!preferredLedgerId || candidate.id === preferredLedgerId) &&
+          candidate.archivedAt === null,
       ) ??
-      Array.from(this.contexts.values())
-        .map((context) => context.activeLedger)
-        .find(
-          (candidate) =>
-            candidate.workspaceId === membership.workspaceId && candidate.archivedAt === null,
-        );
+      Array.from(this.ledgers.values()).find(
+        (candidate) =>
+          candidate.workspaceId === membership.workspaceId && candidate.archivedAt === null,
+      );
 
     if (!ledger) {
       return null;
@@ -937,6 +1107,169 @@ describe("auth routes", () => {
         },
       },
     });
+  });
+
+  it("creates, selects, updates, and archives ledgers through workspace routes", async () => {
+    const { app } = await makeApp();
+    const register = await injectWithCsrf(app, {
+      method: "POST",
+      payload: {
+        password: "correct horse battery staple",
+        username: "Owner",
+      },
+      url: "/api/v1/auth/register",
+    });
+    const cookie = getCookiePair(register);
+    const context = await app.inject({
+      headers: { cookie },
+      method: "GET",
+      url: "/api/v1/me/context",
+    });
+    const workspaceId = context.json().data.activeWorkspace.id;
+    const primaryLedgerId = context.json().data.activeLedger.id;
+
+    const create = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "POST",
+      payload: {
+        baseCurrencyCode: "INR",
+        firstDayOfWeek: 0,
+        name: "Actual import",
+      },
+      url: `/api/v1/workspaces/${workspaceId}/ledgers`,
+    });
+    expect(create.statusCode).toBe(201);
+    const createdLedger = create.json().data.ledger;
+    expect(createdLedger).toMatchObject({
+      baseCurrencyCode: "INR",
+      firstDayOfWeek: 0,
+      name: "Actual import",
+      workspaceId,
+    });
+
+    const selectedContext = await app.inject({
+      headers: {
+        cookie,
+        "x-fastifly-ledger-id": createdLedger.id,
+        "x-fastifly-workspace-id": workspaceId,
+      },
+      method: "GET",
+      url: "/api/v1/me/context",
+    });
+    expect(selectedContext.statusCode).toBe(200);
+    expect(selectedContext.json()).toMatchObject({
+      data: {
+        activeLedger: {
+          id: createdLedger.id,
+          name: "Actual import",
+        },
+        workspaces: [
+          {
+            id: workspaceId,
+            ledgers: [{ name: "Main ledger" }, { name: "Actual import" }],
+          },
+        ],
+      },
+    });
+
+    const duplicate = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "POST",
+      payload: {
+        baseCurrencyCode: "INR",
+        name: "actual import",
+      },
+      url: `/api/v1/workspaces/${workspaceId}/ledgers`,
+    });
+    expect(duplicate.statusCode).toBe(409);
+
+    const createSecondWorkspace = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "POST",
+      payload: {
+        baseCurrencyCode: "USD",
+        ledgerName: "Second workspace ledger",
+        name: "Second workspace",
+      },
+      url: "/api/v1/workspaces",
+    });
+    expect(createSecondWorkspace.statusCode).toBe(201);
+    const secondWorkspace = createSecondWorkspace.json().data.workspace;
+    const secondLedger = secondWorkspace.ledgers[0];
+
+    const routeParamWinsOverStaleHeader = await app.inject({
+      headers: {
+        cookie,
+        "x-fastifly-workspace-id": secondWorkspace.id,
+      },
+      method: "GET",
+      url: `/api/v1/workspaces/${workspaceId}/ledgers`,
+    });
+    expect(routeParamWinsOverStaleHeader.statusCode).toBe(200);
+    expect(
+      routeParamWinsOverStaleHeader
+        .json()
+        .data.ledgers.every(
+          (ledger: { workspaceId: string }) => ledger.workspaceId === workspaceId,
+        ),
+    ).toBe(true);
+
+    const mismatchedRouteLedger = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "PATCH",
+      payload: {
+        name: "Should not update",
+      },
+      url: `/api/v1/workspaces/${workspaceId}/ledgers/${secondLedger.id}`,
+    });
+    expect(mismatchedRouteLedger.statusCode).toBe(404);
+
+    const update = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "PATCH",
+      payload: {
+        firstDayOfWeek: 2,
+        name: "Imported budget",
+      },
+      url: `/api/v1/workspaces/${workspaceId}/ledgers/${createdLedger.id}`,
+    });
+    expect(update.statusCode).toBe(200);
+    expect(update.json().data.ledger).toMatchObject({
+      firstDayOfWeek: 2,
+      name: "Imported budget",
+    });
+
+    const renameOnly = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "PATCH",
+      payload: {
+        name: "Renamed budget",
+      },
+      url: `/api/v1/workspaces/${workspaceId}/ledgers/${createdLedger.id}`,
+    });
+    expect(renameOnly.statusCode).toBe(200);
+    expect(renameOnly.json().data.ledger).toMatchObject({
+      firstDayOfWeek: 2,
+      name: "Renamed budget",
+    });
+
+    const archive = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "DELETE",
+      url: `/api/v1/workspaces/${workspaceId}/ledgers/${createdLedger.id}`,
+    });
+    expect(archive.statusCode).toBe(200);
+    expect(archive.json().data.ledger).toMatchObject({
+      archivedAt: "2026-05-09T00:00:00.000Z",
+      status: "archived",
+    });
+
+    const archiveLastActiveLedger = await injectWithCsrf(app, {
+      headers: { cookie },
+      method: "DELETE",
+      url: `/api/v1/workspaces/${workspaceId}/ledgers/${primaryLedgerId}`,
+    });
+    expect(archiveLastActiveLedger.statusCode).toBe(409);
   });
 
   it("changes password, revokes active sessions, and requires the new password", async () => {

@@ -131,6 +131,10 @@ export type UpdateImportJobUndoneInput = LedgerScope & {
   readonly importJobId: SyncedId;
 };
 
+export type UpdateImportJobFailedInput = LedgerScope & {
+  readonly importJobId: SyncedId;
+};
+
 export type CreateRuleInput = LedgerScope & {
   readonly action: RuleAction;
   readonly condition: RuleCondition;
@@ -201,6 +205,9 @@ export type WorkflowRepository = {
   ) => Promise<ImportJobRecord | null>;
   readonly markImportJobUndone: (
     input: UpdateImportJobUndoneInput,
+  ) => Promise<ImportJobRecord | null>;
+  readonly markImportJobFailed: (
+    input: UpdateImportJobFailedInput,
   ) => Promise<ImportJobRecord | null>;
   readonly markRecurringTemplateGenerated: (
     input: LedgerScope & { readonly recurringTemplateId: SyncedId; readonly nextRunAt: string },
@@ -407,6 +414,24 @@ export function createSqliteWorkflowRepository(
           `,
         )
         .run(now, now, scope.workspaceId, scope.ledgerId, input.importJobId);
+      return this.findImportJob({ ...scope, importJobId: input.importJobId });
+    },
+
+    async markImportJobFailed(input) {
+      const scope = assertLedgerScope(input);
+      const now = makeTimestamp(resolved.clock);
+      client
+        .prepare(
+          `
+            UPDATE import_jobs
+            SET status = 'failed',
+                updated_at = ?
+            WHERE workspace_id = ?
+              AND ledger_id = ?
+              AND id = ?
+          `,
+        )
+        .run(now, scope.workspaceId, scope.ledgerId, input.importJobId);
       return this.findImportJob({ ...scope, importJobId: input.importJobId });
     },
 
@@ -848,6 +873,25 @@ export function createPostgresWorkflowRepository(
         .set({
           status: "undone",
           undoneAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(pgImportJobs.workspaceId, scope.workspaceId),
+            eq(pgImportJobs.ledgerId, scope.ledgerId),
+            eq(pgImportJobs.id, input.importJobId),
+          ),
+        );
+      return this.findImportJob({ ...scope, importJobId: input.importJobId });
+    },
+
+    async markImportJobFailed(input) {
+      const scope = assertLedgerScope(input);
+      const now = resolved.clock.now();
+      await db
+        .update(pgImportJobs)
+        .set({
+          status: "failed",
           updatedAt: now,
         })
         .where(

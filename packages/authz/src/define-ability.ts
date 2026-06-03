@@ -75,9 +75,10 @@ function defineEditorPermissions(builder: FastiflyAbilityBuilder): void {
 function defineAdminPermissions(builder: FastiflyAbilityBuilder): void {
   defineEditorPermissions(builder);
   allow(builder, "read", ADMIN_SUBJECTS);
-  allow(builder, "create", ["WorkspaceInvitation", "Device"]);
+  allow(builder, "create", ["Ledger", "WorkspaceInvitation", "Device"]);
   allow(builder, "update", ADMIN_SUBJECTS);
   allow(builder, "delete", ["WorkspaceInvitation", "WorkspaceMember", "Device"]);
+  allow(builder, "archive", ["Ledger"]);
   allow(builder, "invite", ["WorkspaceInvitation"]);
   allow(builder, "revoke", ["WorkspaceInvitation", "Session", "Device"]);
   allow(builder, "export", ["Account", "Budget", "TransactionGroup", "Report"]);

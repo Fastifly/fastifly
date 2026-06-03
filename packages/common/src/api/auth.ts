@@ -70,6 +70,86 @@ export const PasskeyOptionsResponseSchema = z.strictObject({
   }),
 });
 
+export const WorkspaceLifecycleStatusSchema = z.enum([
+  "active",
+  "read_only",
+  "maintenance",
+  "archived",
+  "restore_preview",
+  "pending_restore",
+  "broken",
+]);
+
+export const WorkspaceRoleSchema = z.enum(["owner", "admin", "editor", "viewer"]);
+
+export const LedgerSummarySchema = z.strictObject({
+  archivedAt: z.string().nullable(),
+  baseCurrencyCode: CurrencyCodeSchema,
+  createdAt: z.string().min(1),
+  firstDayOfWeek: z.number().int().min(0).max(6),
+  id: SyncedIdSchema,
+  name: z.string().min(1),
+  status: WorkspaceLifecycleStatusSchema,
+  updatedAt: z.string().min(1),
+  workspaceId: SyncedIdSchema,
+});
+
+export const WorkspaceSummarySchema = z.strictObject({
+  archivedAt: z.string().nullable(),
+  createdAt: z.string().min(1),
+  id: SyncedIdSchema,
+  ledgers: z.array(LedgerSummarySchema),
+  name: z.string().min(1),
+  role: WorkspaceRoleSchema,
+  status: WorkspaceLifecycleStatusSchema,
+  updatedAt: z.string().min(1),
+});
+
+export const WorkspaceListResponseSchema = z.strictObject({
+  data: z.strictObject({
+    workspaces: z.array(WorkspaceSummarySchema),
+  }),
+});
+
+export const WorkspaceResponseSchema = z.strictObject({
+  data: z.strictObject({
+    workspace: WorkspaceSummarySchema,
+  }),
+});
+
+export const LedgerListResponseSchema = z.strictObject({
+  data: z.strictObject({
+    ledgers: z.array(LedgerSummarySchema),
+  }),
+});
+
+export const LedgerResponseSchema = z.strictObject({
+  data: z.strictObject({
+    ledger: LedgerSummarySchema,
+  }),
+});
+
+export const CreateWorkspaceRequestSchema = z.strictObject({
+  baseCurrencyCode: CurrencyCodeSchema,
+  ledgerName: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(120),
+});
+
+export const UpdateWorkspaceRequestSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const CreateLedgerRequestSchema = z.strictObject({
+  baseCurrencyCode: CurrencyCodeSchema,
+  firstDayOfWeek: z.number().int().min(0).max(6).optional(),
+  name: z.string().trim().min(1).max(120),
+});
+
+export const UpdateLedgerRequestSchema = z.strictObject({
+  firstDayOfWeek: z.number().int().min(0).max(6).optional(),
+  name: z.string().trim().min(1).max(120),
+});
+
 export const StartPasskeyRegistrationRequestSchema = z.strictObject({
   currentPassword: z.string().min(1).max(MAX_PASSWORD_LENGTH),
 });
@@ -95,14 +175,18 @@ export const MeContextResponseSchema = z.strictObject({
   data: z.strictObject({
     activeLedger: z.strictObject({
       baseCurrencyCode: CurrencyCodeSchema,
+      firstDayOfWeek: z.number().int().min(0).max(6),
       id: SyncedIdSchema,
       name: z.string().min(1),
+      status: WorkspaceLifecycleStatusSchema,
     }),
     activeWorkspace: z.strictObject({
       id: SyncedIdSchema,
       name: z.string().min(1),
-      role: z.enum(["owner", "admin", "editor", "viewer"]),
+      role: WorkspaceRoleSchema,
+      status: WorkspaceLifecycleStatusSchema,
     }),
+    workspaces: z.array(WorkspaceSummarySchema),
     user: AuthUserSchema,
   }),
 });
@@ -139,6 +223,8 @@ export type ApiKey = z.infer<typeof ApiKeySchema>;
 export type ApiKeyListResponse = z.infer<typeof ApiKeyListResponseSchema>;
 export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequestSchema>;
+export type CreateLedgerRequest = z.infer<typeof CreateLedgerRequestSchema>;
+export type CreateWorkspaceRequest = z.infer<typeof CreateWorkspaceRequestSchema>;
 export type CreatedApiKeyResponse = z.infer<typeof CreatedApiKeyResponseSchema>;
 export type CsrfTokenResponse = z.infer<typeof CsrfTokenResponseSchema>;
 export type FinishPasskeyLoginRequest = z.infer<typeof FinishPasskeyLoginRequestSchema>;
@@ -147,6 +233,9 @@ export type FinishPasskeyRegistrationRequest = z.infer<
 >;
 export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>;
 export type MeContextResponse = z.infer<typeof MeContextResponseSchema>;
+export type LedgerListResponse = z.infer<typeof LedgerListResponseSchema>;
+export type LedgerResponse = z.infer<typeof LedgerResponseSchema>;
+export type LedgerSummary = z.infer<typeof LedgerSummarySchema>;
 export type Passkey = z.infer<typeof PasskeySchema>;
 export type PasskeyListResponse = z.infer<typeof PasskeyListResponseSchema>;
 export type PasskeyOptionsResponse = z.infer<typeof PasskeyOptionsResponseSchema>;
@@ -155,3 +244,9 @@ export type RenamePasskeyRequest = z.infer<typeof RenamePasskeyRequestSchema>;
 export type RegisterCredentials = z.infer<typeof RegisterCredentialsSchema>;
 export type StartPasskeyLoginRequest = z.infer<typeof StartPasskeyLoginRequestSchema>;
 export type StartPasskeyRegistrationRequest = z.infer<typeof StartPasskeyRegistrationRequestSchema>;
+export type UpdateLedgerRequest = z.infer<typeof UpdateLedgerRequestSchema>;
+export type UpdateWorkspaceRequest = z.infer<typeof UpdateWorkspaceRequestSchema>;
+export type WorkspaceListResponse = z.infer<typeof WorkspaceListResponseSchema>;
+export type WorkspaceResponse = z.infer<typeof WorkspaceResponseSchema>;
+export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
+export type WorkspaceSummary = z.infer<typeof WorkspaceSummarySchema>;

@@ -1,6 +1,15 @@
+import type { WorkspaceSummary } from "@fastifly/common";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@ui/button";
-import { CheckCircle2, ChevronRight, Laptop, Moon, Sun, XCircle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui/select";
+import { BookOpen, CheckCircle2, ChevronRight, Laptop, Moon, Sun, XCircle } from "lucide-react";
 import { en } from "../../i18n/en";
 import { testIds } from "../../testing/testid-registry";
 import { FastiflyIcon } from "../fastifly-icon";
@@ -9,18 +18,39 @@ import { StatusCapsule } from "./primitives";
 import { formatThemeLabel, type Theme } from "./utils";
 
 export function TopBar({
+  activeLedgerId,
+  activeWorkspaceId,
   currentNavigationItem,
   isOnline,
+  onLedgerSelectionChange,
   onToggleTheme,
   theme,
+  workspaces,
 }: {
+  readonly activeLedgerId: string;
+  readonly activeWorkspaceId: string;
   readonly currentNavigationItem: NavigationItem;
   readonly isOnline: boolean;
+  readonly onLedgerSelectionChange: (selection: {
+    readonly ledgerId: string;
+    readonly workspaceId: string;
+  }) => void;
   readonly onToggleTheme: () => void;
   readonly theme: Theme;
+  readonly workspaces: readonly WorkspaceSummary[];
 }) {
   const isDashboard = currentNavigationItem.slug === "dashboard";
   const currentLabel = isDashboard ? en.nav.dashboardShort : currentNavigationItem.label;
+  const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  const activeLedger = activeWorkspace?.ledgers.find((ledger) => ledger.id === activeLedgerId);
+  const ledgerOptions = workspaces.flatMap((workspace) =>
+    workspace.ledgers.map((ledger) => ({
+      ledger,
+      value: `${workspace.id}:${ledger.id}`,
+      workspace,
+    })),
+  );
+  const selectedValue = `${activeWorkspaceId}:${activeLedgerId}`;
 
   return (
     <header
@@ -91,6 +121,44 @@ export function TopBar({
             )}
           </nav>
         </div>
+      </div>
+      <div className="hidden min-w-[18rem] max-w-[28rem] shrink items-center gap-2 md:flex">
+        <Select
+          value={selectedValue}
+          onValueChange={(value) => {
+            const option = ledgerOptions.find((item) => item.value === value);
+            if (option) {
+              onLedgerSelectionChange({
+                ledgerId: option.ledger.id,
+                workspaceId: option.workspace.id,
+              });
+            }
+          }}
+        >
+          <SelectTrigger
+            aria-label={en.shell.switchLedger}
+            className="h-9 min-w-0 rounded-lg border-border bg-background"
+            data-testid={testIds.shell.ledgerSwitcher}
+          >
+            <BookOpen aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <SelectValue
+              placeholder={
+                activeWorkspace && activeLedger
+                  ? `${activeWorkspace.name} / ${activeLedger.name}`
+                  : en.shell.switchLedger
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {ledgerOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.workspace.name} / {option.ledger.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       <div
         className="hidden min-w-0 flex-wrap justify-end gap-2 md:flex"

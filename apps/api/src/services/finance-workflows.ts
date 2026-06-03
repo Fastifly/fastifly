@@ -1,4 +1,5 @@
 import {
+  ACTUAL_IMPORT_MAX_ARCHIVE_BYTES,
   type ActualBudgetExport,
   type ActualImportPlan,
   buildActualImportPlan,
@@ -198,6 +199,7 @@ export class FinanceWorkflowServiceError extends Error {
       | "INVALID_RECURRING_TEMPLATE"
       | "RECURRING_TEMPLATE_NOT_FOUND"
       | "RULE_NOT_FOUND",
+    readonly details: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "FinanceWorkflowServiceError";
@@ -286,6 +288,24 @@ export function createFinanceWorkflowService(
       }
 
       if (importJob.kind === "actual_budget") {
+        if (!importJob.plan) {
+          throw new FinanceWorkflowServiceError(
+            "Import job has no Actual Budget plan to commit.",
+            "IMPORT_JOB_INVALID_STATE",
+          );
+        }
+        try {
+          await assertActualImportHasNoNameConflicts(options, input.scope, importJob.plan);
+        } catch (error) {
+          if (error instanceof FinanceWorkflowServiceError) {
+            await options.workflowRepository.markImportJobFailed({
+              importJobId: input.importJobId,
+              ledgerId: input.scope.ledgerId,
+              workspaceId: input.scope.workspaceId,
+            });
+          }
+          throw error;
+        }
         const actualCommittedGroupIds = await commitActualImportPlan(options, {
           actorUserId: input.actorUserId,
           applyRules: input.applyRules,
@@ -391,6 +411,7 @@ export function createFinanceWorkflowService(
         targetCurrencyCode: currency.code,
         targetCurrencyMinorUnits: currency.decimalPlaces,
       });
+      await assertActualImportHasNoNameConflicts(options, input.scope, plan);
 
       return await options.workflowRepository.createImportJob({
         createdBy: input.actorUserId,
@@ -1164,8 +1185,176 @@ async function commitActualImportPlan(
   return committedGroupIds;
 }
 
+async function assertActualImportHasNoNameConflicts(
+  options: FinanceWorkflowServiceOptions,
+  scope: WorkflowScope,
+  plan: ActualImportPlan,
+): Promise<void> {
+  const plannedAccountNames = [...plan.accounts, ...plan.incomeSources].map((row) => row.name);
+  const plannedCategoryNames = plan.expenseCategories.map((row) => row.name);
+  const duplicatePlannedAccounts = findDuplicateNames(plannedAccountNames);
+  const duplicatePlannedCategories = findDuplicateNames(plannedCategoryNames);
+  if (duplicatePlannedAccounts.length > 0 || duplicatePlannedCategories.length > 0) {
+    throw new FinanceWorkflowServiceError(
+      formatActualImportNameConflictMessage({
+        accountNames: duplicatePlannedAccounts,
+        categoryNames: duplicatePlannedCategories,
+        source: "within this Actual Budget export",
+      }),
+      "IMPORT_JOB_INVALID_STATE",
+      makeActualImportNameConflictDetails({
+        accountNames: duplicatePlannedAccounts,
+        categoryNames: duplicatePlannedCategories,
+        source: "actual_export",
+      }),
+    );
+  }
+
+  const [existingAccountNames, existingCategoryNames] = await Promise.all([
+    listAllAccountNames(options.accountRepository, scope),
+    options.categoryRepository
+      ? listAllCategoryNames(options.categoryRepository, scope)
+      : Promise.resolve(new Set<string>()),
+  ]);
+  const conflictingAccountNames = intersectNames(plannedAccountNames, existingAccountNames);
+  const conflictingCategoryNames = intersectNames(plannedCategoryNames, existingCategoryNames);
+  if (conflictingAccountNames.length === 0 && conflictingCategoryNames.length === 0) {
+    return;
+  }
+
+  throw new FinanceWorkflowServiceError(
+    formatActualImportNameConflictMessage({
+      accountNames: conflictingAccountNames,
+      categoryNames: conflictingCategoryNames,
+      source: "already exist in this ledger",
+    }),
+    "IMPORT_JOB_INVALID_STATE",
+    makeActualImportNameConflictDetails({
+      accountNames: conflictingAccountNames,
+      categoryNames: conflictingCategoryNames,
+      source: "ledger",
+    }),
+  );
+}
+
+function makeActualImportNameConflictDetails(input: {
+  readonly accountNames: readonly string[];
+  readonly categoryNames: readonly string[];
+  readonly source: "actual_export" | "ledger";
+}): Record<string, unknown> {
+  return {
+    accountNames: input.accountNames,
+    categoryNames: input.categoryNames,
+    kind: "actual_import_name_conflict",
+    source: input.source,
+  };
+}
+
+async function listAllAccountNames(
+  repository: AccountRepository,
+  scope: WorkflowScope,
+): Promise<Set<string>> {
+  const names = new Set<string>();
+  let cursor: string | null = null;
+  do {
+    const page = await repository.listAccounts({
+      cursor,
+      includeArchived: true,
+      ledgerId: scope.ledgerId,
+      limit: 100,
+      workspaceId: scope.workspaceId,
+    });
+    for (const account of page.items) {
+      names.add(account.name);
+    }
+    cursor = page.nextCursor;
+  } while (cursor);
+  return names;
+}
+
+async function listAllCategoryNames(
+  repository: CategoryRepository,
+  scope: WorkflowScope,
+): Promise<Set<string>> {
+  const names = new Set<string>();
+  let cursor: string | null = null;
+  do {
+    const page = await repository.listCategories({
+      cursor,
+      includeArchived: true,
+      ledgerId: scope.ledgerId,
+      limit: 100,
+      workspaceId: scope.workspaceId,
+    });
+    for (const category of page.items) {
+      if (category.parentId === null) {
+        names.add(category.name);
+      }
+    }
+    cursor = page.nextCursor;
+  } while (cursor);
+  return names;
+}
+
+function findDuplicateNames(names: readonly string[]): readonly string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const name of names) {
+    if (seen.has(name)) {
+      duplicates.add(name);
+      continue;
+    }
+    seen.add(name);
+  }
+  return [...duplicates].sort();
+}
+
+function intersectNames(
+  names: readonly string[],
+  existingNames: ReadonlySet<string>,
+): readonly string[] {
+  return [...new Set(names.filter((name) => existingNames.has(name)))].sort();
+}
+
+function formatActualImportNameConflictMessage(input: {
+  readonly accountNames: readonly string[];
+  readonly categoryNames: readonly string[];
+  readonly source: string;
+}): string {
+  const parts: string[] = [];
+  if (input.accountNames.length > 0) {
+    parts.push(`accounts ${formatNameList(input.accountNames)}`);
+  }
+  if (input.categoryNames.length > 0) {
+    parts.push(`categories ${formatNameList(input.categoryNames)}`);
+  }
+  if (input.source === "within this Actual Budget export") {
+    return `This Actual Budget import cannot continue because ${parts.join(" and ")} appear more than once within this Actual Budget export. Rename them in Actual Budget and export again.`;
+  }
+  return `This Actual Budget import cannot continue because ${parts.join(" and ")} ${input.source}. Rename the conflicting accounts/categories before importing.`;
+}
+
+function formatNameList(names: readonly string[]): string {
+  const visible = names.slice(0, 5).map((name) => `"${name}"`);
+  const remaining = names.length - visible.length;
+  return remaining > 0 ? `${visible.join(", ")} and ${remaining} more` : visible.join(", ");
+}
+
 function decodeBase64(value: string): Uint8Array {
-  return new Uint8Array(Buffer.from(value, "base64"));
+  const decoded = Buffer.from(value, "base64");
+  if (decoded.length === 0) {
+    throw new FinanceWorkflowServiceError(
+      "Actual Budget export is empty.",
+      "INVALID_ACTUAL_IMPORT",
+    );
+  }
+  if (decoded.length > ACTUAL_IMPORT_MAX_ARCHIVE_BYTES) {
+    throw new FinanceWorkflowServiceError(
+      "Actual Budget export is too large. Upload a ZIP export up to 32 MB.",
+      "INVALID_ACTUAL_IMPORT",
+    );
+  }
+  return new Uint8Array(decoded);
 }
 
 function parseImportCsv(csvText: string): readonly ImportPreviewRow[] {

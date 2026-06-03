@@ -641,6 +641,7 @@ Simple import flow:
 
 ```text
 upload CSV
+upload Actual Budget ZIP export
 choose profile
 preview
 commit
@@ -659,6 +660,10 @@ dry run
 undo import batch
 save import profile
 ```
+
+Actual Budget import cards must show the planned accounts, categories, income sources, transactions, transfers, skipped rows, and parser warnings; they must not present an empty CSV row count as the only preview signal.
+
+Actual Budget ledger name-conflict errors must show direct links to the accounts and/or categories pages when those resources are listed in API error details.
 
 Import commit must not be interrupted by PWA update prompt.
 

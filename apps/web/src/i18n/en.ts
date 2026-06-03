@@ -1,3 +1,7 @@
+function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export const en = {
   appName: "Fastifly",
   auth: {
@@ -201,6 +205,7 @@ export const en = {
     workspace: "Workspace",
     role: "Role",
     activeLedger: "Active ledger",
+    switchLedger: "Switch workspace or ledger",
     demoWorkspace: "Demo household",
     demoLedger: "Main ledger",
     syncMode: "Offline command sync",
@@ -308,6 +313,43 @@ export const en = {
     importingActual: "Importing...",
     actualReady: "Actual Budget import preview is ready.",
     actualFailed: "That file could not be imported. Use an Actual Budget export (.zip).",
+    actualUploadTitle: "Actual Budget",
+    actualUploadMeta: (size: string) => `ZIP export, up to ${size}`,
+    actualSelectedFile: (name: string, size: string) => `${name} (${size})`,
+    actualFileEmpty: "The selected file is empty.",
+    actualFileTooLarge: (size: string) => `Actual Budget exports must be ${size} or smaller.`,
+    actualFileType: "Use an Actual Budget ZIP export.",
+    actualReadFailed: "The file could not be read by the browser.",
+    actualSummaryLine: (values: {
+      readonly accounts: number;
+      readonly categories: number;
+      readonly incomeSources: number;
+      readonly transactions: number;
+      readonly transfers: number;
+    }) =>
+      [
+        countLabel(values.accounts, "account"),
+        countLabel(values.categories, "category", "categories"),
+        countLabel(values.incomeSources, "income source"),
+        countLabel(values.transactions, "transaction"),
+        countLabel(values.transfers, "transfer"),
+      ].join(", "),
+    actualImportPlan: "Actual import plan",
+    actualMetricAccounts: "Accounts",
+    actualMetricCategories: "Categories",
+    actualMetricIncome: "Income",
+    actualMetricTransactions: "Transactions",
+    actualMetricTransfers: "Transfers",
+    actualMetricSkipped: "Skipped",
+    actualWarnings: "Warnings",
+    actualWarningsMore: (count: number) => `${count} more warnings`,
+    statusPreviewReady: "Ready to commit",
+    statusCommitted: "Committed",
+    statusUndone: "Undone",
+    statusFailed: "Failed",
+    openConflictingAccounts: "Open accounts",
+    openConflictingCategories: "Open categories",
+    openWorkspaceLedgerSettings: "Create a ledger",
     commitUnavailable: "Commit is only available after preview is ready.",
     undoUnavailable: "Undo is only available after commit.",
     previewReady: "Import preview is ready.",
@@ -499,6 +541,31 @@ export const en = {
     appearanceBody: "Choose how Fastifly looks on this device.",
     workspaceTitle: "Workspace and ledger",
     workspaceBody: "These identifiers are useful for support, debugging, and audit logs.",
+    workspaceLedgerTitle: "Workspaces and ledgers",
+    workspaceLedgerBody: "Create separate books when imported account or category names conflict.",
+    addWorkspace: "Add workspace",
+    addWorkspaceBody: "Create a new workspace with its first ledger.",
+    addLedger: "Add ledger",
+    editLedger: "Edit ledger",
+    archiveLedger: "Archive ledger",
+    ledgerDialogBody:
+      "Ledger settings apply to all accounts, categories, and transactions inside this book.",
+    workspaceName: "Workspace name",
+    initialLedgerName: "Initial ledger name",
+    ledgerName: "Ledger name",
+    baseCurrency: "Base currency",
+    weekStartsOn: "Week starts on",
+    weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    ledgerCount: (count: number) => countLabel(count, "ledger"),
+    saveWorkspace: "Save workspace",
+    saveLedger: "Save ledger",
+    workspaceCreated: "Workspace created.",
+    ledgerSaved: "Ledger saved.",
+    ledgerArchived: "Ledger archived.",
+    ledgerSaveFailed: "Ledger could not be saved.",
+    keepOneLedger: "Keep at least one active ledger in each workspace.",
+    useLedger: "Use ledger",
+    active: "Active",
     workspaceId: "Workspace ID",
     ledgerId: "Ledger ID",
     copyWorkspaceId: "Copy workspace ID",

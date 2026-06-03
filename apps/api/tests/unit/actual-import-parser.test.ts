@@ -1,3 +1,4 @@
+import Database from "better-sqlite3";
 import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 
@@ -86,6 +87,28 @@ describe("parseActualBudgetExport", () => {
     expect(result.budgetName).toBe("X");
   });
 
+  it("reads exports packaged under a folder without losing metadata", () => {
+    const dbBytes = unzipSync(
+      buildActualBudgetZip({
+        accounts: [{ id: "acc-1", name: "Wallet" }],
+        budgetName: "Folder Export",
+        transactions: [{ acct: "acc-1", amount: -100, id: "txn-1" }],
+      }),
+    )["db.sqlite"];
+    if (!dbBytes) {
+      throw new Error("Expected db.sqlite in the built fixture.");
+    }
+
+    const repacked = zipSync({
+      "Actual Export/db.sqlite": dbBytes,
+      "Actual Export/metadata.json": new TextEncoder().encode('{"budgetName":"Folder Export"}'),
+    });
+    const result = parseActualBudgetExport(repacked);
+
+    expect(result.accounts).toHaveLength(1);
+    expect(result.budgetName).toBe("Folder Export");
+  });
+
   it("throws when the archive does not contain db.sqlite", () => {
     const zip = zipSync({ "metadata.json": new TextEncoder().encode("{}") });
     expect(() => parseActualBudgetExport(zip)).toThrow(ActualImportParseError);
@@ -100,5 +123,19 @@ describe("parseActualBudgetExport", () => {
   it("throws when db.sqlite is not a valid SQLite database", () => {
     const zip = zipSync({ "db.sqlite": new TextEncoder().encode("not a database") });
     expect(() => parseActualBudgetExport(zip)).toThrow(ActualImportParseError);
+  });
+
+  it("throws when db.sqlite is SQLite but not an Actual Budget database", () => {
+    const db = new Database(":memory:");
+    try {
+      db.exec("CREATE TABLE unrelated (id TEXT PRIMARY KEY)");
+      const zip = zipSync({ "db.sqlite": new Uint8Array(db.serialize()) });
+
+      expect(() => parseActualBudgetExport(zip)).toThrow(
+        "The SQLite database is not an Actual Budget export.",
+      );
+    } finally {
+      db.close();
+    }
   });
 });

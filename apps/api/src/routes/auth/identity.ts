@@ -19,6 +19,7 @@ import {
   makeHttpError,
   setSessionCookie,
   toAuthUser,
+  toWorkspaceResponse,
 } from "./definitions.js";
 
 export async function registerAuthIdentityRoutes(
@@ -241,19 +242,26 @@ export async function registerAuthIdentityRoutes(
       if (!workspaceContext) {
         throw makeHttpError(403, "No active workspace is available.");
       }
+      const workspaces = await identityRepository.listWorkspacesForUser(user.id);
 
       return {
         data: {
           activeLedger: {
             baseCurrencyCode: workspaceContext.activeLedger.baseCurrencyCode,
+            firstDayOfWeek: workspaceContext.activeLedger.firstDayOfWeek,
             id: workspaceContext.activeLedger.id,
             name: workspaceContext.activeLedger.name,
+            status: workspaceContext.activeLedger.status,
           },
           activeWorkspace: {
             id: workspaceContext.activeWorkspace.id,
             name: workspaceContext.activeWorkspace.name,
             role: workspaceContext.activeWorkspace.role,
+            status: workspaceContext.activeWorkspace.status,
           },
+          workspaces: workspaces.map((workspace) =>
+            toWorkspaceResponse(workspace, workspace.ledgers),
+          ),
           user: toAuthUser(user),
         },
       };
